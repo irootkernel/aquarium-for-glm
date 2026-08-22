@@ -122,6 +122,7 @@ if inspection.file?
   assert(script.include?('".agents/skills"'), "inspection must search the shared cross-agent skill root")
   assert(script.include?('".zcode/cli/config.json"'), "inspection must read the ZCode MCP registration")
   assert(script.include?('"host_integration"'), "inspection must report the host integration component")
+  assert(script.include?("zcode_mcp_registration"), "inspection must classify Mulgae and Gaori registrations from ZCode config")
 end
 
 # --- manifests agree with upstream -----------------------------------------

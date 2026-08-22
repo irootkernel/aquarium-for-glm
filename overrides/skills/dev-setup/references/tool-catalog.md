@@ -135,7 +135,7 @@ Propose these root-anchored Git ignore rules through an exact reviewed diff:
 
 Verify that only `.mulgae/config.yaml` is trackable and that `.mulgae/local.yaml` and all runtime state remain untracked and ignored. Propose `.mulgaeignore` entries from the repository's secrets, generated output, large artifacts, agent instructions, and non-reviewable paths. A `.mulgaeignore` intended as shared capture policy may be tracked only with explicit approval.
 
-Treat MCP as an optional, separately approved project-local component. For a trusted project, merge this machine-specific entry into the repository's `.zcode/config.json` under the `mcp.servers` object while preserving unrelated configuration:
+Treat MCP as an optional, separately approved user-global component. Merge this machine-specific entry into the `mcp.servers` object of `~/.zcode/cli/config.json` while preserving unrelated configuration:
 
 ```json
 {
@@ -144,17 +144,16 @@ Treat MCP as an optional, separately approved project-local component. For a tru
       "mulgae": {
         "type": "stdio",
         "command": "<absolute-selected-mulgae-path>",
-        "args": ["mcp", "--project-root", "<absolute-git-root>"],
-        "cwd": "<absolute-git-root>"
+        "args": ["mcp"]
       }
     }
   }
 }
 ```
 
-ZCode defines no per-server startup or tool timeout fields in `mcp.servers`; its host-level MCP deadlines apply and cannot be raised through configuration. When a Mulgae review may exceed the host deadline, the CLI fallback preflight remains the bounded completion path.
+Omit `--project-root` so one global server serves every repository; the flag remains valid when a single machine default should be pinned. ZCode defines no per-server startup or tool timeout fields in `mcp.servers`; its host-level MCP deadlines apply and cannot be raised through configuration. When a Mulgae review may exceed the host deadline, the CLI fallback preflight remains the bounded completion path.
 
-Show the complete diff and whether `.zcode/config.json` is tracked before approval, and never stage it during setup. There is no `zcode mcp` command, so verify the effective registration by reading the merged entry: it must be a stdio entry that resolves to the selected binary and binds its exact `mcp --project-root <canonical-root>` arguments and cwd to the canonical repository. Record the configuration evidence and live status separately; the `/mcp` command in a running session shows live connection status, and a server that has not connected yet is unverified, not a mismatch.
+Show the complete diff before approval; the user configuration file is machine state and is never staged or committed. There is no `zcode mcp` command, so verify the effective registration by reading the merged entry: it must be a stdio entry that resolves to the selected binary. A same-name entry in a project's `.zcode/config.json` overrides the global one for that project; do not create one as part of this setup. Record the configuration evidence and live status separately; the `/mcp` command in a running session shows live connection status, and a server that has not connected yet is unverified, not a mismatch.
 
 Tell the user to restart ZCode or start a new session: a server added mid-session only joins new sessions, and only then can it expose `preflight_review`, `start_review`, `await_review`, `cancel_review`, the foreground-compatible `run_review`, `list_runs`, `get_run`, `list_findings`, and verified report and finding resources. The v0.1.17 lifecycle starts exactly once and awaits the same process-local invocation without transferring observer cancellation to provider execution; use the foreground path atomically when any lifecycle tool is absent. The attached MCP surface remains versioned independently; CLI fallback preflight must identify `mulgae-review-preflight.v3`.
 
@@ -196,7 +195,7 @@ This keeps `.gaori/toolchain.yaml`, `.gaori/rule-proposals/`, `.gaori/runs/`, an
 
 Leave completed evidence and proposal reconciliation to the matching `use-gaori` skill. Its `gaori --json runs list`, `gaori --json rules proposals`, and `gaori rules show --proposal <name>` paths are read-only discovery, not repair, activation, command reruns, or durable job recovery. Never inspect prior run contents or raw logs automatically during setup.
 
-Treat MCP as an optional, separately approved project-local component. For a trusted project, merge this machine-specific entry into the repository's `.zcode/config.json` under the `mcp.servers` object while preserving unrelated configuration:
+Treat MCP as an optional, separately approved user-global component. Merge this machine-specific entry into the `mcp.servers` object of `~/.zcode/cli/config.json` while preserving unrelated configuration:
 
 ```json
 {
@@ -205,14 +204,14 @@ Treat MCP as an optional, separately approved project-local component. For a tru
       "gaori": {
         "type": "stdio",
         "command": "<absolute-selected-gaori-path>",
-        "args": ["--repo", "<absolute-git-root>", "mcp"]
+        "args": ["mcp"]
       }
     }
   }
 }
 ```
 
-Show the complete diff and whether `.zcode/config.json` is tracked before approval. Never stage it during setup. There is no `zcode mcp` command, so verify the effective registration by reading the merged entry: it must be a stdio entry that resolves to the selected binary and binds its exact `--repo <canonical-root>` argument to the canonical repository. ZCode defines no per-server tool timeout fields, so a one-hour command and evidence finalization rely on the host-level MCP deadline; when a Gaori run may exceed it, the CLI path remains the bounded completion path. Report missing, disabled, non-stdio, unresolvable-command, and wrong-repository entries as degraded; a server that has not connected yet is unverified rather than degraded. Tell the user to restart ZCode or start a new session so it can expose `start_configured_run`, `start_ad_hoc_run`, `get_run`, `wait_run`, terminal-only `await_run`, `cancel_run`, `get_excerpt`, and the read-only `list_runs` completed-evidence inventory. `await_run` observes one process-local invocation without cancelling execution when that observer ends; use `get_run` or bounded `wait_run` when the host deadline cannot safely cover terminal completion. `list_runs` is stateless and cannot recover an invocation ID or reattach a disconnected run.
+Show the complete diff before approval; the user configuration file is machine state and is never staged or committed. There is no `zcode mcp` command, so verify the effective registration by reading the merged entry: it must be a stdio entry that resolves to the selected binary and keeps the `mcp` server subcommand as its last argument. Omit `--repo` so one global server serves every repository; the flag remains valid when a single machine default should be pinned. A same-name entry in a project's `.zcode/config.json` overrides the global one for that project; do not create one as part of this setup. ZCode defines no per-server tool timeout fields, so a one-hour command and evidence finalization rely on the host-level MCP deadline; when a Gaori run may exceed it, the CLI path remains the bounded completion path. Report missing, disabled, non-stdio, unresolvable-command, and wrong-binary entries as degraded; a server that has not connected yet is unverified rather than degraded. Tell the user to restart ZCode or start a new session so it can expose `start_configured_run`, `start_ad_hoc_run`, `get_run`, `wait_run`, terminal-only `await_run`, `cancel_run`, `get_excerpt`, and the read-only `list_runs` completed-evidence inventory. `await_run` observes one process-local invocation without cancelling execution when that observer ends; use `get_run` or bounded `wait_run` when the host deadline cannot safely cover terminal completion. `list_runs` is stateless and cannot recover an invocation ID or reattach a disconnected run.
 
 ## Lora / Lore
 
