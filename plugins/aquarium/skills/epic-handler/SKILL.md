@@ -1,0 +1,118 @@
+---
+name: epic-handler
+description: "Deliver or resume one named roadmap epic through sequential goal-centered task execution, evidence-gated commits, repeated epic-wide remediation, and an explicitly requested plan handoff. Use when the user explicitly invokes /aquarium:epic-handler with a repository, canonical roadmap path, and exactly one epic ID and wants epic-level goal orchestration without the procedure-strengthening /aquarium:task-handler workflow; do not invoke it implicitly."
+---
+
+# Epic Handler
+
+Deliver one roadmap epic as a sequence of goal-centered task executions. Own its outcome, order, evidence, and commit boundaries. Select `execute` by default, `plan-only` for a non-mutating plan, `plan-handoff` only when another agent will continue, and `resume` for continuation. Treat "plan only" as `plan-only`; for `plan-handoff` or its resume, read [plan-handoff.md](../../references/plan-handoff.md) and follow it.
+
+Do not invoke `/aquarium:task-handler` or its phase skills; they separately strengthen the procedure around one user-guided task goal.
+
+Use Podway by default. Exclude it only when the current user explicitly opts this epic out before its first managed session starts or a higher-priority instruction prohibits it. For an opted-out epic, do not inspect Podway, load `/use-podway`, or read [podway-integration.md](../../references/podway-integration.md), and do not carry the opt-out into a later workflow.
+
+Otherwise read the contract and own one `aquarium-goal-v2` session per member-task, pre-validation remediation, or closeout goal and one `aquarium-validation-v2` session for the final epic audit and its audit-owned remediation. In `plan-only`, create neither goal nor session; in `plan-handoff`, create the first goal only after approval, attach the plan, and stop before work. Podway strengthens durable execution memory but does not prescribe a phase workflow or replace the roadmap DAG.
+
+## Establish and Approve the Epic
+
+Require one mutable Git repository, one canonical roadmap path inside that repository, and exactly one epic ID present in that roadmap. Reject task-only requests, multiple epics, requests without one canonical roadmap epic identity, and external roadmap authorities. Inspect another repository read-only only when the roadmap explicitly names it; never mutate or create a goal for it.
+
+Read [design-gates.md](../../references/design-gates.md). Resolve every member task's effective `Design Gate impact` from the task first and then the epic before plan approval. Apply the documented legacy-only `Not required` rule when neither marker exists; in an enrolled repository, a missing effective marker is a contract gap.
+
+Stop before plan approval or implementation when any selected work is missing or `Pending`, and require an explicit `/aquarium:design-qa` run to document it. Carry every resolved active `GATE-*` ID into the plan, task checks, and final seam audit.
+
+Before requesting approval:
+
+1. Read repository instructions, the epic, every member task, linked authority, required artifacts, and explicit dependencies.
+2. Inspect branch, upstream, HEAD, staged, unstaged, untracked, and conflicted state. Separate epic-owned work from existing work and record the starting revision.
+3. Discover repository-native verification, Gaori, `/use-gaori`, documentation synchronization, Mulgae, `/use-mulgae`, Sanho, `/use-sanho`, lifecycle, and commit guidance. Treat each CLI, repository configuration, project MCP, and agent skill as independent state.
+4. Build a dependency DAG. Distinguish member-task edges from pre-epic local or explicit external prerequisites. For every prerequisite record repository, canonical ID, exact revision, lifecycle state, dirty state, evidence, and owner. An incomplete member-task predecessor determines execution order and does not block initial approval. A pre-epic or external prerequisite is satisfied only by committed work at the required revision with verified evidence; if unmet, stop before goal creation or mutation and report the owner and required sequence.
+5. Order tasks by dependencies and then roadmap order. Split a cycle only when authority defines pre-validation and finalization; otherwise stop and report its nodes, owners, and missing authority.
+6. Preserve successfully terminal tasks, start at the earliest non-terminal task, and retain every task for the final audit. Stop rather than replace a different active goal.
+7. Honor an explicit pre-session opt-out without Podway discovery. Otherwise apply the shared contract's readiness and session checks. On degraded readiness, stop and ask the user to choose `/aquarium:dev-setup` repair or an explicit opt-out for this epic.
+   - A matching recoverable Aquarium session becomes part of the plan. A nonmatching prepared, running, incomplete, or undisposed terminal session uses the shared lifecycle-conflict route: resume it through its matching owner, leave it untouched through epic opt-out, or hand explicit cancellation or deletion to `/use-podway`. Never describe that conflict as setup repair.
+   - A disposed terminal session with verified handoff evidence and a current `session.start_replace` template becomes an exact successor candidate. Include its fenced eligible replacement in the epic envelope and, after approval, use `start --replace-eligible` without a separate reset before re-observing and beginning the prepared epic session.
+
+Produce one concise, decision-complete epic plan: goal and non-goals, dependency DAG, exact task order, requirement owners, expected task outcomes and commit boundaries, relevant checks, Mulgae targets, lifecycle changes, external handoffs, and known authority or environment gaps. Avoid prescribing phase order, file-by-file mechanics, or a full task implementation design unless the authority makes them necessary. Preserve the selected mode in the approval request and every continuation.
+
+Ask once for explicit approval of the plan and execution envelope. Approval covers bounded implementation decisions, repository-authorized checks, disclosed Mulgae transmission, task and epic staging, one task-ID commit per task, and necessary remediation or closeout commits. It does not authorize amend, push, PR or release changes, live rollout, destructive actions, installation, another repository, or unrelated staging. Commit and upstream publication are separate states.
+
+By default the envelope must cover creating or resuming each prepared managed session, the separate fenced `begin`, bounded evidence and decisions, goal revision and rework, terminal completion, supported disposition, and eligible replacement after the authoritative roadmap, commit, review, and worktree evidence is re-read.
+
+`plan-only` stops without mutation. `plan-handoff` also discloses the private temporary plan file, artifact attachment and propagation, running-session stop, exact resume report, and final cleanup. Approval that explicitly omits Podway covers the same envelope without those operations and therefore without plan handoff.
+
+Accept an opt-out only before the first managed-session mutation. Afterward classify every stop or opt-out request through the shared `Handle In-Progress Stop Requests` flow; never assume pause, cancel, reset, or an in-place switch to non-Podway execution. Never mutate a conflicting session automatically.
+
+Do not create a goal, edit files, invoke providers, stage, commit, or alter external state before approval. After approval, `plan-handoff` may perform only its disclosed handoff mutations and must stop before work. Request renewed approval only when requirements, task membership or order, repository scope, product behavior, destructive impact, external actions, or safe diff isolation materially departs from the envelope.
+
+When a selected long or noisy check is routed through Gaori, reference `/use-gaori` and follow it when available. If it is missing and repository policy requires it, stop and route to `/aquarium:dev-setup`; otherwise run the repository's original documented command directly and report that evidence compression was unavailable. Never infer an unknown original command, and keep command result, extraction quality, and acceptance authority separate.
+
+Before each authorized Mulgae review, reference `/use-mulgae` and follow it when available, preferring its attached MCP workflow. If the skill or project MCP is unavailable and repository policy requires it, stop and route that exact gap to `/aquarium:dev-setup`; otherwise use the supported configured CLI fallback, report the unavailable integration once, and preserve exact preflight, run, publication, and findings evidence. Never start a second MCP server or blindly retry an uncertain review mutation.
+
+Count one review round only when one full-target root `review` run reaches committed publication with complete coverage and a successful findings query. A `request_changes` outcome or failing CI decision consumes the ordinal but cannot approve the work. Preflight, status, findings and excerpt reads, and Mulgae-internal retry or extraction do not consume a round. Do not use `followup`, `delta`, or `rerun` inside a bounded convergence budget; after remediation, the next provider work is the next full-target root review.
+
+## Complete Task Goals
+
+For each non-terminal task in order:
+
+1. Reconfirm every member-task predecessor is successfully terminal with its required commit and evidence, and recheck any pre-epic or external prerequisite at its exact revision. Stop on a gap; otherwise create or resume exactly one goal containing the task ID and required outcome. Omit a token budget unless the user supplied one.
+2. Work from current authority and code toward the task goal. Choose the implementation, investigation, documentation, and verification sequence that best fits the repository and task; do not manufacture phase artifacts or pause for routine choices already inside the approved envelope.
+3. Implement the complete task outcome, including runtime wiring, tests, generated or derived artifacts, durable documentation, and roadmap state that the authority requires. Preserve unrelated work.
+4. Run proportionate repository-authorized checks. Focused green checks prove only mapped requirements; forbidden or unavailable database, E2E, live, or broad gates remain explicit evidence gaps and are never run merely because another workflow normally would.
+5. Run at most two operationally complete Mulgae review rounds on the latest complete task target, including task-owned staged, unstaged, untracked, generated, and derived files. Give each preflight and review a bounded objective containing the epic, member task, current goal revision, ordinal, and review mode. Round one is `remediation-eligible`; round two is `hardening-deferral-eligible`.
+   - Stop immediately when any round has `ci_decision=pass` and zero unresolved valid findings.
+   - After first-round findings, verify them as hypotheses, fix every valid in-scope issue, rerun affected checks, and run one second review.
+   - After second-round findings, verify but do not fix them here. Keep the committed Mulgae run and its findings as the authoritative source, record the exact run and finding IDs plus bounded severities, dispositions, and repository-relative paths in Podway, and hand the same IDs to the task commit as a hardening deferral.
+   - Reconstruct member ordinals from verbose goal Procedure history for the current revision and exact root run IDs; preserve the count across rework and resumption. An unprovable ordinal stops before review. After two rounds, a changed or stale target under that revision requires user authorization for exactly one extra full-target `hardening-deferral-eligible` review or an approved new goal revision; never silently run a third review or defer stale evidence. Apply the second-round disposition to that authorized extra review.
+6. Treat the member task as review-approved only when `coverage_status=complete`, `ci_decision=pass`, `publication_status=committed`, the findings query succeeds, and zero unresolved valid findings remain. Provider success or exit status alone is insufficient.
+   Record `structured_extraction_status` independently as `structured`, `mixed`, or `reports_only`. `reports_only` is not itself a failure and does not replace or relax any completion condition above; the accepted reports remain authoritative, and every extracted finding remains an advisory hypothesis that requires local verification.
+   - The sole member-task exception is a complete second review whose remaining valid findings take the Procedure's explicit `deferred-for-hardening` route. Do not call that task review Mulgae-complete or allow the exception at final epic validation.
+7. Move the task to its defined successful state and hand the exact isolated task-owned diff, lifecycle evidence, task ID, approved commit authority, and either the exact second-round deferral run and finding IDs or an explicit absence to `/aquarium:task-commit`. Complete the goal only after its commit exists, its deferral trailers match the handoff when applicable, no task-owned residue remains, and unrelated work is unchanged; then re-read roadmap, DAG, Git state, and evidence before advancing.
+
+With Podway active, run `podway observe --json --wait-for-idle` before each bounded work delegation and verify the expected Procedure ID, canonical goal identity, session, lifecycle, revision, and, when running, its attempt, goal revision, and current node. A plan-handoff goal additionally requires the shared artifact verification before any work delegation.
+
+Start or resume the matching prepared goal procedure only after approval, re-observe and `begin` it before work, mirror its goal in the ZCode todo list, and independently verify returned native evidence before recording it. In `plan-handoff`, attach the approved plan and stop with required work items unset; on resume and every successor session, reattach the same verified artifact before work. Only then select decisions and assess criteria through actions allowed by `guidance.allowed_actions` and represented by current `mutation_templates` entries.
+
+After step 7, complete the Podway session, verify its terminal outcome, and repeat the handoff checks. Record `handed_off` with the exact task commit SHA. When another member task remains, use the fresh eligible replacement template to atomically create its prepared session and re-observe before `begin`; after the final member task, leave the disposed terminal session for the audit transition below. Never replace a failed, non-terminal, undisposed, or insufficiently evidenced session.
+
+Use a fresh read-only subagent for an independent perspective when task risk or uncertainty merits it; do not substitute that review for Mulgae, do not invoke `/aquarium:independent-review`, which only the user starts, and do not let it impose the `/aquarium:task-handler` phase workflow.
+
+Keep implementation, verification, Mulgae target, lifecycle, commit, publication, and external or live evidence distinct. Any code, test, documentation, generated, or derived change after verification or final review makes affected evidence stale; the planned status-only roadmap transition is the sole exception. Do not advance after failed checks, required evidence gaps, incomplete review, unresolved findings outside the second-review hardening deferral, unsafe staging, failed commit, or missing lifecycle evidence.
+
+## Audit and Remediate the Epic
+
+After all tasks are terminal, audit the latest committed epic state without an active goal or source mutation. Build a requirement-to-owner-to-production-to-test-to-document matrix across every task and inspect integration seams, consumers, persistence, concurrency, migrations, generated artifacts, recovery, operations, and roadmap consistency.
+
+- Before a new whole-epic review, enumerate `Mulgae-Deferred-Run` and every repeated `Mulgae-Deferred-Finding` trailer from the exact member-task commits. Query each exact committed Mulgae run and finding, reject missing or mismatched identities, and cross-check the corresponding Podway evidence when it is available; neither Podway nor trailer prose replaces the Mulgae authority.
+- Revalidate each deferred finding against the latest epic snapshot, disposition findings made obsolete by later work, and remediate every finding that remains valid. This reconciliation and its local verification do not consume an epic review round and do not invoke a Mulgae child workflow.
+
+Then run at most three whole-epic Mulgae review-and-remediation rounds. Record each positive ordinal, exact run ID, and `remediation-eligible` mode in the validation Procedure. Stop immediately when any round has `ci_decision=pass` and zero unresolved valid findings; otherwise verify and fix valid findings, rerun affected checks, and continue.
+
+After third-round fixes, run one fourth `confirmation-only` review. If locally verified valid findings remain, do not fix them or select the Podway review decision: keep the validation goal active and ask the user to authorize one additional fix-and-confirmation budget, approve an exact goal revision that accepts the named risk, or stop with the session open.
+
+- Reconstruct ordinals from the current goal revision's verbose validation Procedure history and exact recorded root run IDs; never use `latest` or infer identity from a Mulgae objective. Sessions created from an earlier version of this managed Procedure are not migrated, and an unprovable ordinal stops before another review.
+  Preserve the count across rework and resumption, resetting only for an explicitly approved new goal revision. After an authorized extra budget, remediate through the owning audit route and run exactly one next-ordinal confirmation; if it still finds valid issues, ask again rather than restoring an unbounded loop.
+
+With Podway active, atomically replace the disposed last-task session with a prepared `aquarium-validation-v2` session, then re-observe and `begin` the final audit. For a plan handoff, attach and verify the same artifact at the validation baseline before audit work. Record each fresh audit, route confirmed gaps through remediation and re-audit, and assess the epic goal only from the latest complete evidence. Remediation goals inside the active validation session are ZCode todo lists recorded at its `remediate` node, never nested Podway sessions.
+
+After the validation session succeeds, use `handed_off` only when an exact authoritative external result already exists. Otherwise record `not_required` only after verifying that this same approved handler retains ownership and the closeout session requires the slot. Atomically replace the disposed validation session with the prepared closeout goal and `begin` it.
+
+Classify each verified gap by canonical requirement owner, not file count or edit location:
+
+- A violation owned by one task remains task-owned even if that task is Completed or the fix crosses modules. Create a new goal for that task, transition through the roadmap's reopen state and back to success when one is defined, obtain fresh verification and Mulgae evidence, and hand the isolated correction to `/aquarium:task-commit` under its task ID.
+- An epic seam invariant owned by no single task is cross-task. Create an epic remediation goal and hand the isolated correction to `/aquarium:task-commit` under the epic ID.
+- Work requiring another repository is external. Stop with its owner, exact revision, and missing evidence; do not edit it.
+
+If ownership is ambiguous, stop before goal creation and report the missing authority. Process task-owned gaps in canonical task order, then cross-task gaps. After each remediation goal, discard the prior audit and audit again from scratch within the review budget above. When an external blocker is resolved, first revalidate the DAG at its new exact revision and restart the audit.
+
+Only after a clean latest-snapshot audit and complete Mulgae evidence may one final epic closeout goal be created. Transition the epic to its successful state, perform authorized synchronization, and hand an actual isolated epic-ID closeout diff to `/aquarium:task-commit`. Complete the closeout Podway session only after that commit is verified, record `handed_off` with its exact SHA, and leave the final terminal session intact. Never create an empty commit.
+
+## Hand Off Commits and Report
+
+For each approved commit, invoke `/aquarium:task-commit` with repository, canonical roadmap, task or epic ID, exact lifecycle decision or explicit absence, exact record decision or explicit absence, isolated scope, current verification and Mulgae evidence, any exact deferral run and finding IDs or their explicit absence, and one-commit authority. That skill owns staging, Lore and Sanho checks, the direct commit, hook reconciliation, and snapshot verification. Never commit independently, amend, or infer push authority.
+
+Use `/use-sanho` directly only for separately authorized synchronization outside the commit boundary. Use its refreshed push workflow only for a separately authorized push. Commit and upstream publication remain separate states.
+
+Do not create or read `.aquarium` or other shadow state. Resume from roadmap, Git history and worktree, current goal, recoverable approval, repository evidence, and Mulgae records; a recorded plan handoff also requires its exact session-bound artifact. Request fresh approval when the envelope cannot be recovered.
+
+At every stop and final handoff report current task and epic, dependency changes, completed and remaining goals, commits and roadmap states, checks and evidence gaps, Mulgae target and capture/findings/publication status, worktree boundaries, upstream publication state, and the exact next safe action. A plan handoff must also report every session and artifact identity required by the shared reference.

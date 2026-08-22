@@ -1,0 +1,10 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+
+.omc/
+.omx/
+.claude/
+.codex/
+.zcode/
