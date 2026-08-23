@@ -122,7 +122,17 @@ if inspection.file?
   assert(script.include?('".agents/skills"'), "inspection must search the shared cross-agent skill root")
   assert(script.include?('".zcode/cli/config.json"'), "inspection must read the ZCode MCP registration")
   assert(script.include?('"host_integration"'), "inspection must report the host integration component")
-  assert(script.include?("zcode_mcp_registration"), "inspection must classify Mulgae and Gaori registrations from ZCode config")
+  assert(script.include?("zcode_mcp_scopes"), "inspection must classify Mulgae and Gaori registrations from ZCode config")
+end
+
+# The test-setup inspector ships host-neutral from upstream; the schema marker
+# guards that it survives the transformation whole.
+testing = PLUGIN.join("skills/test-setup/scripts/inspect_testing.py")
+if testing.file?
+  assert(
+    testing.read.include?("aquarium-test-setup-inspection.v1"),
+    "the test-setup inspector must keep its schema marker"
+  )
 end
 
 # --- manifests agree with upstream -----------------------------------------

@@ -11,6 +11,7 @@ Run `sync.py` to regenerate, or `sync.py --check` to fail on drift.
 from __future__ import annotations
 
 import argparse
+import ast
 import filecmp
 import hashlib
 import json
@@ -80,7 +81,7 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     # names the same component in a list of Ouroboros setup mutations.
     ("Codex skill health", "ZCode skill health"),
     (
-        "Ouroboros package, Codex, and runtime components",
+        "Ouroboros package, Codex and runtime components",
         "Ouroboros package, host integration, and runtime components",
     ),
     # Lora installs per host, so the catalog's scope wording moves. The
@@ -105,12 +106,16 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
 # Substitutions for bundled scripts, kept separate from Markdown because they
 # rewrite executable behavior rather than prose. Multi-line blocks use raw
 # triple-single-quoted literals so backslashes and quotes match the upstream
-# bytes exactly. Skill discovery narrows to the ZCode roots: this artifact
-# diagnoses one host, and a copy sitting in another host's root is neither
-# reachable here nor a duplicate of anything. ZCode exposes no config-dir
-# environment variable, so the roots are literal. `~/.agents/skills` is a
-# ZCode root natively, so it stays.
+# bytes exactly. Only small, stable islands of host-specific text are handled
+# here; whole functions whose ZCode form diverges semantically are reworked
+# through `SCRIPT_SURGERY` below, which anchors on function names instead of
+# exact upstream bytes.
 SCRIPT_SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
+    # Skill discovery narrows to the ZCode roots: this artifact diagnoses one
+    # host, and a copy sitting in another host's root is neither reachable
+    # here nor a duplicate of anything. ZCode exposes no config-dir
+    # environment variable, so the roots are literal. `~/.agents/skills` is a
+    # ZCode root natively, so it stays.
     (
         r'''    codex_home = os.environ.get("CODEX_HOME")
     if codex_home:
@@ -128,607 +133,10 @@ SCRIPT_SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     )
 ''',
     ),
-    # Upstream classifies the Ouroboros registration from a `codex mcp get`
-    # JSON probe. ZCode has no `mcp` CLI subcommand, so the whole classifier
-    # is replaced with one that reads the host's config files:
-    # `~/.zcode/cli/config.json` (user level) and `.zcode/config.json`
-    # (project level, which overrides the user entry on a name collision).
-    (
-        r'''def classify_ouroboros_registration(
-    raw_probe: dict[str, Any],
-) -> dict[str, Any]:
-    probe = {
-        key: raw_probe[key] for key in ("attempted", "ok", "exit_code", "timed_out")
-    }
-    if raw_probe["timed_out"]:
-        probe["reason"] = "registration_probe_timed_out"
-        return {"status": "degraded", "probe": probe}
-    if raw_probe.get("error_code"):
-        probe["error_code"] = raw_probe["error_code"]
-        probe["reason"] = "registration_probe_failed"
-        return {"status": "degraded", "probe": probe}
-
-    stderr = raw_probe.get("stderr", "").strip()
-    if not raw_probe["ok"]:
-        not_found = re.fullmatch(
-            r"(?:Error:\s*)?No MCP server named ['\"]?ouroboros['\"]? found\.?",
-            stderr,
-        )
-        probe["reason"] = (
-            "registration_not_found" if not_found else "registration_probe_failed"
-        )
-        return {
-            "status": "missing" if not_found else "degraded",
-            "probe": probe,
-        }
-
-    parsed = parse_json_probe(raw_probe)
-    if parsed.get("error_code") == "invalid_json":
-        probe["error_code"] = "invalid_json"
-        probe["reason"] = "registration_invalid_json"
-        return {"status": "degraded", "probe": probe}
-    result = parsed.get("result")
-    if not isinstance(result, dict):
-        probe["reason"] = "registration_result_invalid"
-        return {"status": "degraded", "probe": probe}
-    if result.get("enabled") is True:
-        return {"status": "configured", "probe": probe}
-    if result.get("enabled") is False:
-        probe["reason"] = "registration_disabled"
-    elif "enabled" not in result:
-        probe["reason"] = "registration_enabled_missing"
-    else:
-        probe["reason"] = "registration_enabled_invalid"
-    return {"status": "degraded", "probe": probe}
-''',
-        r'''def ouroboros_mcp_registration(repository: Path) -> dict[str, Any]:
-    # ZCode has no `mcp get` CLI probe; registrations live in
-    # `~/.zcode/cli/config.json` (user level) and `.zcode/config.json`
-    # (project level, which overrides the user entry on a name collision),
-    # under the `mcp.servers` object. The entry resolving at all is the
-    # registration signal; a disabled entry degrades rather than disappears.
-    probe: dict[str, Any] = {
-        "attempted": True,
-        "ok": True,
-        "exit_code": 0,
-        "timed_out": False,
-    }
-    sources = [
-        Path.home().joinpath(".zcode/cli/config.json"),
-        repository.joinpath(".zcode/config.json"),
-    ]
-    entry: Any = None
-    found = False
-    for source in sources:
-        try:
-            document = json.loads(source.read_text(encoding="utf-8"))
-        except FileNotFoundError:
-            continue
-        except (OSError, json.JSONDecodeError):
-            probe["reason"] = "registration_invalid_json"
-            return {"status": "degraded", "probe": probe}
-        mcp = document.get("mcp") if isinstance(document, dict) else None
-        servers = mcp.get("servers") if isinstance(mcp, dict) else None
-        if isinstance(servers, dict) and "ouroboros" in servers:
-            entry = servers["ouroboros"]
-            found = True
-    if not found:
-        probe["reason"] = "registration_not_found"
-        return {"status": "missing", "probe": probe}
-    if isinstance(entry, dict) and entry.get("enabled") is False:
-        probe["reason"] = "registration_disabled"
-        return {"status": "degraded", "probe": probe}
-    return {"status": "configured", "probe": probe}
-''',
-    ),
-    # The Codex probe of the Ouroboros MCP registration moves to the config
-    # reader above. On this host the integration consists of that entry plus
-    # the user-scoped Ouroboros skills under the ZCode skill roots, so the
-    # registration doubles as the host-integration signal.
-    (
-        r'''    codex = shutil.which("codex")
-    if codex:
-        registration_raw = run_command(
-            [
-                str(Path(codex).resolve()),
-                "mcp",
-                "get",
-                "ouroboros",
-                "--json",
-            ],
-            repository,
-            timeout_seconds,
-        )
-        tool["mcp_registration"] = classify_ouroboros_registration(
-            registration_raw
-        )
-    else:
-        tool["mcp_registration"] = {
-            "status": "unverifiable",
-            "probe": skipped_probe("codex_executable_missing"),
-        }
-''',
-        r'''    tool["mcp_registration"] = ouroboros_mcp_registration(repository)
-    host_integration = {
-        "status": tool["mcp_registration"]["status"],
-        "probe": tool["mcp_registration"]["probe"],
-    }
-''',
-    ),
-    # `ooo codex doctor` verifies the Codex CLI's routing artifacts, and the
-    # `ooo zcode` group ships no doctor command. The config registration
-    # resolved above is the host-integration signal here.
-    (
-        r'''    codex_doctor = run_command(
-        [tool["executable"], "codex", "doctor"], repository, timeout_seconds
-    )
-    tool["codex_integration"] = {
-        "status": "configured" if codex_doctor["ok"] else "degraded",
-        "probe": {
-            key: codex_doctor[key]
-            for key in ("attempted", "ok", "exit_code", "timed_out")
-        },
-    }
-''',
-        r'''    # `ooo codex doctor` verifies another host's routing artifacts and the
-    # `ooo zcode` group ships no doctor command. The config registration
-    # resolved above is the host-integration signal here, so it is recorded
-    # rather than reprobed.
-    tool["host_integration"] = host_integration
-''',
-    ),
-    # The reported component is the host's own integration here, not Codex's.
-    (
-        r'''        tool["codex_integration"] = {
-            "status": "missing",
-            "probe": skipped_probe("executable_missing"),
-        }
-''',
-        r'''        tool["host_integration"] = {
-            "status": "missing",
-            "probe": skipped_probe("executable_missing"),
-        }
-''',
-    ),
-    # ...and the readiness rollup reads the renamed component.
-    (
-        r'''        and tool["codex_integration"]["status"] == "configured"
-''',
-        r'''        and tool["host_integration"]["status"] == "configured"
-''',
-    ),
-    # Upstream reads this component from the doctor's exit code. The MCP 2
-    # server registered in config launches as a separate process while the
-    # CLI environment keeps MCP 1.x, so the doctor's `mcp_import` check — and
-    # the exit code with it — fails on a correctly configured machine. The
-    # remaining checks carry runtime health here; the server's own health is
-    # the registration component.
-    (
-        r'''    tool["mcp_runtime"] = {
-        "status": "configured" if mcp_doctor["ok"] else "degraded",
-        "probe": normalized_probe(mcp_doctor),
-    }
-''',
-        r'''    doctor_checks = mcp_doctor.get("result")
-    runtime_probe = normalized_probe(mcp_doctor)
-    if isinstance(doctor_checks, list):
-        failed = sorted(
-            str(check.get("name"))
-            for check in doctor_checks
-            if isinstance(check, dict)
-            and check.get("status") == "fail"
-            and check.get("name") != "mcp_import"
-        )
-        if failed:
-            runtime_probe["reason"] = "doctor_checks_failed"
-        tool["mcp_runtime"] = {
-            "status": "degraded" if failed else "configured",
-            "failed_checks": failed,
-            "probe": runtime_probe,
-        }
-    else:
-        tool["mcp_runtime"] = {
-            "status": "degraded",
-            "probe": runtime_probe,
-        }
-''',
-    ),
-    # Upstream probes the Mulgae and Gaori MCP registrations through the Codex
-    # CLI and treats them as project-local, verifying repository binding,
-    # timeouts, and `required` flags from `codex mcp get` JSON. ZCode has no
-    # `mcp` CLI, registrations are user-global in `~/.zcode/cli/config.json`,
-    # and the host defines no per-server timeout fields, so the deep Codex
-    # classification has no meaning here. Both probes collapse into one
-    # config-reading classifier; a project `.zcode/config.json` entry of the
-    # same name still overrides the user entry and is reported as the
-    # effective scope.
-    (
-        r'''def inspect_mulgae_mcp(
-    repository: Path, mulgae_executable: str | None, timeout_seconds: float
-) -> dict[str, Any]:
-    registration: dict[str, Any] = {
-        "status": "missing",
-        "project_config_present": repository.joinpath(".codex/config.toml").is_file(),
-        "enabled": None,
-        "stdio": None,
-        "repository_bound": None,
-        "arguments_match": None,
-        "cwd_bound": None,
-        "required": None,
-        "required_verification": "unverifiable",
-        "required_output_capability": "unknown",
-        "compatibility_reason": None,
-        "codex_version": None,
-        "command_resolvable": None,
-        "binary_matches_selected": None,
-        "startup_timeout_sec": None,
-        "tool_timeout_sec": None,
-    }
-    codex_executable = shutil.which("codex")
-    if not codex_executable:
-        registration.update(
-            {"status": "unavailable", "reason": "codex_executable_missing"}
-        )
-        return registration
-    version_probe = run_command(
-        [codex_executable, "--version"], repository, timeout_seconds
-    )
-    if version_probe["ok"]:
-        registration["codex_version"] = codex_version_from_output(
-            version_probe["stdout"]
-        )
-    probe = json_probe(
-        [codex_executable, "mcp", "get", "mulgae", "--json"],
-        repository,
-        timeout_seconds,
-    )
-    if not probe["ok"]:
-        if probe["exit_code"] == 1 and not probe["timed_out"]:
-            return registration
-        if probe["timed_out"] or probe.get("error_code"):
-            registration.update(
-                {"status": "degraded", "reason": "registration_probe_failed"}
-            )
-        return registration
-    result = probe.get("result")
-    transport = result.get("transport") if isinstance(result, dict) else None
-    if not isinstance(result, dict) or not isinstance(transport, dict):
-        registration.update(
-            {"status": "degraded", "reason": "invalid_registration_result"}
-        )
-        return registration
-
-    if "required" not in result:
-        required = None
-        required_verification = "unverifiable"
-        required_output_capability = "not_reported"
-        compatibility_reason = "required_unverifiable"
-    elif isinstance(result["required"], bool):
-        required = result["required"]
-        required_verification = "verified" if required else "mismatch"
-        required_output_capability = "reported"
-        compatibility_reason = None
-    else:
-        registration.update(
-            {
-                "status": "degraded",
-                "reason": "invalid_registration_result",
-                "required_output_capability": "invalid",
-            }
-        )
-        return registration
-
-    command = transport.get("command")
-    resolved_command: Path | None = None
-    if isinstance(command, str) and command:
-        candidate = Path(command).expanduser()
-        if candidate.is_absolute() and candidate.is_file() and os.access(candidate, os.X_OK):
-            resolved_command = candidate.resolve()
-        elif not candidate.is_absolute():
-            discovered = shutil.which(command)
-            if discovered:
-                resolved_command = Path(discovered).resolve()
-
-    args = transport.get("args")
-    repository_bound = False
-    arguments_match = False
-    if isinstance(args, list) and all(isinstance(argument, str) for argument in args):
-        try:
-            configured_root = Path(args[2]).expanduser().resolve()
-            repository_bound = configured_root == repository
-            arguments_match = (
-                len(args) == 3
-                and args[0] == "mcp"
-                and args[1] == "--project-root"
-                and repository_bound
-            )
-        except (IndexError, OSError):
-            repository_bound = False
-
-    raw_cwd = transport.get("cwd", result.get("cwd"))
-    try:
-        cwd_bound = isinstance(raw_cwd, str) and Path(raw_cwd).expanduser().resolve() == repository
-    except OSError:
-        cwd_bound = False
-    startup_timeout = result.get("startup_timeout_sec")
-    tool_timeout = result.get("tool_timeout_sec")
-    startup_supported = (
-        isinstance(startup_timeout, (int, float))
-        and not isinstance(startup_timeout, bool)
-        and startup_timeout >= 30
-    )
-    tool_supported = (
-        isinstance(tool_timeout, (int, float))
-        and not isinstance(tool_timeout, bool)
-        and tool_timeout >= MULGAE_MCP_TOOL_TIMEOUT_SEC
-    )
-    binary_matches = bool(
-        resolved_command
-        and mulgae_executable
-        and resolved_command == Path(mulgae_executable).resolve()
-    )
-    registration.update(
-        {
-            "enabled": result.get("enabled") is True,
-            "stdio": transport.get("type") == "stdio",
-            "repository_bound": repository_bound,
-            "arguments_match": arguments_match,
-            "cwd_bound": cwd_bound,
-            "required": required,
-            "required_verification": required_verification,
-            "required_output_capability": required_output_capability,
-            "compatibility_reason": compatibility_reason,
-            "command_resolvable": resolved_command is not None,
-            "binary_matches_selected": binary_matches,
-            "startup_timeout_sec": startup_timeout,
-            "tool_timeout_sec": tool_timeout,
-        }
-    )
-    if (
-        registration["project_config_present"]
-        and registration["enabled"]
-        and registration["stdio"]
-        and arguments_match
-        and cwd_bound
-        and required_verification in {"verified", "unverifiable"}
-        and binary_matches
-        and startup_supported
-        and tool_supported
-    ):
-        registration["status"] = "configured"
-    else:
-        registration.update(
-            {"status": "degraded", "reason": "registration_mismatch"}
-        )
-    return registration
-''',
-        r'''def zcode_mcp_registration(
-    server: str,
-    repository: Path,
-    selected_executable: str | None,
-) -> dict[str, Any]:
-    # ZCode has no `mcp get` CLI probe; registrations are user-global in the
-    # `mcp.servers` object of `~/.zcode/cli/config.json`. A same-name entry
-    # in a project's `.zcode/config.json` overrides the user entry, so the
-    # project file is consulted last and its entry wins as the effective
-    # scope. The entry resolving at all is the registration signal; the
-    # command must resolve and match the selected binary, and a disabled or
-    # non-stdio entry degrades rather than disappears. ZCode defines no
-    # per-server timeout fields, so there is no timeout surface to verify.
-    registration: dict[str, Any] = {
-        "status": "missing",
-        "scope": None,
-        "stdio": None,
-        "command_resolvable": None,
-        "binary_matches_selected": None,
-    }
-    entry: Any = None
-    scope: str | None = None
-    for label, source in (
-        ("user", Path.home().joinpath(".zcode/cli/config.json")),
-        ("project", repository.joinpath(".zcode/config.json")),
-    ):
-        try:
-            document = json.loads(source.read_text(encoding="utf-8"))
-        except FileNotFoundError:
-            continue
-        except (OSError, json.JSONDecodeError):
-            registration.update(
-                {"status": "degraded", "reason": f"{label}_config_invalid_json"}
-            )
-            return registration
-        mcp = document.get("mcp") if isinstance(document, dict) else None
-        servers = mcp.get("servers") if isinstance(mcp, dict) else None
-        if isinstance(servers, dict) and server in servers:
-            entry = servers[server]
-            scope = label
-    if scope is None:
-        registration["reason"] = "registration_not_found"
-        return registration
-    stdio = isinstance(entry, dict) and entry.get("type", "stdio") == "stdio"
-    command = entry.get("command") if isinstance(entry, dict) else None
-    resolved_command: Path | None = None
-    if isinstance(command, str) and command:
-        candidate = Path(command).expanduser()
-        if candidate.is_absolute() and candidate.is_file() and os.access(candidate, os.X_OK):
-            resolved_command = candidate.resolve()
-        elif not candidate.is_absolute():
-            discovered = shutil.which(command)
-            if discovered:
-                resolved_command = Path(discovered).resolve()
-    binary_matches: bool | None = None
-    if selected_executable is not None:
-        binary_matches = bool(
-            resolved_command
-            and resolved_command == Path(selected_executable).resolve()
-        )
-    registration.update(
-        {
-            "scope": scope,
-            "stdio": stdio,
-            "command_resolvable": resolved_command is not None,
-            "binary_matches_selected": binary_matches,
-        }
-    )
-    if isinstance(entry, dict) and entry.get("enabled") is False:
-        registration.update({"status": "degraded", "reason": "registration_disabled"})
-    elif not stdio:
-        registration.update({"status": "degraded", "reason": "registration_not_stdio"})
-    elif resolved_command is None:
-        registration.update({"status": "degraded", "reason": "command_unresolvable"})
-    elif binary_matches is False:
-        registration.update({"status": "degraded", "reason": "binary_mismatch"})
-    else:
-        registration["status"] = "configured"
-    return registration
-
-
-def inspect_mulgae_mcp(
-    repository: Path, mulgae_executable: str | None, timeout_seconds: float
-) -> dict[str, Any]:
-    # Registration is user-global in `~/.zcode/cli/config.json`; a project
-    # `.zcode/config.json` entry of the same name overrides it.
-    return zcode_mcp_registration("mulgae", repository, mulgae_executable)
-''',
-    ),
-    (
-        r'''def inspect_gaori_mcp(
-    repository: Path, gaori_executable: str | None, timeout_seconds: float
-) -> dict[str, Any]:
-    project_config = repository.joinpath(".codex/config.toml")
-    project_config_present = project_config.is_file()
-    registration: dict[str, Any] = {
-        "status": "missing",
-        "project_config_present": project_config_present,
-        "enabled": None,
-        "stdio": None,
-        "repository_bound": None,
-        "command_resolvable": None,
-        "binary_matches_selected": None,
-        "tool_timeout_sec": None,
-    }
-    codex_executable = shutil.which("codex")
-    if not codex_executable:
-        registration["status"] = "unavailable"
-        registration["reason"] = "codex_executable_missing"
-        return registration
-
-    probe = json_probe(
-        [codex_executable, "mcp", "get", "gaori", "--json"],
-        repository,
-        timeout_seconds,
-    )
-    if not probe["ok"]:
-        if project_config_present:
-            registration["status"] = "degraded"
-            registration["reason"] = (
-                "registration_probe_timed_out"
-                if probe["timed_out"]
-                else "project_registration_inactive_or_invalid"
-            )
-        return registration
-
-    result = probe.get("result")
-    if not isinstance(result, dict):
-        registration.update(
-            {"status": "degraded", "reason": "invalid_registration_result"}
-        )
-        return registration
-
-    transport = result.get("transport")
-    if not isinstance(transport, dict):
-        registration.update(
-            {"status": "degraded", "reason": "missing_registration_transport"}
-        )
-        return registration
-
-    enabled = result.get("enabled") is True
-    stdio = transport.get("type") == "stdio"
-    command = transport.get("command")
-    args = transport.get("args")
-    resolved_command: Path | None = None
-    if isinstance(command, str) and command:
-        candidate = Path(command).expanduser()
-        if (
-            candidate.is_absolute()
-            and candidate.is_file()
-            and os.access(candidate, os.X_OK)
-        ):
-            resolved_command = candidate.resolve()
-        elif not candidate.is_absolute():
-            discovered = shutil.which(command)
-            if discovered:
-                resolved_command = Path(discovered).resolve()
-
-    repository_bound = False
-    server_mode = False
-    if isinstance(args, list) and all(isinstance(argument, str) for argument in args):
-        try:
-            repo_index = args.index("--repo")
-            configured_repository = Path(args[repo_index + 1]).expanduser().resolve()
-            repository_bound = configured_repository == repository
-        except (ValueError, IndexError, OSError):
-            repository_bound = False
-        server_mode = bool(args and args[-1] == "mcp")
-
-    tool_timeout = result.get("tool_timeout_sec")
-    timeout_supported = (
-        isinstance(tool_timeout, (int, float))
-        and not isinstance(tool_timeout, bool)
-        and tool_timeout >= GAORI_MCP_TOOL_TIMEOUT_SEC
-    )
-    binary_matches = bool(
-        resolved_command
-        and gaori_executable
-        and resolved_command == Path(gaori_executable).resolve()
-    )
-    registration.update(
-        {
-            "enabled": enabled,
-            "stdio": stdio,
-            "repository_bound": repository_bound,
-            "command_resolvable": resolved_command is not None,
-            "binary_matches_selected": binary_matches,
-            "tool_timeout_sec": tool_timeout,
-        }
-    )
-    if (
-        project_config_present
-        and enabled
-        and stdio
-        and repository_bound
-        and server_mode
-        and resolved_command is not None
-        and timeout_supported
-    ):
-        registration["status"] = "configured"
-    else:
-        registration["status"] = "degraded"
-        registration["reason"] = "registration_mismatch"
-    return registration
-''',
-        r'''def inspect_gaori_mcp(
-    repository: Path, gaori_executable: str | None, timeout_seconds: float
-) -> dict[str, Any]:
-    # Registration is user-global in `~/.zcode/cli/config.json`; a project
-    # `.zcode/config.json` entry of the same name overrides it.
-    return zcode_mcp_registration("gaori", repository, gaori_executable)
-''',
-    ),
-    # The version helper parsed Codex CLI output for the probes above; with
-    # those probes reading config files instead, it has no caller left.
-    (
-        r'''def codex_version_from_output(output: str) -> str | None:
-    match = re.search(r"\bcodex(?:-cli)?\s+v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\b", output)
-    return match.group(1) if match else None
-
-
-''',
-        "",
-    ),
     # The repository configuration inventories listed the Codex project
-    # config file, which belongs to another host and is no longer the
-    # registration location here.
+    # config file, which belongs to another host and is not the registration
+    # location here. The MCP registration readers in `SCRIPT_SURGERY` report
+    # the project `.zcode/config.json` scope instead.
     (
         r'''        mulgae_configuration_entry(repository, ".mulgaeignore", timeout_seconds),
         configuration_entry(repository, ".codex/config.toml", timeout_seconds),
@@ -752,6 +160,416 @@ def inspect_mulgae_mcp(
     ("$aquarium:", "/aquarium:"),
 )
 
+# Whole-function rework for bundled scripts whose ZCode form diverges
+# semantically from upstream. `inspect_tools.py` probes MCP registrations
+# through the Codex CLI; this host has no such CLI, and registrations live in
+# the `mcp.servers` object of `~/.zcode/cli/config.json` (user level), with a
+# same-name entry in a project's `.zcode/config.json` overriding the user
+# entry. A literal substitution cannot carry that rewrite — the probe code
+# spans whole functions — so each rule names a top-level function to replace
+# or delete. Anchoring on names instead of bytes keeps a rule working through
+# upstream body edits, and the post-surgery checks stop generation when
+# upstream renames a target or a deleted function is still referenced.
+SCRIPT_SURGERY: dict[str, dict[str, Any]] = {
+    "skills/dev-setup/scripts/inspect_tools.py": {
+        "replace": {
+            "inspect_mulgae_mcp": r'''def zcode_mcp_entries(server: str, repository: Path) -> dict[str, Any]:
+    # ZCode has no `mcp get` CLI probe; registrations live under the
+    # `mcp.servers` object of `~/.zcode/cli/config.json` (user level), and a
+    # same-name entry in a project's `.zcode/config.json` overrides the user
+    # entry for that project. Both scopes are read directly here.
+    scopes: dict[str, Any] = {"user": None, "project": None}
+    invalid_config: str | None = None
+    for label, source in (
+        ("user", Path.home().joinpath(".zcode/cli/config.json")),
+        ("project", repository.joinpath(".zcode/config.json")),
+    ):
+        try:
+            document = json.loads(source.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            continue
+        except (OSError, json.JSONDecodeError):
+            invalid_config = label
+            break
+        mcp = document.get("mcp") if isinstance(document, dict) else None
+        servers = mcp.get("servers") if isinstance(mcp, dict) else None
+        if isinstance(servers, dict) and server in servers:
+            scopes[label] = servers[server]
+    return {"scopes": scopes, "invalid_config": invalid_config}
+
+
+def zcode_mcp_scope_status(
+    entry: Any, selected_executable: str | None
+) -> dict[str, Any]:
+    # An entry resolving at all is the registration signal; a disabled or
+    # non-stdio entry or an unresolvable command degrades rather than
+    # disappears. ZCode defines no per-server timeout fields, so there is no
+    # timeout surface to verify. A launcher entry such as uvx need not match
+    # the selected binary byte-for-byte, so the binary match is reported as
+    # evidence and never degrades the status by itself.
+    if entry is None:
+        return {"status": "missing", "reason": "registration_not_found"}
+    registration: dict[str, Any] = {
+        "status": "degraded",
+        "stdio": None,
+        "command_resolvable": None,
+        "binary_matches_selected": None,
+    }
+    stdio = isinstance(entry, dict) and entry.get("type", "stdio") == "stdio"
+    command = entry.get("command") if isinstance(entry, dict) else None
+    resolved_command = resolve_mcp_command(command)
+    binary_matches: bool | None = None
+    if selected_executable is not None:
+        binary_matches = bool(
+            resolved_command
+            and resolved_command == Path(selected_executable).resolve()
+        )
+    registration.update(
+        {
+            "stdio": stdio,
+            "command_resolvable": resolved_command is not None,
+            "binary_matches_selected": binary_matches,
+        }
+    )
+    if isinstance(entry, dict) and entry.get("enabled") is False:
+        registration["reason"] = "registration_disabled"
+    elif not stdio:
+        registration["reason"] = "registration_not_stdio"
+    elif resolved_command is None:
+        registration["reason"] = "command_unresolvable"
+    else:
+        registration["status"] = "configured"
+    return registration
+
+
+def zcode_mcp_scopes(
+    server: str, repository: Path, selected_executable: str | None
+) -> dict[str, Any]:
+    # Registrations are user-global by default; a project `.zcode/config.json`
+    # entry of the same name is an explicit local override that wins as the
+    # effective scope. The three reported views mirror the upstream global,
+    # isolated-local, and effective probes, read from config files instead of
+    # a host CLI.
+    reading = zcode_mcp_entries(server, repository)
+    project_config_present, project_config_symlinked = safe_managed_file_state(
+        repository / ".zcode" / "config.json", repository
+    )
+    registration: dict[str, Any] = {
+        "status": "missing",
+        "preferred_scope": "global",
+        "effective_scope": "none",
+        "local_confirmation_required": None,
+    }
+    if reading["invalid_config"]:
+        registration.update(
+            {
+                "status": "degraded",
+                "effective_scope": "unverifiable",
+                "reason": f"{reading['invalid_config']}_config_invalid_json",
+                "global": {"status": "degraded"},
+                "local": {
+                    "status": "degraded",
+                    "project_config_present": project_config_present,
+                    "project_config_symlinked": project_config_symlinked,
+                },
+            }
+        )
+        return registration
+    global_registration = zcode_mcp_scope_status(
+        reading["scopes"]["user"], selected_executable
+    )
+    if project_config_symlinked:
+        registration.update(
+            {
+                "status": "unverifiable",
+                "effective_scope": "unverifiable",
+                "reason": "project_configuration_symlinked",
+                "global": global_registration,
+                "local": {
+                    "status": "unverifiable",
+                    "reason": "project_configuration_symlinked",
+                    "project_config_present": project_config_present,
+                    "project_config_symlinked": project_config_symlinked,
+                },
+                "recommendation": "resolve_symlinked_local_configuration",
+            }
+        )
+        return registration
+    local_registration = zcode_mcp_scope_status(
+        reading["scopes"]["project"], selected_executable
+    )
+    local_registration.update(
+        {
+            "project_config_present": project_config_present,
+            "project_config_symlinked": project_config_symlinked,
+        }
+    )
+    if (
+        local_registration["status"] == "missing"
+        and not project_config_present
+    ):
+        local_registration["reason"] = "project_configuration_missing"
+    if reading["scopes"]["project"] is not None:
+        effective_scope = "local"
+        effective_registration: dict[str, Any] | None = local_registration
+    elif reading["scopes"]["user"] is not None:
+        effective_scope = "global"
+        effective_registration = global_registration
+    else:
+        effective_scope = "none"
+        effective_registration = None
+    local_confirmable = local_registration["status"] != "missing"
+    registration.update(
+        {
+            "status": (
+                effective_registration["status"]
+                if effective_registration is not None
+                else "missing"
+            ),
+            "effective_scope": effective_scope,
+            "local_confirmation_required": local_confirmable,
+            "global": global_registration,
+            "local": local_registration,
+            "recommendation": mcp_recommendation(
+                global_registration["status"], bool(local_confirmable)
+            ),
+        }
+    )
+    if effective_registration is not None and effective_registration.get("reason"):
+        registration["reason"] = effective_registration["reason"]
+    return registration
+
+
+def inspect_mulgae_mcp(
+    repository: Path, mulgae_executable: str | None, timeout_seconds: float
+) -> dict[str, Any]:
+    # Registration is user-global in `~/.zcode/cli/config.json`; a project
+    # `.zcode/config.json` entry of the same name is an explicit local
+    # override. ZCode has no `mcp` CLI to probe, so both scopes and the
+    # effective registration are read from those config files.
+    return zcode_mcp_scopes("mulgae", repository, mulgae_executable)
+''',
+            "inspect_gaori_mcp": r'''def inspect_gaori_mcp(
+    repository: Path, gaori_executable: str | None, timeout_seconds: float
+) -> dict[str, Any]:
+    # Registration is user-global in `~/.zcode/cli/config.json`; a project
+    # `.zcode/config.json` entry of the same name is an explicit local
+    # override. ZCode has no `mcp` CLI to probe, so both scopes and the
+    # effective registration are read from those config files.
+    return zcode_mcp_scopes("gaori", repository, gaori_executable)
+''',
+            "inspect_ouroboros": r'''def ouroboros_mcp_registration(repository: Path) -> dict[str, Any]:
+    # ZCode has no `mcp get` CLI probe; registrations live in
+    # `~/.zcode/cli/config.json` (user level) and `.zcode/config.json`
+    # (project level, which overrides the user entry on a name collision),
+    # under the `mcp.servers` object. The entry resolving at all is the
+    # registration signal; a disabled entry degrades rather than disappears.
+    probe: dict[str, Any] = {
+        "attempted": True,
+        "ok": True,
+        "exit_code": 0,
+        "timed_out": False,
+    }
+    reading = zcode_mcp_entries("ouroboros", repository)
+    if reading["invalid_config"]:
+        probe["reason"] = "registration_invalid_json"
+        return {"status": "degraded", "probe": probe}
+    entry: Any = None
+    scope: str | None = None
+    if reading["scopes"]["project"] is not None:
+        entry = reading["scopes"]["project"]
+        scope = "project"
+    elif reading["scopes"]["user"] is not None:
+        entry = reading["scopes"]["user"]
+        scope = "user"
+    if entry is None:
+        probe["reason"] = "registration_not_found"
+        return {"status": "missing", "probe": probe}
+    if isinstance(entry, dict) and entry.get("enabled") is False:
+        probe["reason"] = "registration_disabled"
+        return {"status": "degraded", "probe": probe, "scope": scope}
+    return {"status": "configured", "probe": probe, "scope": scope}
+
+
+def inspect_ouroboros(repository: Path, timeout_seconds: float) -> dict[str, Any]:
+    tool = base_tool("ooo")
+    tool["supported_range"] = ">=0.51.1,<0.52.0"
+    tool["mcp_registration"] = ouroboros_mcp_registration(repository)
+    # Ouroboros registers its skills with the host agent, so the component
+    # whose health this integration adds on this host is the config
+    # registration resolved above.
+    host_integration = {
+        "status": tool["mcp_registration"]["status"],
+        "probe": tool["mcp_registration"]["probe"],
+    }
+
+    if not tool["installed"]:
+        tool["version_supported"] = False
+        tool["probes"]["version"] = skipped_probe("executable_missing")
+        tool["host_integration"] = {
+            "status": "missing",
+            "probe": skipped_probe("executable_missing"),
+        }
+        tool["mcp_runtime"] = {
+            "status": "missing",
+            "probe": skipped_probe("executable_missing"),
+        }
+        return tool
+
+    version_raw = run_command(
+        [tool["executable"], "--version"], repository, timeout_seconds
+    )
+    tool["version"] = ouroboros_version_from_output(
+        f"{version_raw.get('stdout', '')}\n{version_raw.get('stderr', '')}"
+    )
+    tool["version_supported"] = version_raw["ok"] and supported_ouroboros_version(
+        tool["version"]
+    )
+    tool["probes"]["version"] = {
+        key: version_raw[key] for key in ("attempted", "ok", "exit_code", "timed_out")
+    }
+
+    # `ooo codex doctor` verifies another host's routing artifacts and the
+    # `ooo zcode` group ships no doctor command. The config registration
+    # resolved above is the host-integration signal here, so it is recorded
+    # rather than reprobed.
+    tool["host_integration"] = host_integration
+
+    mcp_doctor = json_probe(
+        [tool["executable"], "mcp", "doctor", "--json"],
+        repository,
+        timeout_seconds,
+    )
+    # The MCP 2 server registered in config launches as a separate process
+    # while the CLI environment keeps MCP 1.x, so the doctor's `mcp_import`
+    # check — and the exit code with it — fails on a correctly configured
+    # machine. The remaining checks carry runtime health here; the server's
+    # own health is the registration component.
+    doctor_checks = mcp_doctor.get("result")
+    runtime_probe = normalized_probe(mcp_doctor)
+    if isinstance(doctor_checks, list):
+        failed = sorted(
+            str(check.get("name"))
+            for check in doctor_checks
+            if isinstance(check, dict)
+            and check.get("status") == "fail"
+            and check.get("name") != "mcp_import"
+        )
+        if failed:
+            runtime_probe["reason"] = "doctor_checks_failed"
+        tool["mcp_runtime"] = {
+            "status": "degraded" if failed else "configured",
+            "failed_checks": failed,
+            "probe": runtime_probe,
+        }
+    else:
+        tool["mcp_runtime"] = {
+            "status": "degraded",
+            "probe": runtime_probe,
+        }
+
+    components_ready = (
+        tool["version_supported"]
+        and tool["host_integration"]["status"] == "configured"
+        and tool["mcp_runtime"]["status"] == "configured"
+        and tool["mcp_registration"]["status"] == "configured"
+    )
+    tool["status"] = "configured" if components_ready else "degraded"
+    return tool
+''',
+        },
+        "delete": [
+            "mcp_registration_probe",
+            "classify_mulgae_mcp_scope",
+            "classify_gaori_mcp_scope",
+            "classify_ouroboros_registration",
+            "effective_mcp_registration",
+            "named_mcp_server_missing",
+            "missing_mcp_scope",
+            "failed_mcp_scope",
+            "codex_version_from_output",
+        ],
+    },
+}
+
+
+def apply_script_surgery(relative: str, source: str, plan: dict[str, Any]) -> str:
+    """Replace or delete whole top-level functions in a bundled script.
+
+    Literal substitutions anchor on exact upstream bytes, so an upstream
+    reformat can silently stop them matching. Surgery anchors on function
+    names, which upstream renames loudly, and the post-surgery checks reject
+    dangling references to deleted functions and any syntax error.
+    """
+    lines = source.splitlines(keepends=True)
+    # `ast` carries exact line spans, so multi-line signatures — whose
+    # closing parenthesis sits at column zero and defeats a naive
+    # column-0 boundary scan — delimit functions correctly.
+    spans: dict[str, tuple[int, int, int]] = {}
+    for node in ast.parse(source).body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        starts = [node.lineno] + [
+            decorator.lineno for decorator in node.decorator_list
+        ]
+        start = min(starts) - 1
+        content_end = node.end_lineno
+        # A deletion also swallows the blank lines that separated the
+        # function from the next top-level construct, so the surviving
+        # neighbors keep exactly one blank-line gap.
+        block_end = content_end
+        while block_end < len(lines) and lines[block_end].strip() == "":
+            block_end += 1
+        spans[node.name] = (start, content_end, block_end)
+
+    replacements = plan.get("replace", {})
+    deletions = plan.get("delete", [])
+    unknown = sorted((set(replacements) | set(deletions)) - set(spans))
+    if unknown:
+        raise SyncError(
+            f"script surgery on `{relative}` names functions upstream no "
+            "longer defines: " + ", ".join(unknown) + "; re-derive the plan"
+        )
+    for name, text in replacements.items():
+        # A replacement may bundle helpers ahead of its namesake; requiring
+        # the definition anywhere still catches a rule that drops it.
+        if f"def {name}(" not in text:
+            raise SyncError(
+                f"script surgery replacement for `{name}` must define "
+                f"`{name}`"
+            )
+
+    operations: list[tuple[int, int, list[str] | None]] = []
+    for name in deletions:
+        start, _, block_end = spans[name]
+        operations.append((start, block_end, None))
+    for name, text in replacements.items():
+        start, content_end, _ = spans[name]
+        replacement_lines = text.splitlines(keepends=True)
+        if not replacement_lines or not replacement_lines[-1].endswith("\n"):
+            replacement_lines.append("\n")
+        operations.append((start, content_end, replacement_lines))
+    # Apply bottom-up so earlier spans keep their line numbers.
+    operations.sort(key=lambda operation: operation[0], reverse=True)
+    for start, end, replacement in operations:
+        lines[start:end] = replacement if replacement is not None else []
+
+    result = "".join(lines)
+    try:
+        compile(result, relative, "exec")
+    except SyntaxError as error:
+        raise SyncError(
+            f"script surgery on `{relative}` produced invalid syntax: {error}"
+        ) from error
+    for name in deletions:
+        if re.search(rf"\b{re.escape(name)}\b", result):
+            raise SyncError(
+                f"script surgery deleted `{name}` from `{relative}` but a "
+                "reference to it survived; extend the surgery plan"
+            )
+    return result
+
+
 # Substitutions for JSON data files. ZCode auto-loads `hooks/hooks.json` from
 # the plugin root and expands `${ZCODE_PLUGIN_ROOT}` in hook commands, so the
 # Codex spelling must move. With the Codex spelling the shell expands the
@@ -762,18 +580,23 @@ DATA_SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
 )
 
 # Text that must exist after transformation, relative to the generated plugin.
-# A script substitution that quietly stops matching would otherwise ship a
-# script searching only Codex paths, and the Markdown forbidden-check cannot
-# see it. The Ouroboros blocks are multi-line matches, so a reformat upstream
-# would stop them matching and silently restore the Codex-only inspection.
+# A substitution or surgery rule that quietly stopped matching would otherwise
+# ship a script searching only Codex paths, and the Markdown forbidden-check
+# cannot see it.
 REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
     ("skills/dev-setup/scripts/inspect_tools.py", '".zcode/skills"'),
     ("skills/dev-setup/scripts/inspect_tools.py", '".agents/skills"'),
     ("skills/dev-setup/scripts/inspect_tools.py", '".zcode/cli/config.json"'),
     ("skills/dev-setup/scripts/inspect_tools.py", "ouroboros_mcp_registration"),
-    ("skills/dev-setup/scripts/inspect_tools.py", "zcode_mcp_registration"),
+    ("skills/dev-setup/scripts/inspect_tools.py", "zcode_mcp_scopes"),
     ("skills/dev-setup/scripts/inspect_tools.py", '"host_integration"'),
     ("skills/dev-setup/scripts/inspect_tools.py", "doctor_checks_failed"),
+    # The test-setup inspector ships host-neutral from upstream; this marker
+    # guards that it arrives whole rather than transformed away.
+    (
+        "skills/test-setup/scripts/inspect_testing.py",
+        "aquarium-test-setup-inspection.v1",
+    ),
     ("hooks/task_commit_gate.py", "/aquarium:task-commit"),
     ("hooks/hooks.json", "${ZCODE_PLUGIN_ROOT}"),
 )
@@ -922,6 +745,9 @@ def transform_text(destination: Path) -> None:
         replaced = original
         for old, new in rules:
             replaced = replaced.replace(old, new)
+        relative = path.relative_to(destination).as_posix()
+        if relative in SCRIPT_SURGERY:
+            replaced = apply_script_surgery(relative, replaced, SCRIPT_SURGERY[relative])
         if replaced != original:
             path.write_text(replaced, encoding="utf-8")
 

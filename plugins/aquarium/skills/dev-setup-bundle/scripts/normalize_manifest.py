@@ -44,7 +44,10 @@ GIT_REPOSITORY_ENVIRONMENT_VARIABLES = frozenset(
         "GIT_COMMON_DIR",
         "GIT_CONFIG",
         "GIT_CONFIG_COUNT",
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_NOSYSTEM",
         "GIT_CONFIG_PARAMETERS",
+        "GIT_CONFIG_SYSTEM",
         "GIT_DIR",
         "GIT_DISCOVERY_ACROSS_FILESYSTEM",
         "GIT_GRAFT_FILE",
@@ -163,7 +166,9 @@ def load_yaml_strict(payload: bytes) -> Any:
     try:
         return yaml_module.load(payload, Loader=StrictSafeLoader)
     except yaml_module.YAMLError as error:
-        fail_manifest("invalid_yaml", f"manifest YAML is invalid: {type(error).__name__}")
+        fail_manifest(
+            "invalid_yaml", f"manifest YAML is invalid: {type(error).__name__}"
+        )
 
 
 def require_mapping(value: Any, location: str) -> dict[str, Any]:
@@ -185,9 +190,13 @@ def require_exact_keys(
     unknown = sorted(set(keys) - set(allowed))
     missing = sorted(set(required) - set(keys))
     if unknown:
-        fail_manifest("unknown_key", f"{location} has unknown keys: {', '.join(unknown)}")
+        fail_manifest(
+            "unknown_key", f"{location} has unknown keys: {', '.join(unknown)}"
+        )
     if missing:
-        fail_manifest("missing_key", f"{location} is missing keys: {', '.join(missing)}")
+        fail_manifest(
+            "missing_key", f"{location} is missing keys: {', '.join(missing)}"
+        )
 
 
 def require_string_list(
@@ -261,7 +270,9 @@ def normalize_selection(
         TOOLS,
     )
     if not tools:
-        fail_manifest("empty_selection", f"targets[{index}] must select at least one tool")
+        fail_manifest(
+            "empty_selection", f"targets[{index}] must select at least one tool"
+        )
 
     project_mcp = ordered(
         list(dict.fromkeys(defaults["project_mcp"] + mcp_include)),

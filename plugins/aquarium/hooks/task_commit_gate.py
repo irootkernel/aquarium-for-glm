@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import re
@@ -12,6 +13,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 GATE_ASSIGNMENT = "AQUARIUM_COMMIT_GATE=task-commit-v1"
+GATE_NAME, GATE_VALUE = GATE_ASSIGNMENT.split("=", 1)
 LIFECYCLE_PATTERN = re.compile(
     r"\b(?:In[ \t]+Progress|In[ \t]+Review|Completed|Blocked|Deferred)\b"
 )
@@ -22,8 +24,8 @@ OPTIONS_WITH_VALUES = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 
 def heredoc_specs(
     line: str, initial_quote: str | None
-) -> tuple[list[tuple[str, bool]], str | None]:
-    specs: list[tuple[str, bool]] = []
+) -> tuple[list[tuple[str, bool, bool]], str | None]:
+    specs: list[tuple[str, bool, bool]] = []
     index = 0
     quote = initial_quote
     while index < len(line):
@@ -56,35 +58,86 @@ def heredoc_specs(
             index += 2
             continue
 
-        delimiter_quote = line[cursor] if line[cursor] in {"'", '"'} else None
-        if delimiter_quote is not None:
-            cursor += 1
-            end = cursor
-            while end < len(line) and line[end] != delimiter_quote:
-                end += 1
-            if end >= len(line):
-                index += 2
+        delimiter_chars: list[str] = []
+        delimiter_quote: str | None = None
+        ansi_c_quote = False
+        delimiter_quoted = False
+        while cursor < len(line):
+            char = line[cursor]
+            if delimiter_quote is not None:
+                if char == delimiter_quote:
+                    delimiter_quote = None
+                    ansi_c_quote = False
+                elif char == "\\" and cursor + 1 < len(line):
+                    next_char = line[cursor + 1]
+                    if ansi_c_quote:
+                        ansi_escapes = {
+                            "a": "\a",
+                            "b": "\b",
+                            "e": "\x1b",
+                            "f": "\f",
+                            "n": "\n",
+                            "r": "\r",
+                            "t": "\t",
+                            "v": "\v",
+                            "\\": "\\",
+                            "'": "'",
+                            '"': '"',
+                        }
+                        delimiter_chars.append(ansi_escapes.get(next_char, next_char))
+                        cursor += 2
+                        continue
+                    if delimiter_quote == '"' and next_char in {"$", "`", '"', "\\"}:
+                        delimiter_chars.append(next_char)
+                        cursor += 2
+                        continue
+                    delimiter_chars.append(char)
+                else:
+                    delimiter_chars.append(char)
+                cursor += 1
                 continue
-            delimiter = line[cursor:end]
-            index = end + 1
-        else:
-            end = cursor
-            while end < len(line) and line[end] not in " \t\r\n;&|<>()":
-                end += 1
-            delimiter = line[cursor:end].replace("\\", "")
-            index = end
+            if char in " \t\r\n;&|<>()":
+                break
+            if (
+                char == "$"
+                and cursor + 1 < len(line)
+                and line[cursor + 1] in {"'", '"'}
+            ):
+                delimiter_quoted = True
+                delimiter_quote = line[cursor + 1]
+                ansi_c_quote = delimiter_quote == "'"
+                cursor += 2
+                continue
+            if char in {"'", '"'}:
+                delimiter_quoted = True
+                delimiter_quote = char
+                cursor += 1
+                continue
+            if char == "\\" and cursor + 1 < len(line):
+                delimiter_quoted = True
+                cursor += 1
+                delimiter_chars.append(line[cursor])
+                cursor += 1
+                continue
+            delimiter_chars.append(char)
+            cursor += 1
+        if delimiter_quote is not None:
+            index += 2
+            continue
+        delimiter = "".join(delimiter_chars)
+        index = cursor
         if delimiter:
-            specs.append((delimiter, strip_tabs))
+            specs.append((delimiter, strip_tabs, not delimiter_quoted))
     return specs, quote
 
 
 def without_heredoc_bodies(command: str) -> str:
     output: list[str] = []
-    pending: list[tuple[str, bool]] = []
+    pending: list[tuple[str, bool, bool]] = []
     quote: str | None = None
     for line in command.splitlines(keepends=True):
         if pending:
-            delimiter, strip_tabs = pending[0]
+            delimiter, strip_tabs, _expands = pending[0]
             body_line = line.rstrip("\r\n")
             comparison = body_line.lstrip("\t") if strip_tabs else body_line
             output.append("\n" if line.endswith(("\n", "\r")) else "")
@@ -97,42 +150,204 @@ def without_heredoc_bodies(command: str) -> str:
     return "".join(output)
 
 
-def shell_segments(command: str) -> list[list[str]]:
-    source = without_heredoc_bodies(command)
+def shell_segments(command: str) -> list[tuple[list[str], str | None]]:
+    source = command
     source = source.replace("\\\r\n", "").replace("\\\n", "")
-    lexer = shlex.shlex(source, posix=True, punctuation_chars=";&|\n")
+    lexer = shlex.shlex(source, posix=True, punctuation_chars=";&|\n()")
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
     lexer.commenters = ""
 
-    segments: list[list[str]] = []
+    segments: list[tuple[list[str], str | None]] = []
     current: list[str] = []
     try:
         tokens = iter(lexer)
         for token in tokens:
             if token and all(char in SEPARATOR_CHARS for char in token):
                 if current:
-                    segments.append(current)
+                    segments.append((current, token))
                     current = []
                 continue
             current.append(token)
     except ValueError:
         if current:
-            segments.append(current)
+            segments.append((current, None))
         return segments
     if current:
-        segments.append(current)
+        segments.append((current, None))
     return segments
 
 
+def executable_control_fragments(command: str) -> tuple[str, list[str]]:
+    fragments: list[str] = []
+
+    def quote_at(source: str, stop: int) -> str | None:
+        quote: str | None = None
+        escaped = False
+        for char in source[:stop]:
+            if escaped:
+                escaped = False
+            elif char == "\\" and quote != "'":
+                escaped = True
+            elif char in {"'", '"'}:
+                if quote == char:
+                    quote = None
+                elif quote is None:
+                    quote = char
+        return quote
+
+    def single_quoted(source: str, stop: int) -> bool:
+        return quote_at(source, stop) == "'"
+
+    def escaped(source: str, index: int) -> bool:
+        backslashes = 0
+        while index > backslashes and source[index - backslashes - 1] == "\\":
+            backslashes += 1
+        return backslashes % 2 == 1
+
+    function_pattern = re.compile(
+        r"(?ms)(?:\bfunction\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s*\(\))?"
+        r"|\b([A-Za-z_][A-Za-z0-9_]*)\s*\(\))\s*"
+        r"(?:\{(.*?)\}|\((.*?)\))\s*;?"
+    )
+
+    def remove_function(match: re.Match[str]) -> str:
+        if single_quoted(command, match.start()):
+            return match.group(0)
+        name = match.group(1) or match.group(2)
+        body = next(group for group in match.groups()[2:] if group is not None)
+        if re.search(
+            rf"(?:^|[;&|()\s]){re.escape(name)}(?:$|[;&|()\s])",
+            command[match.end() :],
+        ):
+            fragments.append(body)
+        return " "
+
+    remaining = function_pattern.sub(remove_function, command)
+
+    case_pattern = re.compile(r"(?ms)\bcase\s+(\S+)\s+in\s+(.*?)\s*esac\b")
+
+    def resolve_case(match: re.Match[str]) -> str:
+        if single_quoted(remaining, match.start()):
+            return match.group(0)
+        word = match.group(1).strip("'\"")
+        for arm in re.finditer(r"(?ms)([^)]+)\)(.*?)(?:;;|;&|;;&|$)", match.group(2)):
+            patterns = [value.strip().strip("'\"") for value in arm.group(1).split("|")]
+            if any(fnmatch.fnmatchcase(word, pattern) for pattern in patterns):
+                fragments.append(arm.group(2))
+                break
+        return " "
+
+    remaining = case_pattern.sub(resolve_case, remaining)
+
+    conditional_pattern = re.compile(
+        r"(?ms)\bif\s+(true|false)\s*;\s*then\s+(.*?)"
+        r"(?:\s*;\s*else\s+(.*?))?\s*;\s*fi\b"
+    )
+
+    def resolve_conditional(match: re.Match[str]) -> str:
+        if single_quoted(remaining, match.start()):
+            return match.group(0)
+        branch = match.group(2) if match.group(1) == "true" else match.group(3)
+        if branch:
+            fragments.append(branch)
+        return " "
+
+    remaining = conditional_pattern.sub(resolve_conditional, remaining)
+
+    loop_pattern = re.compile(
+        r"(?ms)\b(while|until)\s+(true|false)\s*;\s*do\s+(.*?)\s*;\s*done\b"
+    )
+
+    def resolve_loop(match: re.Match[str]) -> str:
+        if single_quoted(remaining, match.start()):
+            return match.group(0)
+        runs = (match.group(1), match.group(2)) in {
+            ("while", "true"),
+            ("until", "false"),
+        }
+        if runs:
+            fragments.append(match.group(3))
+        return " "
+
+    remaining = loop_pattern.sub(resolve_loop, remaining)
+
+    substitution_pattern = re.compile(
+        r"`((?:\\.|[^`])*)`|\$\(([^()]*)\)|[<>]\(([^()]*)\)", re.DOTALL
+    )
+
+    def remove_substitution(match: re.Match[str]) -> str:
+        process_substitution = match.group(3) is not None
+        quote = quote_at(remaining, match.start())
+        if (
+            quote == "'"
+            or (process_substitution and quote == '"')
+            or escaped(remaining, match.start())
+        ):
+            return match.group(0)
+        fragment = next(group for group in match.groups() if group is not None)
+        if match.group(1) is not None:
+            fragment = fragment.replace(r"\`", "`")
+        fragments.append(fragment)
+        return " substitution "
+
+    while True:
+        updated = substitution_pattern.sub(remove_substitution, remaining)
+        if updated == remaining:
+            break
+        remaining = updated
+    return remaining, fragments
+
+
+def heredoc_substitution_fragments(command: str) -> list[str]:
+    fragments: list[str] = []
+    pending: list[tuple[str, bool, bool, list[str]]] = []
+    quote: str | None = None
+    for line in command.splitlines(keepends=True):
+        if pending:
+            delimiter, strip_tabs, expands, body = pending[0]
+            body_line = line.rstrip("\r\n")
+            comparison = body_line.lstrip("\t") if strip_tabs else body_line
+            if comparison == delimiter:
+                if expands:
+                    _remaining, substitutions = executable_control_fragments(
+                        "".join(body)
+                    )
+                    fragments.extend(substitutions)
+                pending.pop(0)
+            else:
+                body.append(line)
+            continue
+        specs, quote = heredoc_specs(line, quote)
+        pending.extend((*spec, []) for spec in specs)
+    return fragments
+
+
 def git_commit_invocation(segment: list[str], cwd: Path) -> tuple[Path, bool] | None:
+    segment = list(segment)
     index = 0
-    assignments: list[str] = []
+    split_expansions = 0
+    shell_prefixes = {"!", "(", "{", "do", "else", "if", "then", "until", "while"}
+    while index < len(segment) and segment[index] in shell_prefixes:
+        index += 1
+    assignments: dict[str, str] = {}
     while index < len(segment) and ASSIGNMENT_PATTERN.match(segment[index]):
-        assignments.append(segment[index])
+        name, value = segment[index].split("=", 1)
+        assignments[name] = value
         index += 1
 
-    if index < len(segment) and segment[index] == "env":
+    wrappers = {"builtin", "command", "exec", "nohup"}
+    while index < len(segment) and (
+        segment[index] in wrappers or segment[index] == "time"
+    ):
+        if segment[index] == "time":
+            index += 1
+            while index < len(segment) and segment[index].startswith("-"):
+                index += 1
+        else:
+            index += 1
+
+    while index < len(segment) and segment[index] == "env":
         index += 1
         while index < len(segment):
             token = segment[index]
@@ -140,35 +355,170 @@ def git_commit_invocation(segment: list[str], cwd: Path) -> tuple[Path, bool] | 
                 index += 1
                 break
             if ASSIGNMENT_PATTERN.match(token):
-                assignments.append(token)
+                name, value = token.split("=", 1)
+                assignments[name] = value
                 index += 1
+                continue
+            if token in {"-i", "--ignore-environment"}:
+                assignments.clear()
+                index += 1
+                continue
+            if token in {"-C", "--chdir"}:
+                if index + 1 >= len(segment):
+                    return None
+                candidate = Path(segment[index + 1])
+                cwd = candidate if candidate.is_absolute() else cwd / candidate
+                index += 2
+                continue
+            if token.startswith("--chdir="):
+                candidate = Path(token.split("=", 1)[1])
+                cwd = candidate if candidate.is_absolute() else cwd / candidate
+                index += 1
+                continue
+            if token.startswith("-C") and len(token) > 2:
+                candidate = Path(token[2:])
+                cwd = candidate if candidate.is_absolute() else cwd / candidate
+                index += 1
+                continue
+            if token.startswith("-iC") and len(token) > 3:
+                assignments.clear()
+                candidate = Path(token[3:])
+                cwd = candidate if candidate.is_absolute() else cwd / candidate
+                index += 1
+                continue
+            if token in {"-S", "--split-string"}:
+                if index + 1 >= len(segment) or split_expansions >= 16:
+                    return None
+                try:
+                    replacement = shlex.split(segment[index + 1], posix=True)
+                except ValueError:
+                    return None
+                segment[index : index + 2] = replacement
+                split_expansions += 1
+                continue
+            if token.startswith("--split-string="):
+                if split_expansions >= 16:
+                    return None
+                try:
+                    replacement = shlex.split(token.split("=", 1)[1], posix=True)
+                except ValueError:
+                    return None
+                segment[index : index + 1] = replacement
+                split_expansions += 1
+                continue
+            if token.startswith("-S") and len(token) > 2:
+                if split_expansions >= 16:
+                    return None
+                try:
+                    replacement = shlex.split(token[2:], posix=True)
+                except ValueError:
+                    return None
+                segment[index : index + 1] = replacement
+                split_expansions += 1
+                continue
+            if token in {"-u", "--unset"}:
+                if index + 1 >= len(segment):
+                    return None
+                assignments.pop(segment[index + 1], None)
+                index += 2
+                continue
+            if token.startswith("--unset="):
+                assignments.pop(token.split("=", 1)[1], None)
+                index += 1
+                continue
+            if token == "-P":
+                if index + 1 >= len(segment):
+                    return None
+                index += 2
                 continue
             if token.startswith("-"):
                 index += 1
                 continue
             break
 
-    if index < len(segment) and segment[index] == "command":
-        index += 1
+    while index < len(segment) and (
+        segment[index] in wrappers or segment[index] == "time"
+    ):
+        if segment[index] == "time":
+            index += 1
+            while index < len(segment) and segment[index].startswith("-"):
+                index += 1
+        else:
+            index += 1
+    if index < len(segment) and segment[index] == "env":
+        inherited = [f"{name}={value}" for name, value in assignments.items()]
+        nested = git_commit_invocation([*inherited, *segment[index:]], cwd)
+        if nested is None:
+            return None
+        nested_cwd, nested_gated = nested
+        return nested_cwd, nested_gated
     if index >= len(segment) or Path(segment[index]).name != "git":
         return None
     index += 1
 
+    git_path_base = cwd
     probe_cwd = cwd
+    git_dir: Path | None = None
+    assignment_values = assignments
+    work_tree_value = assignment_values.get("GIT_WORK_TREE")
+    if work_tree_value:
+        candidate = Path(work_tree_value)
+        probe_cwd = candidate if candidate.is_absolute() else git_path_base / candidate
+    git_dir_value = assignment_values.get("GIT_DIR")
+    if git_dir_value:
+        candidate = Path(git_dir_value)
+        git_dir = candidate if candidate.is_absolute() else git_path_base / candidate
     while index < len(segment):
         token = segment[index]
         if token == "commit":
-            return probe_cwd, GATE_ASSIGNMENT in assignments
+            if git_dir is not None:
+                try:
+                    resolved_git_dir = git_dir.resolve()
+                except OSError:
+                    return None
+                if resolved_git_dir.name == ".git":
+                    probe_cwd = resolved_git_dir.parent
+            return probe_cwd, assignments.get(GATE_NAME) == GATE_VALUE
         if token == "--":
             return None
         if token == "-C":
             if index + 1 >= len(segment):
                 return None
             candidate = Path(segment[index + 1])
-            probe_cwd = candidate if candidate.is_absolute() else probe_cwd / candidate
+            git_path_base = (
+                candidate if candidate.is_absolute() else git_path_base / candidate
+            )
+            probe_cwd = git_path_base
             index += 2
             continue
-        if token in OPTIONS_WITH_VALUES or token.startswith(("--git-dir=", "--work-tree=", "--namespace=")):
+        if token in {"--git-dir", "--work-tree"}:
+            if index + 1 >= len(segment):
+                return None
+            candidate = Path(segment[index + 1])
+            candidate = (
+                candidate if candidate.is_absolute() else git_path_base / candidate
+            )
+            if token == "--work-tree":
+                probe_cwd = candidate
+            else:
+                git_dir = candidate
+            index += 2
+            continue
+        if token.startswith("--work-tree="):
+            candidate = Path(token.split("=", 1)[1])
+            probe_cwd = (
+                candidate if candidate.is_absolute() else git_path_base / candidate
+            )
+            index += 1
+            continue
+        if token.startswith("--git-dir="):
+            candidate = Path(token.split("=", 1)[1])
+            git_dir = (
+                candidate if candidate.is_absolute() else git_path_base / candidate
+            )
+            index += 1
+            continue
+        if token in OPTIONS_WITH_VALUES or token.startswith("--namespace="):
             index += 2 if token in OPTIONS_WITH_VALUES else 1
             continue
         if token.startswith("-"):
@@ -207,7 +557,9 @@ def is_roadmap_repository(root: Path) -> bool:
         if not raw_path:
             continue
         relative = os.fsdecode(raw_path)
-        if not any("roadmap" in part.casefold() for part in PurePosixPath(relative).parts):
+        if not any(
+            "roadmap" in part.casefold() for part in PurePosixPath(relative).parts
+        ):
             continue
         candidate = root / relative
         try:
@@ -244,14 +596,46 @@ def should_deny(payload: dict[str, Any]) -> bool:
     cwd_value = payload.get("cwd")
     cwd = Path(cwd_value) if isinstance(cwd_value, str) else Path.cwd()
 
+    heredoc_fragments = heredoc_substitution_fragments(command)
+    command, fragments = executable_control_fragments(without_heredoc_bodies(command))
+    fragments = heredoc_fragments + fragments
+    if any(
+        should_deny({"tool_input": {"command": fragment}, "cwd": str(cwd)})
+        for fragment in fragments
+    ):
+        return True
+
     probe_base = cwd
-    for segment in shell_segments(command):
+    previous_separator: str | None = None
+    last_status: bool | None = None
+    for segment, separator in shell_segments(command):
+        should_execute = not (
+            (previous_separator == "&&" and last_status is False)
+            or (previous_separator == "||" and last_status is True)
+        )
+        if not should_execute:
+            previous_separator = separator
+            continue
         if segment and segment[0] == "cd" and len(segment) == 2:
             candidate = Path(segment[1])
-            probe_base = candidate if candidate.is_absolute() else probe_base / candidate
+            destination = (
+                candidate if candidate.is_absolute() else probe_base / candidate
+            )
+            succeeded = destination.is_dir()
+            if succeeded:
+                probe_base = destination
+            last_status = succeeded
+            previous_separator = separator
             continue
         invocation = git_commit_invocation(segment, probe_base)
         if invocation is None:
+            if segment and segment[0] in {"true", ":", "echo"}:
+                last_status = True
+            elif segment and segment[0] == "false":
+                last_status = False
+            else:
+                last_status = None
+            previous_separator = separator
             continue
         probe_cwd, gated = invocation
         if gated:
@@ -259,6 +643,8 @@ def should_deny(payload: dict[str, Any]) -> bool:
         root = repository_root(probe_cwd)
         if root is not None and is_roadmap_repository(root):
             return True
+        last_status = None
+        previous_separator = separator
     return False
 
 

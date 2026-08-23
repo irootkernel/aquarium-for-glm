@@ -44,7 +44,9 @@ A reviewer subagent shares the coordinator's model, so what this buys is a fresh
 
 ## Supervise and Settle
 
-Wait for each dispatched reviewer to report rather than predicting its result, and give the user a progress update while waiting. Answer reviewer questions only from established repository facts; ask the user when an answer requires product intent or wider authority.
+Before dispatch, disclose and record one cumulative supervision budget, using 30 minutes unless the user explicitly selected another duration. Wait for each dispatched reviewer to report rather than predicting its result, and give the user a progress update while waiting. Answer reviewer questions only from established repository facts; ask the user when an answer requires product intent or wider authority.
+
+When a reviewer returns nothing usable within the recorded budget, or a dispatch fails, stop waiting, leave any partial result intact, and report the review as operationally incomplete with the exact dispatch status. Further waiting, re-dispatch, or replacement requires an explicit user request; never retry, cancel, or substitute a reviewer automatically. An operational failure is not an `APPROVE` result.
 
 Process every returned review in full. Keep technical review evidence and dispatch status as separate statuses, so a reviewer that never ran is never read as a clean verdict.
 

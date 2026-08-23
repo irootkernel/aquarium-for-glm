@@ -1,11 +1,11 @@
 ---
 name: dev-setup
-description: "Diagnose and configure Aquarium repository tooling. Use when the user invokes /aquarium:dev-setup or asks to install, initialize, repair, or audit Sanho, Mulgae, Gaori, Podway, Ouroboros, Lora, upstream Deslop, paired skills, MCP registrations, Config v3, provider profiles, or AGENTS.md tool guidance. Do not use for routine supported Procedure v2 session observation, cancellation, discard, or reset; use /use-podway."
+description: "Diagnose and configure Aquarium repository tooling and root agent guidance. Use when the user invokes /aquarium:dev-setup or asks to install, initialize, repair, or audit supported tools, paired skills, global or project MCP state, or an evidence-based AGENTS.md operating contract with CLAUDE.md delegation. Do not use for routine supported Procedure v2 session observation, cancellation, discard, or reset; use /use-podway."
 ---
 
 # Development Setup
 
-Configure selected development tools without inventing shared project state or silently rewriting agent guidance. Treat diagnosis, installation, native configuration, and AGENTS.md editing as distinct authority boundaries.
+Configure selected development tools and evidence-based repository operating guidance without inventing shared project state or silently rewriting instruction files. Treat diagnosis, installation, native configuration, and root AGENTS.md/CLAUDE.md editing as distinct authority boundaries.
 
 Read [podway-integration.md](../../references/podway-integration.md) only when the user explicitly selects Podway diagnosis or setup. Managed Aquarium Procedures or other repository state never select Podway by themselves.
 
@@ -16,9 +16,10 @@ Do not use this skill to observe, cancel, discard, or reset a routine supported 
 1. Resolve the requested working directory to one Git root.
 2. Read applicable instruction files and inspect the branch, upstream, staged, unstaged, and untracked state.
 3. Resolve this skill's directory (the directory containing this `SKILL.md`) and, when `python3` is available, run `python3 <skill-directory>/scripts/inspect_tools.py --repository <git-root>`. This default inspection omits Podway and Ouroboros completely and keeps an absent optional Mulgae MCP registration non-gating.
-   When the current request explicitly selects Podway, add `--include-podway`; when it selects Ouroboros, add `--include-ouroboros`; when it selects project-local Mulgae MCP, add `--require-mulgae-mcp`. Rerun with the applicable flag when a component is selected later through ask/answer. Read the JSON as local diagnostic evidence, not as installation or mutation authority.
+   When the current request explicitly selects Podway, add `--include-podway`; when it selects Ouroboros, add `--include-ouroboros`; when it selects Mulgae MCP in either scope, add `--require-mulgae-mcp`. Rerun with the applicable flag when a component is selected later through ask/answer. Read the JSON as local diagnostic evidence, not as installation or mutation authority.
 4. If `python3` is unavailable or the inspection script fails, report that gap and perform the same read-only discovery manually. Do not install Python as part of fallback diagnosis.
-5. Discover existing tool guidance and verification commands from repository files before asking questions. Inspect the remaining state read-only; when a check would require reading credentials, contacting a network, or changing files, defer it to a separately authorized step except for the exact selected-skill freshness comparison authorized below.
+5. Discover existing root instruction files, project authorities, tool guidance, commit-message rules, verification commands, and non-secret environment variable names from repository files before asking questions.
+   Never read credential values in this skill, even after setup approval. Do not open `.env*`, authentication, key, token, secret, or credential files. Use only non-secret documentation and templates proven to contain placeholders, plus redacted readiness from the owning CLI. When a check would require credential values, report the gap. Defer network contact or file changes to a separately authorized step except for the exact selected-skill freshness comparison authorized below.
 6. Do not create or read `.aquarium` or any equivalent central selection file. `/aquarium:dev-setup-bundle` may separately normalize an explicit external manifest, but this skill receives only its bounded normalized handoff and never the manifest path or contents.
 
 ## Use Ask/Answer for Decisions
@@ -33,23 +34,25 @@ Use the host's structured ask/answer tool, normally `AskUserQuestion`, whenever 
 
 After read-only discovery, use these batches and component boundaries:
 
-- Ask about Sanho, Mulgae, and Gaori first, then Podway, Ouroboros, Lora, upstream Deslop, and whether to prepare an AGENTS.md proposal.
+- Ask about Sanho, Mulgae, and Gaori first, then Podway, Ouroboros, Lora, upstream Deslop, and whether to prepare a repository operating-guidance proposal rooted in AGENTS.md.
 - For each tool offer `Install and configure`, `Diagnose only`, and `Skip`, adapting the wording to current state.
 - For Sanho, Mulgae, Gaori, and Podway, recommend installing or upgrading the CLI and paired skill while reporting each component independently.
 - For Ouroboros, report the CLI, installed user-scoped skills, MCP registration, and runtime readiness independently.
-- For Lora and Deslop, report every discovered user-global installation, frontmatter validity, duplicate or symlink state, and upstream freshness independently.
+- For every paired or third-party skill, reject any symlink from the configured skill root through the required files before reading or hashing it. For Lora and Deslop, report every discovered user-global installation, frontmatter validity, duplicate or symlink state, and upstream freshness independently.
 
 Disclose in the Sanho, Mulgae, Gaori, and Podway selection choices that either affirmative selection automatically contacts the official GitHub Releases metadata endpoint and `raw.githubusercontent.com` to compare the selected tool's latest supported stable skill with its exact `~/.agents/skills` target. This bounded freshness comparison needs no separate approval and authorizes no installation or replacement.
 
-When Mulgae or Gaori is selected, ask separately whether to configure that tool's user-global MCP registration in `~/.zcode/cli/config.json`; offer `Configure user MCP`, `Diagnose only`, and `Skip`.
+When Mulgae or Gaori is selected, inspect its active user-global registration in `~/.zcode/cli/config.json` and any project-local registration in the repository's `.zcode/config.json` independently. If neither is configured, offer `Configure global MCP` (recommended), `Configure project MCP`, and `Skip`. If a project-local registration exists, ask whether it is intentional; preserve it only when the user confirms local scope, because a project entry overrides the user-global entry of the same name. Otherwise propose removal of only that named local registration. Never infer local intent from the presence of `.zcode/config.json` or another local MCP entry.
 
-A `dev-setup-bundle` handoff is a preselected multi-tool setup request, not a scoped repair continuation. Require the requesting skill, manifest digest, target index, canonical Git root, effective tools, project MCP selection, and AGENTS.md policy.
+A `dev-setup-bundle` handoff is a preselected multi-tool setup request, not a scoped repair continuation. Require the requesting skill, manifest digest, target index, canonical Git root, effective tools, explicit local MCP overrides, and repository-guidance policy.
 
-Reinspect that repository, use the normalized tools as `Install and configure` selections, use the MCP and AGENTS.md values as their preselected choices, and retain every exact mutation, backup, approval, and stale-target boundary below. Reject a handoff that includes an unsupported tool, selects MCP outside Mulgae or Gaori, selects MCP for an absent effective tool, or asks this skill to read the manifest.
+Reinspect that repository, use the normalized tools as `Install and configure` selections, use explicit local MCP overrides and repository-guidance values as their preselected choices, and retain every exact mutation, backup, approval, and stale-target boundary below. Treat selected Mulgae or Gaori MCP as user-global by default and use an override only for its named target.
+
+Reject a handoff that includes an unsupported tool, selects a local MCP override outside Mulgae or Gaori, selects an override for an absent effective tool, or asks this skill to read the manifest.
 
 When another Aquarium skill routes a continuation request, treat it as scoped intake: the request must name the requesting skill, repository, exact failing tool or check, and evidence gap. Reject a handoff whose only requested action is routine supported Procedure v2 session observation, cancellation, discard, or reset, and return the exact `/use-podway` lifecycle request without starting broad setup discovery.
 
-Otherwise keep the read-only discovery above, then ask only about the named tool and anything its repair requires, including explicitly requested Podway readiness repair or managed-Procedure removal. Skip the remaining batches and the AGENTS.md question unless the user asks for them, and end by reporting the resolved gap and the exact prompt that resumes the routing workflow.
+Otherwise keep the read-only discovery above, then ask only about the named tool and anything its repair requires, including explicitly requested Podway readiness repair or managed-Procedure removal. Skip the remaining batches and the repository-guidance question unless the user asks for it, and end by reporting the resolved gap and the exact prompt that resumes the routing workflow.
 
 Read [tool-catalog.md](references/tool-catalog.md) for every tool selected for diagnosis or setup.
 
@@ -64,7 +67,8 @@ Within one confirmed `dev-setup-bundle` request, accept the bundle owner's alrea
 1. From the official GitHub Releases metadata, resolve the newest non-draft, non-prerelease tag within the tool's supported release line. Fetch only `SKILL.md`, `references/lifecycle.md`, `references/authoring.md`, and `references/recovery.md` for that tag from the catalog's `raw.githubusercontent.com` source into an ephemeral temporary directory.
 2. Before comparing, require all four regular files, compute their SHA-256 digests, and verify the expected `name: use-sanho`, `name: use-mulgae`, `name: use-gaori`, or `name: use-podway` frontmatter. Reject redirects or responses that resolve outside the disclosed official endpoints. Never execute fetched content.
 3. Compare the verified source against exactly `~/.agents/skills/<skill-name>` as complete directory trees. Treat missing expected files, different bytes, invalid frontmatter, symlinks, and any extra local files as differences. Other agent skill roots remain diagnostic evidence only; never update or remove another discovered copy through this automatic comparison.
-4. If the trees match exactly, report the source tag and `current` status without asking an update question. If the target is absent, show the exact target and ask separately whether to install it. If it differs, show the source tag, the complete file-set diff including additions and deletions, and ask separately whether to replace it after establishing the backup policy. One skill target requires one explicit installation or replacement approval; approval for another tool does not apply.
+4. If the trees match exactly, report the source tag and `current` status without asking an update question. If the exact target is absent, first inspect the already discovered diagnostic roots. When another copy exists, report the duplicate risk and do not propose installation until the user separately chooses a removal or migration that leaves one canonical target; never create a known duplicate.
+   Otherwise show the exact target and ask separately whether to install it. If the target differs, show the source tag, the complete file-set diff including additions and deletions, and ask separately whether to replace it after establishing the backup policy. One skill target requires one explicit installation or replacement approval; approval for another tool does not apply.
 5. If metadata lookup, download, validation, or comparison fails, report `freshness_unverifiable` with the failed endpoint or validation stage, make no freshness claim, remove the temporary payload when possible, and continue any safe local diagnosis. Do not propose an installation or replacement from an unverified payload.
 
 The automatic comparison authorizes only these selected-skill metadata and raw-file reads plus ephemeral payload preparation. CLI archives, checksums, package managers, repository remotes, providers, MCP processes, and every other network operation retain their normal disclosure and explicit approval requirements. Reuse the verified exact tag and payload for a later approved skill action instead of performing a second release lookup.
@@ -100,13 +104,13 @@ For Sanho, support only stable `v0.2.7` through `v0.2.x`. Resolve one exact tag 
 
 For Mulgae, support only stable `v0.1.17` through `v0.1.x` on native Apple Silicon macOS. Resolve one exact tag and use it for both the CLI and `use-mulgae` source. Require Go `1.26.6` or newer for installation, without treating an older Go toolchain as a runtime failure of an already healthy binary.
 
-Keep CLI installation or upgrade, user-scoped skill installation or replacement, project Config v3 and ignore changes, local bootstrap or refresh, provider credential-profile mapping, and user-global MCP configuration as separate approval boundaries. Treat missing, incomplete, invalid, and duplicate skill installations and missing MCP registration independently from CLI and configuration health.
+Keep CLI installation or upgrade, user-scoped skill installation or replacement, project Config v3 and ignore changes, local bootstrap or refresh, provider credential-profile mapping, and global or project-local MCP configuration as separate approval boundaries. Treat missing, incomplete, invalid, and duplicate skill installations and missing MCP registration independently from CLI and configuration health.
 
 Report Mulgae CLI compatibility, Doctor v2 contract support, Config v3, local configuration, provider identity, configured readiness, role-route readiness, each configured provider's binary availability and CLI compatibility, and MCP registration separately. Do not expose static admission, heartbeat, historical review, or `review_qualified` as setup dimensions.
 
 Never authenticate a provider, inspect a prior run, or start a Mulgae heartbeat, review, qualification, preflight capture, live provider request, source transmission, or MCP server during setup. Doctor v2 may run only Mulgae's adapter-owned local version commands in its offline boundary.
 
-For Gaori, support only stable `v0.1.14` through `v0.1.x`. Resolve one exact tag and use it for both the CLI and `use-gaori` source. Keep CLI installation or upgrade, user-scoped skill installation or replacement, repository config and ignore changes, and project-local MCP configuration as separate approval boundaries. Treat missing, incomplete, invalid, and duplicate skill installations and missing MCP registration independently from CLI health. Never start a Gaori run or MCP test command during setup.
+For Gaori, support only stable `v0.1.14` through `v0.1.x`. Resolve one exact tag and use it for both the CLI and `use-gaori` source. Keep CLI installation or upgrade, user-scoped skill installation or replacement, repository config and ignore changes, and global or project-local MCP configuration as separate approval boundaries. Treat missing, incomplete, invalid, and duplicate skill installations and missing MCP registration independently from CLI health. Never start a Gaori run or MCP test command during setup.
 
 Approval for one tool does not authorize another. Never use `sudo`, `--force`, destructive cleanup, credential extraction, provider invocation, source transmission, staging, committing, or pushing unless the user separately grants that exact authority.
 
@@ -135,7 +139,9 @@ Managed-Procedure removal is a separate destructive proposal. Show the exact man
 
 Aquarium does not bundle Lora, Lore, or Deslop source. For Lora or Deslop, read the selected catalog section, obtain approval for the disclosed GitHub lookup, resolve the exact upstream commit, and compare the complete installed target with a temporary detached checkout before proposing installation or replacement. Never install directly from a moving `main`, use a full commit SHA as an `npx skills` URL fragment, merge local and upstream files, or treat frontmatter validity as freshness proof.
 
-For Lora, install only `lore-commits` and `lore-query` from the approved checkout through the catalog's local-source `npx skills add` command. Do not install `lore-setup`. For Deslop, install only `deslop` from the approved Cursor Team Kit checkout and preserve that checkout's upstream LICENSE beside the installed `SKILL.md`. Require byte-identical source files, `name: deslop`, one regular non-symlink installation, and no extra target files before reporting it current.
+For Lora, install only `lore-commits` and `lore-query` from the approved checkout through the catalog's local-source `npx skills add` command. After installation, compare the complete source and target file sets and every digest, rejecting extras and symlinks; structural inspector output alone never proves current source. Do not install `lore-setup`.
+
+For Deslop, install only `deslop` from the approved Cursor Team Kit checkout and preserve that checkout's upstream LICENSE beside the installed `SKILL.md`. Require byte-identical source files, `name: deslop`, one regular non-symlink installation, and no extra target files before reporting it current.
 
 Keep source lookup, existing-target backup policy, installation or replacement, and the ZCode restart as separate disclosed boundaries. A scoped continuation from `task-handler` or `task-refine` selects only Deslop; after successful installation, return the exact repository, roadmap, and task prompt needed to resume the caller.
 
@@ -149,24 +155,25 @@ Treat the following as three separate persistent mutations, each with its own di
 
 1. Exact package installation or upgrade through `uv`.
 2. Installing or refreshing the user-scoped Ouroboros skills under a ZCode skill root from the approved package's bundled skill payload.
-3. Registering the `ouroboros` stdio server in the `mcp.servers` object of `~/.zcode/cli/config.json`, either as the exact displayed merge or through `ooo setup --runtime zcode`, the packaged installer for this host's entry and skills; `ooo codex doctor` covers another host's artifacts and verifies nothing here.
+3. Registering the `ouroboros` stdio server in the `mcp.servers` object of `~/.zcode/cli/config.json`, either as the exact displayed merge or through `ooo setup --runtime zcode`, the packaged installer for this host's entry and skills; the packaged rules and `ooo codex` subcommands install and verify another host's artifacts and cover nothing here.
 
 Approval for one never authorizes another. Re-read targets immediately before each mutation and invalidate stale approval. Setup must not call an Ouroboros provider, authenticate, run `auto`, `run`, `ralph`, or `evolve`, transmit repository source, create a Seed, or start an Aquarium design workflow.
 
 After approved mutations, verify `ooo --version`, `ooo mcp doctor --json`, and the effective `mcp.servers` entry by reading `~/.zcode/cli/config.json`. There is no `zcode mcp` probe; the `/mcp` command in a running session shows live connection status, so verify live exposure separately without invoking a provider. `ooo mcp doctor --json` exits non-zero whenever the CLI environment carries MCP 1.x, even on a correctly configured machine, because its `mcp_import` check fails while the MCP 2 server runs as a separate process; read its remaining checks for runtime health and never present its bare exit code as the registration verdict. Report missing skills, registration, runtime health, and live exposure as distinct gaps, and tell the user when a ZCode restart or a new session is required.
 
-## Gate AGENTS.md With Two Approvals
+## Gate Repository Guidance With Two Approvals
 
-Handle AGENTS.md independently from tool setup. The target is the repository-root `AGENTS.md`, the instruction file this host reads natively; when it does not exist, propose creating it at that path.
+Handle root AGENTS.md and CLAUDE.md independently from tool setup. The root `AGENTS.md` is the instruction file this host reads natively; the root `CLAUDE.md` is the canonical delegation file that redirects instruction-file readers of other hosts to it.
 
-1. Ask whether to prepare a reference-based AGENTS.md proposal. Offer `Show proposal`, `Diagnose only`, and `Skip`.
-2. Only after `Show proposal`, read [agents-guidance.md](references/agents-guidance.md), then classify existing text into duplicated skill behavior, repository-specific overrides, and ambiguous text that must be preserved.
-3. Display the exact target path and complete proposed diff. Do not edit the file yet.
-4. Ask whether to `Apply exactly this diff`, `Revise proposal`, or `Do not apply`.
-5. Before applying, re-read the file and compare it with the bytes used to produce the proposal. If it changed, discard the approval, regenerate the diff, and ask again.
-6. Apply only the approved diff. Then show the actual diff and verify that overrides and unrelated user content remain.
+1. Ask whether to prepare an evidence-based repository operating-guidance proposal. Offer `Show proposal`, `Diagnose only`, and `Skip`.
+2. For either `Show proposal` or `Diagnose only`, read [agents-guidance.md](references/agents-guidance.md) and inspect the non-secret local sources it identifies. Diagnosis reports coverage and conflicts without drafting or mutation.
+3. For `Show proposal`, resolve every material conflict and the mandatory `Project Configuration` > `Commit Messages` rule before finalizing the proposal. If no authoritative commit header exists, ask the user to choose one; recent Git history is evidence only and never sufficient authority by itself.
+4. For `Show proposal` only, display the exact root AGENTS.md and CLAUDE.md paths and one complete combined diff. Do not edit either file yet. Preserve substantive CLAUDE.md guidance in AGENTS.md before proposing the canonical delegation file.
+5. For `Show proposal` only, ask whether to `Apply exactly this diff`, `Revise proposal`, or `Do not apply`.
+6. Before applying a shown proposal, re-read both files and compare them with the bytes or explicit absence used to produce it. If either changed, discard the approval, regenerate the combined diff, and ask again.
+7. Apply only the approved shown diff. Then show the actual diff and verify the required structure, mandatory commit-message subsection, CLAUDE.md delegation, repository-specific rules, and unrelated user content.
 
-The first answer authorizes proposal preparation only. General setup approval, install approval, and the instruction to use this skill never authorize AGENTS.md mutation. Do not edit nested AGENTS.md, CLAUDE.md, stage, or commit without separate explicit approval.
+The first answer authorizes proposal preparation or diagnosis only. General setup approval, install approval, and the instruction to use this skill never authorize instruction-file mutation. The second approval covers only the exact displayed root AGENTS.md/CLAUDE.md diff; it never authorizes nested instruction files, staging, committing, or publication.
 
 ## Report the Result
 
@@ -177,16 +184,16 @@ Report:
 - each selected paired skill's comparison tag, exact `~/.agents/skills` target, `current`, `missing`, `different`, or `freshness_unverifiable` result, temporary-payload cleanup, and any installation or replacement decision;
 - selected backup policy, existing state backed up or deliberately left without a backup, backup verification and restoration paths when applicable, and the disclosed recovery boundary;
 - Sanho CLI, workspace, and `use-sanho` skill state separately;
-- Mulgae CLI and Doctor v2 compatibility, project Config v3, local configuration, provider identity, binary availability, provider CLI compatibility, configured and role-route readiness, `use-mulgae` skill, installation prerequisites, and user-global MCP state separately;
-- Gaori CLI, repository config, `use-gaori` skill, and user-global MCP state separately;
+- Mulgae CLI and Doctor v2 compatibility, project Config v3, local configuration, provider identity, binary availability, provider CLI compatibility, configured and role-route readiness, `use-mulgae` skill, installation prerequisites, and global, local, and effective MCP scope separately;
+- Gaori CLI, repository config, `use-gaori` skill, and global, local, and effective MCP scope separately;
 - Podway CLI, daemon, workspace, Aquarium readiness, legacy-state detection, and `use-podway` skill state separately;
 - Ouroboros CLI and version support, installed user-scoped skills, MCP runtime, effective registration, and live exposure separately;
 - commands run and their exit status;
 - native configuration and ignore paths changed;
 - verification evidence and remaining auth or environment gaps;
-- whether AGENTS.md was skipped, proposed, revised, or applied;
+- whether repository guidance was skipped, diagnosed, proposed, revised, or applied, including AGENTS.md structure, mandatory commit-message authority, and CLAUDE.md delegation state;
 - worktree changes, with staging and publication state stated separately.
 
 For a `dev-setup-bundle` handoff, also return the manifest digest, target index, canonical Git root, and a target result of `ready`, `partial`, `failed`, `declined`, or `skipped`, with unmet dependencies and an exact resumption request. Return the result to the bundle owner so it can continue independent targets and produce one aggregate report.
 
-Do not claim a tool is configured merely because its binary exists. Do not claim AGENTS.md was approved when only a proposal was requested.
+Do not claim a tool is configured merely because its binary exists. Do not claim repository guidance was approved when only a proposal was requested.

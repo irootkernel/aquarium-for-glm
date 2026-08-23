@@ -135,7 +135,7 @@ Propose these root-anchored Git ignore rules through an exact reviewed diff:
 
 Verify that only `.mulgae/config.yaml` is trackable and that `.mulgae/local.yaml` and all runtime state remain untracked and ignored. Propose `.mulgaeignore` entries from the repository's secrets, generated output, large artifacts, agent instructions, and non-reviewable paths. A `.mulgaeignore` intended as shared capture policy may be tracked only with explicit approval.
 
-Treat MCP as an optional, separately approved user-global component. Merge this machine-specific entry into the `mcp.servers` object of `~/.zcode/cli/config.json` while preserving unrelated configuration:
+Treat MCP as an optional, separately approved component and prefer one user-global registration in the `mcp.servers` object of `~/.zcode/cli/config.json`:
 
 ```json
 {
@@ -153,7 +153,29 @@ Treat MCP as an optional, separately approved user-global component. Merge this 
 
 Omit `--project-root` so one global server serves every repository; the flag remains valid when a single machine default should be pinned. ZCode defines no per-server startup or tool timeout fields in `mcp.servers`; its host-level MCP deadlines apply and cannot be raised through configuration. When a Mulgae review may exceed the host deadline, the CLI fallback preflight remains the bounded completion path.
 
-Show the complete diff before approval; the user configuration file is machine state and is never staged or committed. There is no `zcode mcp` command, so verify the effective registration by reading the merged entry: it must be a stdio entry that resolves to the selected binary. A same-name entry in a project's `.zcode/config.json` overrides the global one for that project; do not create one as part of this setup. Record the configuration evidence and live status separately; the `/mcp` command in a running session shows live connection status, and a server that has not connected yet is unverified, not a mismatch.
+When the user explicitly chooses repository-local scope, merge this machine-specific alternative into the `mcp.servers` object of `<absolute-git-root>/.zcode/config.json` while preserving unrelated configuration:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "mulgae": {
+        "type": "stdio",
+        "command": "<absolute-selected-mulgae-path>",
+        "args": ["mcp", "--project-root", "<canonical-root>"]
+      }
+    }
+  }
+}
+```
+
+A same-name project entry overrides the user-global entry for that project.
+
+Show the complete diff and target scope before approval; for a local target also show whether `.zcode/config.json` is tracked. Neither configuration file is staged or committed during setup. There is no `zcode mcp` command, so verify three views independently without starting the server: read the user-global entry from `~/.zcode/cli/config.json`, the isolated local entry from `<absolute-git-root>/.zcode/config.json`, and report the effective registration as the local entry when one exists and the user-global entry otherwise. An entry is configured only when it is stdio, not disabled, and resolves to the selected binary; an unreadable configuration file degrades that view rather than proving absence.
+
+Whenever an isolated local registration exists, ask whether that scope is intentional. If confirmed, preserve it even when global is preferred. If not, show and separately approve removal of only the local `mulgae` entry through an exact JSON edit of `.zcode/config.json`, then reread the file afterward. Delete `.zcode/config.json` only when parsed JSON has no remaining semantic content, and delete `.zcode/` only when the directory is then empty; preserve every unrelated entry and every nonempty directory. Apply the shared backup policy before removal, never remove the global registration as part of local cleanup, and never stage the file during setup. Repository configuration paths must be regular non-symlink paths before `mulgae doctor` or any owning CLI probe may read them.
+
+Record the configuration evidence and live status separately; the `/mcp` command in a running session shows live connection status, and a server that has not connected yet is unverified, not a mismatch.
 
 Tell the user to restart ZCode or start a new session: a server added mid-session only joins new sessions, and only then can it expose `preflight_review`, `start_review`, `await_review`, `cancel_review`, the foreground-compatible `run_review`, `list_runs`, `get_run`, `list_findings`, and verified report and finding resources. The v0.1.17 lifecycle starts exactly once and awaits the same process-local invocation without transferring observer cancellation to provider execution; use the foreground path atomically when any lifecycle tool is absent. The attached MCP surface remains versioned independently; CLI fallback preflight must identify `mulgae-review-preflight.v3`.
 
@@ -171,7 +193,7 @@ Install an approved tag:
 go install github.com/irootkernel/gaori@<tag>
 ```
 
-The binary does not install the agent skill. Diagnose the CLI and repository with `command -v gaori`, `gaori version --json`, and, when `.gaori/tester.yaml` exists, `gaori --json config check`. Diagnose `use-gaori` and project-local MCP registration independently. Config check validates schema-v2 config and all stored rules without resolving executables, running commands, or creating evidence.
+The binary does not install the agent skill. Diagnose the CLI and repository with `command -v gaori`, `gaori version --json`, and, when `.gaori/tester.yaml` exists, `gaori --json config check`. Diagnose `use-gaori` and global, local, and effective MCP registration independently. Config check validates schema-v2 config and all stored rules without resolving executables, running commands, or creating evidence.
 
 For a new user-scoped skill installation, use only these files from the automatically fetched and verified `https://raw.githubusercontent.com/irootkernel/gaori/<tag>/skills/use-gaori/` payload: `SKILL.md`, `references/lifecycle.md`, `references/authoring.md`, and `references/recovery.md`. Verify the complete file set, SHA-256 digests, and `name: use-gaori` frontmatter before atomically moving it to `~/.agents/skills/use-gaori`. Repeat every raw GitHub endpoint and the user-global target in the installation proposal even though the comparison fetch itself needs no separate approval.
 
@@ -195,7 +217,7 @@ This keeps `.gaori/toolchain.yaml`, `.gaori/rule-proposals/`, `.gaori/runs/`, an
 
 Leave completed evidence and proposal reconciliation to the matching `use-gaori` skill. Its `gaori --json runs list`, `gaori --json rules proposals`, and `gaori rules show --proposal <name>` paths are read-only discovery, not repair, activation, command reruns, or durable job recovery. Never inspect prior run contents or raw logs automatically during setup.
 
-Treat MCP as an optional, separately approved user-global component. Merge this machine-specific entry into the `mcp.servers` object of `~/.zcode/cli/config.json` while preserving unrelated configuration:
+Treat MCP as an optional, separately approved component and prefer one user-global registration in the `mcp.servers` object of `~/.zcode/cli/config.json`:
 
 ```json
 {
@@ -211,7 +233,29 @@ Treat MCP as an optional, separately approved user-global component. Merge this 
 }
 ```
 
-Show the complete diff before approval; the user configuration file is machine state and is never staged or committed. There is no `zcode mcp` command, so verify the effective registration by reading the merged entry: it must be a stdio entry that resolves to the selected binary and keeps the `mcp` server subcommand as its last argument. Omit `--repo` so one global server serves every repository; the flag remains valid when a single machine default should be pinned. A same-name entry in a project's `.zcode/config.json` overrides the global one for that project; do not create one as part of this setup. ZCode defines no per-server tool timeout fields, so a one-hour command and evidence finalization rely on the host-level MCP deadline; when a Gaori run may exceed it, the CLI path remains the bounded completion path. Report missing, disabled, non-stdio, unresolvable-command, and wrong-binary entries as degraded; a server that has not connected yet is unverified rather than degraded. Tell the user to restart ZCode or start a new session so it can expose `start_configured_run`, `start_ad_hoc_run`, `get_run`, `wait_run`, terminal-only `await_run`, `cancel_run`, `get_excerpt`, and the read-only `list_runs` completed-evidence inventory. `await_run` observes one process-local invocation without cancelling execution when that observer ends; use `get_run` or bounded `wait_run` when the host deadline cannot safely cover terminal completion. `list_runs` is stateless and cannot recover an invocation ID or reattach a disconnected run.
+When the user explicitly chooses repository-local scope, merge this machine-specific alternative into the `mcp.servers` object of `<absolute-git-root>/.zcode/config.json` while preserving unrelated configuration:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "gaori": {
+        "type": "stdio",
+        "command": "<absolute-selected-gaori-path>",
+        "args": ["--repo", "<absolute-git-root>", "mcp"]
+      }
+    }
+  }
+}
+```
+
+A same-name project entry overrides the user-global entry for that project.
+
+Show the complete diff and target scope before approval; for a local target also show whether `.zcode/config.json` is tracked. Never stage either file during setup. Verify global, isolated local, and effective registrations with the same three-view config-reading procedure used for Mulgae, without starting the server or a test. Omit `--repo` from a global entry so one server serves every repository, and keep the `mcp` server subcommand as the entry's last argument. ZCode defines no per-server tool timeout fields, so a one-hour command and evidence finalization rely on the host-level MCP deadline; when a Gaori run may exceed it, the CLI path remains the bounded completion path. An entry is configured only when it is stdio, not disabled, and resolves to the selected binary; report disabled, non-stdio, and unresolvable-command entries as degraded, and a server that has not connected yet as unverified rather than degraded.
+
+Whenever an isolated local Gaori registration exists, ask whether that scope is intentional. If not, show and separately approve removal of only the local `gaori` entry through an exact JSON edit of `.zcode/config.json`. Apply the same backup, semantic-empty-file, empty-directory, unrelated-entry preservation, and no-staging rules as Mulgae local cleanup. Never remove the global registration as part of local cleanup.
+
+Tell the user to restart ZCode or start a new session so it can expose `start_configured_run`, `start_ad_hoc_run`, `get_run`, `wait_run`, terminal-only `await_run`, `cancel_run`, `get_excerpt`, and the read-only `list_runs` completed-evidence inventory. `await_run` observes one process-local invocation without cancelling execution when that observer ends; use `get_run` or bounded `wait_run` when the host deadline cannot safely cover terminal completion. `list_runs` is stateless and cannot recover an invocation ID or reattach a disconnected run. Every present repository configuration path that Gaori may inspect, including `.gaori/tester.yaml`, every descendant of `.gaori/tester/rules/`, and `.gaori/toolchain.yaml`, must have regular non-symlink lexical ancestry before any owning CLI probe may read it; an absent primary path stops that probe rather than consulting ambient state.
 
 ## Lora / Lore
 
@@ -237,7 +281,7 @@ npx skills add <temporary-source-root>/lora \
 
 The clone and fetch contact GitHub, and `npx` contacts npm and writes under `~/.zcode/skills`, the ZCode user-global skill root. Require the detached `HEAD` to equal the approved ref before installation. ZCode also reads the shared cross-agent root `~/.agents/skills`; when `lore-commits` or `lore-query` already exists there, compare and update that existing copy in place instead of creating a duplicate under `~/.zcode/skills`. Do not install or invoke Lora's `lore-setup`; it copies the full Lore protocol into AGENTS.md and conflicts with the reference-and-override policy. If `lore-setup` is already installed, report it without removing or rewriting it.
 
-Before updating an existing `lore-commits` or `lore-query`, compare its complete installed file set with the approved source, show the target and diff, and apply the shared backup policy before the approved `npx skills add` action. Under the no-backup policy, disclose that local modifications will not be recoverable from the source ref. Verify that `lore-commits/SKILL.md` and `lore-query/SKILL.md` exist, have valid frontmatter, and match the approved source ref. Do not treat installation as commit authority.
+Before updating an existing `lore-commits` or `lore-query`, compare its complete installed file set with the approved source, show the target and diff, and apply the shared backup policy before the approved `npx skills add` action. Under the no-backup policy, disclose that local modifications will not be recoverable from the source ref. After installation, enumerate both complete source and target trees, reject missing and extra paths, and compare every regular file byte-for-byte; any symlink or digest mismatch fails verification. The bundled inspector reports only structural presence and frontmatter as `unverifiable`, never complete-source currency. Do not report configured until this post-action complete-tree comparison passes. Do not treat installation as commit authority.
 
 ## Cursor Team Kit / Deslop
 
@@ -300,7 +344,7 @@ Repository initialization and Aquarium readiness configuration require another a
 podway procedure check --warnings-as-errors <procedure-file>
 ```
 
-The five required IDs are `aquarium-task-v2`, `aquarium-goal-v2`, `aquarium-validation-v2`, `aquarium-design-v2`, and `aquarium-war-room-v2`. Their presence describes readiness, never workflow activation. All absent means `readiness_status=not_configured`; all present, tracked in Git, byte-identical, valid, and healthy means `readiness_status=ready`; partial, drifted, invalid, unsupported, or unhealthy state means `readiness_status=degraded`. The v6 inspection omits Podway unless invoked with `--include-podway`.
+The five required IDs are `aquarium-task-v2`, `aquarium-goal-v2`, `aquarium-validation-v2`, `aquarium-design-v2`, and `aquarium-war-room-v2`. Their presence describes readiness, never workflow activation. Require regular non-symlink files and non-symlink path components before hashing or invoking `procedure check`; a symlinked managed path is degraded and must never be read or executed. All absent means `readiness_status=not_configured`; all present, tracked in Git, byte-identical, valid, and healthy means `readiness_status=ready`; partial, drifted, invalid, unsupported, or unhealthy state means `readiness_status=degraded`. The v6 inspection omits Podway unless invoked with `--include-podway`.
 
 Updating a tracked copy requires showing and approving its exact diff and applying the shared backup policy; an active session retains its immutable snapshot.
 
@@ -342,7 +386,7 @@ Diagnose four independent components with the v6 inspector's explicit `--include
 
 `ooo mcp doctor --json` reports the CLI's own environment, not the registered server's process. Its `mcp_import` check fails, and the command exits non-zero, whenever the CLI environment carries MCP 1.x, even on a correctly configured machine, because the supported layout runs the MCP 2 server as a separate process. Read the remaining checks for runtime health and treat a failing `mcp_import` alone as expected; never present the bare exit code as the registration verdict, and never resolve `mcp_import` by adding MCP 2 to the CLI environment, which is the combination Ouroboros refuses.
 
-Registration is `configured` only for a valid enabled entry, `missing` when neither `~/.zcode/cli/config.json` nor the project `.zcode/config.json` carries an `ouroboros` entry under `mcp.servers`, and `degraded` for a disabled entry or an unreadable configuration file. Verify the effective registration by reading the entry; there is no `zcode mcp` probe, and the `/mcp` command in a running session shows live connection status. Report only the normalized status and reason; never expose raw configuration or secrets.
+Registration is `configured` only for a stdio entry that is not disabled and whose command resolves, `missing` when neither `~/.zcode/cli/config.json` nor the project `.zcode/config.json` carries an `ouroboros` entry under `mcp.servers`, and `degraded` for a disabled entry, an unresolvable command, or an unreadable configuration file. Verify the effective registration by reading the entry; there is no `zcode mcp` probe, and the `/mcp` command in a running session shows live connection status. Report only the normalized status and reason; never expose raw configuration or secrets.
 
 Package installation, skill installation or replacement, and the `mcp.servers` entry are three separate persistent mutations with separate approvals. Re-read exact targets before each approved mutation and stop if they changed.
 
