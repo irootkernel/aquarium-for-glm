@@ -6,9 +6,9 @@ By [Root Kernel](https://home.rootkernel.xyz) · Support: [cs@rootkernel.xyz](ma
 
 ## Aquarium Editions
 
+- [Aquarium](https://github.com/irootkernel/aquarium)
 - [Aquarium for Claude](https://github.com/irootkernel/aquarium-for-claude)
 - [Aquarium for Kimi](https://github.com/irootkernel/aquarium-for-kimi)
-- [Aquarium for GLM](https://github.com/irootkernel/aquarium-for-glm)
 
 ## Install
 
