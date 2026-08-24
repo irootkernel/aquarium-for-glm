@@ -4,6 +4,12 @@ Aquarium development skills packaged as a ZCode plugin. This repository is a **g
 
 By [Root Kernel](https://home.rootkernel.xyz) · Support: [cs@rootkernel.xyz](mailto:cs@rootkernel.xyz)
 
+## Aquarium Editions
+
+- [Aquarium for Claude](https://github.com/irootkernel/aquarium-for-claude)
+- [Aquarium for Kimi](https://github.com/irootkernel/aquarium-for-kimi)
+- [Aquarium for GLM](https://github.com/irootkernel/aquarium-for-glm)
+
 ## Install
 
 ZCode installs plugins through its desktop client. Open Settings → Plugin Management → Discover, add this repository as a marketplace — GitHub repository `irootkernel/aquarium-for-glm`, or a local directory pointing at a checkout — then Get `aquarium`. Restart or start a new session so the skill snapshot reloads.
@@ -25,12 +31,14 @@ The generated plugin is committed, so installation never depends on the submodul
 | `epic-validator` | Cold-validate a completed epic and converge confirmed gaps through remediation goals. | `/aquarium:epic-validator` with a roadmap path and one epic ID |
 | `task-handler` | Strengthen the procedure around one task goal through focused phase skills and verified transitions. | `/aquarium:task-handler` with a roadmap path and one task ID |
 | `task-commit` | Reconcile roadmap task lifecycle state and create one authorized commit that preserves unrelated work. | Automatic for commit requests, or `/aquarium:task-commit` |
-| `release-qa` | Exercise the current release candidate through read-only user scenarios covering every change since the previous stable release, or one bounded confirmation pass after remediation. | `/aquarium:release-qa` with an intended or confirmed version |
+| `release-handler` | Prepare, validate, publish, or retarget one stable release with cumulative changelog settlement. | `/aquarium:release-handler` with an intended or planned version |
+| `release-qa` | Run one full scenario-based QA pass for an exact main release candidate, or one bounded confirmation pass after remediated findings. | `/aquarium:release-qa` with an intended or confirmed version |
 | `dev-setup` | Diagnose and configure selected development tools, and propose an evidence-based repository operating contract behind separate approvals. | `/aquarium:dev-setup` |
 | `dev-setup-bundle` | Apply development-tool setup to explicit Git repositories from one external YAML manifest. | `/aquarium:dev-setup-bundle` with a manifest path |
+| `docs-setup` | Audit, establish, adopt, or migrate a repository's canonical documentation structure and roadmap IDs. | `/aquarium:docs-setup` |
 | `test-setup` | Audit and configure the common Make or Bun testing contract for one repository, with evidence-backed legacy waivers. | `/aquarium:test-setup` |
-| `independent-review` | Run a supervised read-only requirements and code review with fresh reviewer subagents, then adjudicate their findings. | `/aquarium:independent-review` with one epic or task |
-| `orca-review` | Run one supervised, read-only review of an exact snapshot through a user-selected AI CLI — `claude`, `codex`, `cursor-agent`, or `kimi` — driven by Orca. | `/aquarium:orca-review` with one review target |
+| `independent-review` | Run one supervised static review with fresh reviewer subagents against staged changes, a commit or range, one task or epic, or a roadmap-independent investigation. | `/aquarium:independent-review` with one review target |
+| `orca-review` | Run the canonical independent-review target contract through a user-selected external AI CLI — `claude`, `kimi`, `agy`, or `cursor-agent` — driven by Orca. | `/aquarium:orca-review` with one review target |
 
 The five design skills drive Ouroboros as a bounded leaf capability and need it installed and pinned to `>=0.51.1,<0.52.0`; `/aquarium:dev-setup` diagnoses and configures it behind separate approvals. They shape documents only and never implement.
 
@@ -55,7 +63,7 @@ upstream/                        git submodule, pinned to one upstream commit
   plugins/aquarium/              the Codex plugin — never edited here
 overrides/
   manifest.json                  path → SHA-256 of the upstream file each override was derived from
-  codex-exemptions.json          path → SHA-256 of an upstream file whose remaining "Codex" mentions were reviewed
+  codex-exemptions.json          path → SHA-256 of each generated line whose surviving "Codex" mention was reviewed
   skills/...                     full-file replacements for host-specific divergence
 scripts/sync.py                  the transformation
 plugins/aquarium/                generated output, committed
@@ -77,7 +85,7 @@ Three files diverge semantically and are kept as overrides rather than substitut
 
 `skills/dev-setup/references/agents-guidance.md` needed an override while upstream described a Codex-only instruction-file contract; upstream v0.1.10 rewrote it around the host-neutral `AGENTS.md` operating contract with `CLAUDE.md` delegation, which ZCode reads natively, so it now passes through substitutions unchanged.
 
-Everything else is a literal substitution: the `$aquarium:` sigil becomes `/aquarium:`, the `$use-*` skill sigils become `/use-*`, the Ouroboros sigils `$interview`, `$pm`, `$seed`, and `$qa` become `/interview`, `/pm`, `/seed`, and `/qa` because Ouroboros installs user-scoped skills that ZCode reads natively from `~/.agents/skills`, the separately installed `$deslop` becomes `/deslop`, `request_user_input` becomes `AskUserQuestion`, `Codex goal` becomes `ZCode todo list`, and the inspection script resolves skills from the ZCode roots — `~/.zcode/skills` and the shared `~/.agents/skills` — and diagnoses every MCP registration against this host instead of Codex.
+Everything else is a literal substitution: the `$aquarium:` sigil becomes `/aquarium:`, the `$use-*` skill sigils become `/use-*`, the Ouroboros sigils `$interview`, `$pm`, `$seed`, and `$qa` become `/interview`, `/pm`, `/seed`, and `/qa` because Ouroboros installs user-scoped skills that ZCode reads natively from `~/.agents/skills`, the separately installed `$deslop` becomes `/deslop`, `request_user_input` becomes `AskUserQuestion`, `Codex goal` becomes `ZCode todo list`, and the inspection script resolves skills from the ZCode roots — `~/.zcode/skills` and the shared `~/.agents/skills` — and diagnoses every MCP registration against this host instead of Codex. The v0.1.11 review split carries its own substitutions: the Orca supervision reference names `/aquarium:orca-review` as the workflow it backs and drops the Codex dispatch clause `independent-review` never runs here, and orca-review's `non-Codex` phrasing becomes `external provider`, because the default review backend on this host is the skill's own reviewer subagent rather than Codex.
 
 Whole functions of `inspect_tools.py` diverge too far for literal rules, so the transformation also performs name-anchored surgery: each rule names a top-level function to replace or delete, the function's span comes from `ast` line numbers, and post-surgery checks reject a rule whose function upstream no longer defines, a replacement that drops its namesake, any syntax error, and any dangling reference to a deleted function. Anchoring on names instead of exact bytes keeps a rule working through upstream body edits — the failure mode of the giant literal blocks this mechanism replaced — while upstream renames still stop generation loudly.
 
@@ -91,7 +99,7 @@ ZCode defines no per-server timeout fields in `mcp.servers`, so the catalog's Mu
 
 An unmapped sigil is the quiet failure: it is valid Markdown naming a command the reader's host does not have, so neither a forbidden needle nor a required-text assertion notices it, and one needle per known sigil only ever catches the sigils that already exist. Generation therefore rejects any remaining lowercase `$name` in generated Markdown. Uppercase spellings are environment variables the generated tree still needs and do not match.
 
-The `Codex` name is otherwise forbidden in generated text. Two files are exempt: `tool-catalog.md` names the Codex CLI as a Mulgae provider and a required CLI version, and `orca-review/references/provider-contracts.md` documents `codex:gpt-5.6-sol` as one of the review providers the user may select — both stay true here. Each exemption records the upstream digest it was judged against, so the sync stops when that file changes. The `test-setup` inspector ships host-neutral from upstream; a required-text marker guards that it arrives whole rather than transformed away.
+The `Codex` name is otherwise forbidden in generated text. One exemption remains: `tool-catalog.md` names the Codex CLI as a Mulgae provider and a required CLI version, which stays true here. An exemption records the SHA-256 of every generated line that still contains `Codex`, so one review judgement covers exactly the mentions the artifact ships: upstream edits that leave each exempted line byte-identical keep the exemption valid, while any new, changed, or removed mention line stops the sync and names the line to re-read. The v0.1.11 provider contracts dropped Codex as an orca-review provider, so the former second exemption retired. The host-neutral inspectors that ship from upstream — `test-setup`, `docs-setup`, both `release-handler` inspectors, the review-target inspector, and the provider-terminal helper — each carry a required-text marker guarding that they arrive whole rather than transformed away.
 
 ## Upgrade
 

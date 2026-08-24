@@ -23,6 +23,12 @@ MULGAE_MCP_TOOL_TIMEOUT_SEC = 7501
 GAORI_MCP_TOOL_TIMEOUT_SEC = 3601
 MAX_COMMAND_TIMEOUT_SECONDS = 86_400.0
 CONFLICT_STATUSES = {"DD", "AU", "UD", "UA", "DU", "AA", "UU"}
+CANONICAL_NUMERIC_COMPONENT = r"(?:0|[1-9][0-9]*)"
+CANONICAL_SEMVER = re.compile(
+    rf"v?{CANONICAL_NUMERIC_COMPONENT}\."
+    rf"{CANONICAL_NUMERIC_COMPONENT}\."
+    rf"{CANONICAL_NUMERIC_COMPONENT}(?:[-+][0-9A-Za-z.-]+)?"
+)
 SANHO_SKILL_FILES = (
     "SKILL.md",
     "references/lifecycle.md",
@@ -214,9 +220,7 @@ def json_probe(
 def version_from_probe(probe: dict[str, Any]) -> str | None:
     result = probe.get("result")
     version = result.get("version") if isinstance(result, dict) else None
-    if isinstance(version, str) and re.fullmatch(
-        r"v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", version
-    ):
+    if isinstance(version, str) and CANONICAL_SEMVER.fullmatch(version):
         return version
     return None
 
@@ -230,42 +234,47 @@ def normalized_version(version: str | None) -> str | None:
 def supported_podway_version(version: str | None) -> bool:
     if not version:
         return False
-    match = re.fullmatch(r"v?0\.2\.(\d+)", version)
+    match = re.fullmatch(rf"v?0\.2\.({CANONICAL_NUMERIC_COMPONENT})", version)
     return bool(match and int(match.group(1)) >= 5)
 
 
 def supported_sanho_version(version: str | None) -> bool:
     if not version:
         return False
-    match = re.fullmatch(r"v?0\.2\.(\d+)", version)
+    match = re.fullmatch(rf"v?0\.2\.({CANONICAL_NUMERIC_COMPONENT})", version)
     return bool(match and int(match.group(1)) >= 7)
 
 
 def supported_gaori_version(version: str | None) -> bool:
     if not version:
         return False
-    match = re.fullmatch(r"v?0\.1\.(\d+)", version)
+    match = re.fullmatch(rf"v?0\.1\.({CANONICAL_NUMERIC_COMPONENT})", version)
     return bool(match and int(match.group(1)) >= 14)
 
 
 def supported_mulgae_version(version: str | None) -> bool:
     if not version:
         return False
-    match = re.fullmatch(r"v?0\.1\.(\d+)", version)
-    return bool(match and int(match.group(1)) >= 17)
+    match = re.fullmatch(rf"v?0\.1\.({CANONICAL_NUMERIC_COMPONENT})", version)
+    return bool(match and int(match.group(1)) >= 18)
 
 
 def supported_mulgae_go_version(version: str | None) -> bool:
     if not version:
         return False
-    match = re.fullmatch(r"go(\d+)\.(\d+)\.(\d+)", version)
+    match = re.fullmatch(
+        rf"go({CANONICAL_NUMERIC_COMPONENT})\."
+        rf"({CANONICAL_NUMERIC_COMPONENT})\."
+        rf"({CANONICAL_NUMERIC_COMPONENT})",
+        version,
+    )
     return bool(match and tuple(map(int, match.groups())) >= (1, 26, 6))
 
 
 def supported_ouroboros_version(version: str | None) -> bool:
     if not version:
         return False
-    match = re.fullmatch(r"v?0\.51\.(\d+)", version)
+    match = re.fullmatch(rf"v?0\.51\.({CANONICAL_NUMERIC_COMPONENT})", version)
     return bool(match and int(match.group(1)) >= 1)
 
 
@@ -1084,7 +1093,10 @@ def inspect_mulgae_installation_prerequisites(
         version = result.get("GOVERSION")
         safe_result: dict[str, str] = {}
         if isinstance(version, str) and re.fullmatch(
-            r"go\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?", version
+            rf"go{CANONICAL_NUMERIC_COMPONENT}\."
+            rf"{CANONICAL_NUMERIC_COMPONENT}(?:\."
+            rf"{CANONICAL_NUMERIC_COMPONENT})?(?:[-+][0-9A-Za-z.-]+)?",
+            version,
         ):
             prerequisite["go"]["version"] = version
             prerequisite["go"]["supported"] = supported_mulgae_go_version(version)

@@ -75,6 +75,24 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     ("a fresh Codex in the current", "a fresh independent reviewer in the current"),
     ("fresh Codex audit", "fresh from-scratch audit"),
     ("direct Codex audit", "direct from-scratch audit"),
+    # v0.1.11 moves review supervision into shared references. independent-review
+    # runs on the host's own Agent tool here, so the Orca supervision reference
+    # serves orca-review alone and its Codex dispatch clause does not apply.
+    (
+        "the current execution backend for Aquarium's independent review contracts",
+        "the current execution backend for Aquarium's `/aquarium:orca-review` provider layer",
+    ),
+    (
+        "For `/aquarium:independent-review`, start one fresh Codex with the live guide's "
+        "supervised `worker-start --worktree current --agent codex` path. Do not reuse a "
+        "terminal or create another Git worktree.",
+        "Do not reuse a terminal or create another Git worktree.",
+    ),
+    # orca-review routes to external provider CLIs; the default review backend
+    # here is the host's own reviewer subagent, so "non-Codex" names the wrong
+    # default.
+    ("a non-Codex independent review", "an external-provider independent review"),
+    ("a removable non-Codex provider layer", "a removable external provider layer"),
     (" for Codex.", " for ZCode."),
     # Ouroboros registers its skills with the host agent, so the component whose
     # health `dev-setup` establishes is the ZCode one here. The bundle skill
@@ -597,6 +615,28 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
         "skills/test-setup/scripts/inspect_testing.py",
         "aquarium-test-setup-inspection.v1",
     ),
+    # The v0.1.11 inspectors and the provider-terminal helper also ship
+    # host-neutral from upstream; the same marker guard applies to each.
+    (
+        "skills/docs-setup/scripts/inspect_docs.py",
+        "aquarium-docs-inspection/v1",
+    ),
+    (
+        "skills/release-handler/scripts/inspect_publication_state.py",
+        "aquarium-release-publication-state/v1",
+    ),
+    (
+        "skills/release-handler/scripts/inspect_release_notes.py",
+        "aquarium-release-notes-inspection/v1",
+    ),
+    (
+        "skills/independent-review/scripts/inspect_review_target.py",
+        "aquarium-independent-review-target/v1",
+    ),
+    (
+        "skills/orca-review/scripts/create_provider_terminal.py",
+        "aquarium-orca-provider-terminal-request/v1",
+    ),
     ("hooks/task_commit_gate.py", "/aquarium:task-commit"),
     ("hooks/hooks.json", "${ZCODE_PLUGIN_ROOT}"),
 )
@@ -632,6 +672,10 @@ class SyncError(RuntimeError):
 
 def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def digest_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def upstream_commit() -> str:
@@ -776,8 +820,17 @@ def load_override_manifest() -> dict[str, str]:
     return json.loads(OVERRIDE_MANIFEST.read_text(encoding="utf-8"))
 
 
-def check_codex_exemptions() -> set[str]:
-    """Return the paths whose remaining `Codex` mentions were reviewed and kept.
+def load_codex_exemptions() -> dict[str, list[str]]:
+    """Return reviewed `Codex` mention digests keyed by generated path."""
+    if not CODEX_EXEMPTIONS.is_file():
+        return {}
+    return json.loads(CODEX_EXEMPTIONS.read_text(encoding="utf-8"))
+
+
+def validate_codex_exemptions(
+    staged_root: Path, recorded_all: dict[str, list[str]]
+) -> set[str]:
+    """Check each exemption against the `Codex` mentions that survived generation.
 
     Some upstream text names the Codex CLI as a third-party tool rather than as
     the host running the skill — a Mulgae provider, a required CLI version. That
@@ -785,31 +838,52 @@ def check_codex_exemptions() -> set[str]:
     false, but it still trips the `Codex` needle after an override is applied,
     because overrides do not exempt their own content.
 
-    An exemption records that a human read every remaining mention in one file
-    and confirmed each is third-party. That judgement holds only for the bytes it
-    was made against, so an upstream edit stops the run instead of widening the
-    exemption in silence.
+    An exemption records the SHA-256 of every generated line that still names
+    `Codex` after substitutions and overrides, so one review judgement covers
+    exactly the mentions the artifact ships. Upstream edits that leave every
+    exempted line byte-identical keep the exemption valid; any new, changed, or
+    removed mention line stops the run instead of widening the exemption in
+    silence.
     """
-    if not CODEX_EXEMPTIONS.is_file():
-        return set()
-    recorded_all: dict[str, str] = json.loads(CODEX_EXEMPTIONS.read_text(encoding="utf-8"))
+    validated: set[str] = set()
     for relative, recorded in sorted(recorded_all.items()):
-        source = UPSTREAM_PLUGIN / relative
-        if not source.is_file():
+        if not isinstance(recorded, list) or not all(
+            isinstance(item, str) for item in recorded
+        ):
             raise SyncError(
-                f"`Codex` exemption targets `{relative}`, which no longer exists "
-                "upstream; remove the exemption or retarget it"
+                f"`Codex` exemption for `{relative}` is not a list of per-line digests; "
+                "re-record it against the generated file"
             )
-        current = digest(source)
-        if current != recorded:
+        path = staged_root / relative
+        if not path.is_file():
             raise SyncError(
-                f"`Codex` exemption stale: `{relative}` changed upstream\n"
-                f"  recorded {recorded}\n"
-                f"  current  {current}\n"
-                "re-read every remaining `Codex` mention, confirm each still names "
-                "the third-party CLI, then update overrides/codex-exemptions.json"
+                f"`Codex` exemption targets `{relative}`, which the transformation no "
+                "longer generates; remove the exemption or retarget it"
             )
-    return set(recorded_all)
+        mentions = [
+            (digest_text(line), line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if "Codex" in line
+        ]
+        recorded_set = set(recorded)
+        if sorted(key for key, _ in mentions) == sorted(recorded):
+            validated.add(relative)
+            continue
+        unreviewed = [(key, line) for key, line in mentions if key not in recorded_set]
+        vanished = sorted(recorded_set - {key for key, _ in mentions})
+        detail = "".join(f"  {key}\n    {line.strip()}\n" for key, line in unreviewed)
+        if vanished:
+            detail += "  recorded mentions no longer present:\n" + "".join(
+                f"    {key}\n" for key in vanished
+            )
+        raise SyncError(
+            f"`Codex` exemption stale: `{relative}` has `Codex` mentions the recorded "
+            f"review does not cover\n{detail}"
+            "re-read every listed mention, confirm each still names the third-party "
+            "CLI, then update overrides/codex-exemptions.json with these per-line "
+            "digests"
+        )
+    return validated
 
 
 def apply_overrides(destination: Path) -> list[str]:
@@ -942,7 +1016,7 @@ def write_sync_manifest(
 
 def generate(staged_root: Path) -> tuple[str, list[str]]:
     commit = upstream_commit()
-    codex_exemptions = check_codex_exemptions()
+    codex_exemptions = load_codex_exemptions()
     plugin = staged_root / "plugins" / "aquarium"
     plugin.mkdir(parents=True)
     copy_tree(plugin)
@@ -952,7 +1026,8 @@ def generate(staged_root: Path) -> tuple[str, list[str]]:
     overrides = apply_overrides(plugin)
     transform_skills(plugin)
     write_plugin_manifest(plugin)
-    check_forbidden(plugin, codex_exemptions)
+    validated_exemptions = validate_codex_exemptions(plugin, codex_exemptions)
+    check_forbidden(plugin, validated_exemptions)
     check_sigils(plugin)
     check_required(plugin)
     write_sync_manifest(plugin, upstream_manifest()["repository"], commit, overrides)

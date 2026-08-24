@@ -2,7 +2,7 @@
 
 Use this reference only after the user selects `Show proposal` or `Diagnose only` for repository guidance. Diagnosis uses its structure and evidence rules without drafting; only `Show proposal` authorizes proposal preparation. A proposal creates or reconciles a repository operating contract and is not limited to tool guidance.
 
-The four-part core behavior below is adapted, rather than copied verbatim, from the Karpathy-inspired guidance at `multica-ai/andrej-karpathy-skills` commit `2c606141936f1eeef17fa3043a72095b4765b9c2`. Do not contact that repository or fetch its text while preparing a proposal. The bundled structure and this repository's instructions are the proposal authority.
+The five-part core behavior below is adapted, rather than copied verbatim, from the Karpathy-inspired guidance at `multica-ai/andrej-karpathy-skills` commit `2c606141936f1eeef17fa3043a72095b4765b9c2`. Do not contact that repository or fetch its text while preparing a proposal. The bundled structure and this repository's instructions are the proposal authority.
 
 ## Required Structure
 
@@ -27,13 +27,21 @@ Use this order for a new file and reconcile an existing file toward it when cont
 - Avoid speculative features, abstractions, configurability, and compatibility layers.
 - Simplify an implementation whose size or complexity is not justified by its behavior.
 
-### 3. Make Surgical Changes
+### 3. Prefer Durable Root-Cause Solutions
+
+- For fixes and solution proposals, prefer the smallest complete approach that addresses the verified root cause, weighing correctness, performance, maintainability, and structural fit instead of optimizing for the smallest diff.
+- Prefer durable designs over symptomatic patches while keeping the current work proportional to the verified requirement and repository authority.
+- When a broader ideal design exceeds the current scope, implement a bounded durable step that fully satisfies current success criteria and preserves a clear path forward.
+- Record only remaining independent actionable work in the repository's canonical `deferred-feedback` owner. If no owner exists, report the proposed entry and obtain approval before creating one.
+- Promote epic-sized work to a TODO candidate or roadmap work unit. Do not defer work required for current correctness or acceptance.
+
+### 4. Make Surgical Changes
 
 - Touch only what the requested outcome and its verification require.
 - Preserve unrelated work and match local style.
 - Remove only artifacts made obsolete by the current change.
 
-### 4. Work Toward Verifiable Goals
+### 5. Work Toward Verifiable Goals
 
 - Define success checks before implementation.
 - Match verification strength to the claimed behavior and relevant failure paths.
@@ -91,7 +99,9 @@ Adapt names only when the installed skill namespace differs. Include only refere
 - Use `/aquarium:war-room` to diagnose one difficult bug and stop at a task, epic, or incomplete-investigation proposal.
 - Use `/aquarium:design-qa` to create, change, reactivate, or retire local Design Gates.
 - Use `/aquarium:dev-setup` to diagnose or configure development tooling and repository operating guidance.
+- Use `/aquarium:docs-setup` to audit, establish, adopt, or migrate canonical documentation structure and roadmap IDs.
 - Use `/aquarium:test-setup` to audit or configure the common Make or Bun testing contract and evidence-backed legacy waivers.
+- Use `/aquarium:release-handler` for one stable release lifecycle and `/aquarium:release-qa` for its exact committed-candidate scenario verification.
 - Use `/use-sanho` at an authorized commit or push boundary in a Sanho-managed repository, or for an explicitly requested Sanho operation.
 - Use `/use-mulgae` for an authorized Mulgae review, run inspection, finding follow-up, configuration diagnosis, cleanup plan, or recovery.
 - Use `/use-gaori` when a selected long or noisy check is routed through Gaori or existing Gaori evidence must be inspected.
@@ -99,7 +109,11 @@ Adapt names only when the installed skill namespace differs. Include only refere
 - Use `/use-podway` directly for an explicitly requested Procedure v2 lifecycle, authoring, diagnosis, recovery, cancellation, or discard operation.
 - Use `/lore-commits` for non-trivial commit messages and `/lore-query` to inspect recorded decision context.
 - Use the separately installed upstream `/deslop` skill for task-owned cleanup when an Aquarium workflow requests it.
+- Keep `.mulgae/**`, `.gaori/runs/**`, `.podway/runtime/**`, and disposable roots as local runtime evidence. Do not cite their paths or identities as durable evidence in tracked documentation or commit messages; use an approved tracked `aquarium.promoted-evidence/v1` package only when a downstream consumer genuinely requires retained evidence.
+  Declare at most one custom root with the exact Project Configuration entry `Aquarium evidence root: <repository-relative-path>`; otherwise use `evidence/aquarium/`. Promotion accepts only reviewed bounded non-sensitive structured evidence and never accepted reports, raw logs, excerpts, provider prose, runtime identities, or machine-specific paths.
 - Repository-specific rules in `Project Configuration` override these defaults.
+
+When `/aquarium:release-handler` is selected, inspect established changelog and release-note authorities. Preserve one existing unambiguous owner and propose the exact Project Configuration entry `Aquarium release notes: <repository-relative-path>`. When no owner exists, ask before proposing a new root `CHANGELOG.md`; never infer enrollment from a filename, create release history from commit subjects alone, or replace an established changelog. Keep the selected path regular, non-symlinked, tracked, and inside the repository.
 
 Omit `/use-*`, Lore, Deslop, or Aquarium workflow references whose corresponding skills are unavailable. A CLI alone does not justify a paired-skill reference. Put exact repository commands and stricter exceptions in `Project Configuration`; do not duplicate generic tool manuals, lifecycle procedures, recovery instructions, or Lore trailer vocabularies.
 

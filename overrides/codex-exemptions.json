@@ -1,4 +1,9 @@
 {
-  "skills/dev-setup/references/tool-catalog.md": "c483053d9e2e4babf0c4086583bc5e3c28050c74863a556d7a51640bf00863f4",
-  "skills/orca-review/references/provider-contracts.md": "12860a129b69ac3ddd32ddd6411bee6cf01a04447470af208524b7ffa5036c2a"
+  "skills/dev-setup/references/tool-catalog.md": [
+    "b24ae9b7032b1b9428a706991ade9d82e8f8af656ec57a8bc49ca43597cfcb66",
+    "1964dabb9c44218a44227bbdd460c938967f3e853de662ae01ef06663a3eef4c",
+    "a88dbadee5406bc1198d88472946981b571a3b689ffb3313bd27c5fa4360b1b6",
+    "fcad83f76b066f60dbca53c71be829d12ac0334bddb54fbaaa542ff28bcf1d6e",
+    "4cc377ce3701b734f6882384e325c7b646fb9e9ecf46b1f0f386f5697ac60e71"
+  ]
 }
