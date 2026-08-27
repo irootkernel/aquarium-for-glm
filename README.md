@@ -38,6 +38,7 @@ The generated plugin is committed, so installation never depends on the submodul
 | `test-setup` | Audit and configure the common Make or Bun testing contract for one repository, with evidence-backed legacy waivers. | `/aquarium:test-setup` |
 | `independent-review` | Run one supervised static review with fresh reviewer subagents against staged changes, a commit or range, one task or epic, or a roadmap-independent investigation. | `/aquarium:independent-review` with one review target |
 | `orca-review` | Run the canonical independent-review target contract through a user-selected external AI CLI — `claude`, `kimi`, `agy`, or `cursor-agent` — driven by Orca. | `/aquarium:orca-review` with one review target |
+| `upgrade` | Update this edition to a newly released upstream Aquarium version behind explicit review: pin the tag, resolve the sync, release, and refresh the local installation. | `/aquarium:upgrade` with one released upstream version |
 
 The four design skills drive Ouroboros as a bounded leaf capability and need it installed and pinned to `>=0.51.1,<0.52.0`; `/aquarium:dev-setup` diagnoses and configures it behind separate approvals. They shape documents only and never implement. Upstream v0.1.13 removed the `design-qa` skill and its Design Gate coupling; a repository-owned Design Gate registry, where one exists, is still honored by `/aquarium:release-qa` through the shared design-gates reference.
 
@@ -65,6 +66,8 @@ overrides/
   codex-exemptions.json          path → SHA-256 of each generated line whose surviving "Codex" mention was reviewed
   skill-descriptions.json        skill → SHA-256 of the pre-tuning description plus the tuned trigger surface
   skills/...                     full-file replacements for host-specific divergence
+edition-skills/
+  upgrade/SKILL.md               this edition's own skills, carried into the generated plugin
 scripts/sync.py                  the transformation
 plugins/aquarium/                generated output, committed
   .zcode-plugin/plugin.json      generated manifest — the first name ZCode probes
@@ -84,6 +87,8 @@ Three files diverge semantically and are kept as overrides rather than substitut
 | `skills/dev-setup/references/tool-catalog.md` | Registers Mulgae, Gaori, and Ouroboros MCP servers as user-global entries under the `mcp.servers` object of `~/.zcode/cli/config.json` and verifies the global, isolated-local, and effective views by reading those configuration files, because ZCode has no `mcp` CLI probe; `/mcp` in a session shows live status. The Ouroboros entry is the canonical isolated `uvx --isolated --from ouroboros-ai[mcp]` launcher selecting the `zcode` runtime through its environment; a `codex` selection is equally valid when that CLI is the configured Ouroboros backend. |
 
 `skills/dev-setup/references/agents-guidance.md` needed an override while upstream described a Codex-only instruction-file contract; upstream v0.1.10 rewrote it around the host-neutral `AGENTS.md` operating contract with `CLAUDE.md` delegation, which ZCode reads natively, so it now passes through substitutions unchanged.
+
+`edition-skills/` holds the one skill this edition owns outright: `upgrade`, which walks a full upstream release cycle for this repository — pin the released tag, resolve every sync abort in order, re-derive overrides and description tunings, validate, and prepare the reviewed release and the local installation. Generation copies each edition skill into the generated tree after the overrides and before the description tuning, so it ships as `/aquarium:upgrade`, passes the same frontmatter, tuning, and needle checks as an upstream skill, and stops the run when its name collides with a new upstream skill.
 
 Everything else is a literal substitution: the `$aquarium:` sigil becomes `/aquarium:`, the `$use-*` skill sigils become `/use-*`, the `$create-podway-procedure` maintainer skill sigil becomes `/create-podway-procedure`, the Ouroboros sigils `$interview`, `$pm`, `$seed`, and `$qa` become `/interview`, `/pm`, `/seed`, and `/qa` because Ouroboros installs user-scoped skills that ZCode reads natively from `~/.agents/skills`, the separately installed `$deslop` becomes `/deslop`, `request_user_input` becomes `AskUserQuestion`, `Codex goal` becomes `ZCode todo list`, and the inspection script resolves skills from the ZCode roots — `~/.zcode/skills` and the shared `~/.agents/skills` — and diagnoses every MCP registration against this host instead of Codex. The v0.1.11 review split carries its own substitutions: the Orca supervision reference names `/aquarium:orca-review` as the workflow it backs and drops the Codex dispatch clause `independent-review` never runs here, and orca-review's `non-Codex` phrasing becomes `external provider`, because the default review backend on this host is the skill's own reviewer subagent rather than Codex. The v0.1.13 design-gate removal needed no rule of its own: deleting `design-qa` upstream removed its skill directory with it, and the skills-match validation confirms the set.
 

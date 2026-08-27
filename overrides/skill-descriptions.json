@@ -90,5 +90,9 @@
   "war-room": {
     "source_digest": "ab6073685466b4486e96fc19a0e7e017dbfee4e302c3cd0de3b8bd4262422ef8",
     "description": "Diagnose one difficult bug and shape the next work unit with Ouroboros, without implementing a fix. Use when the user explicitly invokes /aquarium:war-room."
+  },
+  "upgrade": {
+    "source_digest": "7b67c921075da1dbe0c5f4cd7665bb32703f1340deef49dc1de6ccc70df140ed",
+    "description": "Upgrade this edition to a newly released upstream Aquarium version: pin the submodule, resolve every sync abort, re-derive overrides and description tunings, validate, and prepare the reviewed release and the local installation. Use when the user explicitly invokes /aquarium:upgrade with one released upstream version; do not use for unreleased upstream commits or unrelated repository work."
   }
 }

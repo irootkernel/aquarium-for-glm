@@ -31,6 +31,7 @@ OVERRIDES = REPOSITORY / "overrides"
 OVERRIDE_MANIFEST = OVERRIDES / "manifest.json"
 CODEX_EXEMPTIONS = OVERRIDES / "codex-exemptions.json"
 SKILL_DESCRIPTIONS = OVERRIDES / "skill-descriptions.json"
+EDITION_SKILLS = REPOSITORY / "edition-skills"
 SYNC_MANIFEST = "sync-manifest.json"
 
 COPIED_DIRECTORIES = ("skills", "references", "assets", "hooks")
@@ -889,6 +890,44 @@ def copy_tree(destination: Path) -> None:
             shutil.copytree(source, destination / name)
 
 
+def copy_edition_skills(destination: Path) -> list[str]:
+    """Carry this edition's own skills into the generated tree.
+
+    Edition skills have no upstream counterpart: they are authored here and
+    shipped through the plugin. Placing one straight into
+    `plugins/aquarium/` would lose it, because regeneration replaces that
+    tree wholesale. Like an override, an edition skill is hand-authored
+    final content and runs after the substitutions; unlike an override it
+    adds a directory rather than replacing a file. A name collision with an
+    upstream skill stops the run: upstream would otherwise silently win or
+    lose by copy order, and either outcome hides a decision.
+    """
+    if not EDITION_SKILLS.is_dir():
+        raise SyncError(
+            f"{EDITION_SKILLS} is missing; this edition owns at least the "
+            "`upgrade` skill"
+        )
+    skills = destination / "skills"
+    copied: list[str] = []
+    for entry in sorted(EDITION_SKILLS.iterdir()):
+        if not entry.is_dir():
+            raise SyncError(
+                f"edition-skills holds the non-directory entry `{entry.name}`; "
+                "an edition skill is a directory with a SKILL.md"
+            )
+        if not (entry / "SKILL.md").is_file():
+            raise SyncError(f"edition skill `{entry.name}` has no SKILL.md")
+        target = skills / entry.name
+        if target.exists():
+            raise SyncError(
+                f"edition skill `{entry.name}` collides with an upstream skill "
+                "of the same name; rename the edition skill"
+            )
+        shutil.copytree(entry, target)
+        copied.append(entry.name)
+    return copied
+
+
 def tune_skill_descriptions(destination: Path) -> list[str]:
     """Apply the tuned trigger surface to every generated skill.
 
@@ -1224,7 +1263,7 @@ def write_sync_manifest(
     )
 
 
-def generate(staged_root: Path) -> tuple[str, list[str]]:
+def generate(staged_root: Path) -> tuple[str, list[str], list[str]]:
     commit = upstream_commit()
     codex_exemptions = load_codex_exemptions()
     plugin = staged_root / "plugins" / "aquarium"
@@ -1232,10 +1271,12 @@ def generate(staged_root: Path) -> tuple[str, list[str]]:
     copy_tree(plugin)
     transform_text(plugin)
     # Overrides replace whole files, so they run after the substitutions: an
-    # override is hand-authored final content, not text to rewrite. The
-    # description tuning runs after both, because it owns the final
-    # description surface for every skill, overridden or not.
+    # override is hand-authored final content, not text to rewrite. Edition
+    # skills are final content too, but additive: they land after the
+    # overrides and before the description tuning, so the tuning layer owns
+    # the final description surface for every skill, edition or upstream.
     overrides = apply_overrides(plugin)
+    edition_skills = copy_edition_skills(plugin)
     tune_skill_descriptions(plugin)
     transform_skills(plugin)
     write_plugin_manifest(plugin)
@@ -1244,7 +1285,7 @@ def generate(staged_root: Path) -> tuple[str, list[str]]:
     check_sigils(plugin)
     check_required(plugin)
     write_sync_manifest(plugin, upstream_manifest()["repository"], commit, overrides)
-    return commit, overrides
+    return commit, overrides, edition_skills
 
 
 def differences(left: Path, right: Path, prefix: Path = Path()) -> list[str]:
@@ -1271,7 +1312,7 @@ def main() -> int:
         with tempfile.TemporaryDirectory() as temporary:
             staged = Path(temporary) / "repository"
             staged.mkdir()
-            commit, overrides = generate(staged)
+            commit, overrides, edition_skills = generate(staged)
 
             if arguments.check:
                 if not OUTPUT.is_dir():
@@ -1302,6 +1343,7 @@ def main() -> int:
     print(f"generated {len(skills)} skills from upstream {commit[:9]}")
     print(f"  ZCode has no per-skill invocation gating; descriptions guide use")
     print(f"  {len(overrides)} overrides applied")
+    print(f"  {len(edition_skills)} edition skills applied: " + ", ".join(edition_skills))
     return 0
 
 

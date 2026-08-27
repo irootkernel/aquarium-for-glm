@@ -70,9 +70,13 @@ skill_paths.each do |path|
 end
 
 if UPSTREAM_PLUGIN.directory?
+  # The generated skill set is the upstream set plus every edition skill
+  # carried in by the generation; a drift on either side fails here.
   upstream_skills = Pathname.glob(UPSTREAM_PLUGIN.join("skills/*/SKILL.md")).map { |p| p.dirname.basename.to_s }.sort
+  edition_skills = Pathname.glob(ROOT.join("edition-skills/*/SKILL.md")).map { |p| p.dirname.basename.to_s }.sort
+  expected = (upstream_skills + edition_skills).sort
   generated = skill_paths.map { |p| p.dirname.basename.to_s }.sort
-  assert(generated == upstream_skills, "generated skills do not match upstream: #{(generated - upstream_skills) | (upstream_skills - generated)}")
+  assert(generated == expected, "generated skills do not match upstream plus edition skills: #{(generated - expected) | (expected - generated)}")
 end
 
 # --- host-neutral generated text -------------------------------------------
