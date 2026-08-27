@@ -64,7 +64,8 @@ Immediately after Sanho, Mulgae, Gaori, or Podway is selected as either `Install
 
 Within one confirmed `dev-setup-bundle` request, accept the bundle owner's already verified exact tag, complete source file set, digests, endpoint provenance, ephemeral payload, and installed-target digest snapshot for a selected tool instead of repeating the comparison for each repository. Revalidate the payload and target snapshot before an approved action, use it only for the matching tool, and preserve every cleanup and stale-approval rule below.
 
-1. From the official GitHub Releases metadata, resolve the newest non-draft, non-prerelease tag within the tool's supported release line. Fetch only `SKILL.md`, `references/lifecycle.md`, `references/authoring.md`, and `references/recovery.md` for that tag from the catalog's `raw.githubusercontent.com` source into an ephemeral temporary directory.
+1. From the official GitHub Releases metadata, resolve the newest non-draft, non-prerelease tag within the tool's supported release line. For Sanho, Mulgae, and Gaori, fetch only `SKILL.md`, `references/lifecycle.md`, `references/authoring.md`, and `references/recovery.md`. For Podway, fetch only `SKILL.md`, `references/lifecycle.md`, `references/goal.md`, and `references/recovery.md`.
+   Fetch the selected set for that tag from the catalog's `raw.githubusercontent.com` source into an ephemeral temporary directory. `create-podway-procedure` is a separate maintainer authoring dependency and is never installed, compared, or required by this workflow.
 2. Before comparing, require all four regular files, compute their SHA-256 digests, and verify the expected `name: use-sanho`, `name: use-mulgae`, `name: use-gaori`, or `name: use-podway` frontmatter. Reject redirects or responses that resolve outside the disclosed official endpoints. Never execute fetched content.
 3. Compare the verified source against exactly `~/.agents/skills/<skill-name>` as complete directory trees. Treat missing expected files, different bytes, invalid frontmatter, symlinks, and any extra local files as differences. Other agent skill roots remain diagnostic evidence only; never update or remove another discovered copy through this automatic comparison.
 4. If the trees match exactly, report the source tag and `current` status without asking an update question. If the exact target is absent, first inspect the already discovered diagnostic roots. When another copy exists, report the duplicate risk and do not propose installation until the user separately chooses a removal or migration that leaves one canonical target; never create a known duplicate.
@@ -114,7 +115,7 @@ For Gaori, support only stable `v0.1.14` through `v0.1.x`. Resolve one exact tag
 
 Approval for one tool does not authorize another. Never use `sudo`, `--force`, destructive cleanup, credential extraction, provider invocation, source transmission, staging, committing, or pushing unless the user separately grants that exact authority.
 
-For Podway, support only stable `v0.2.5` through `v0.2.x` on native Apple Silicon macOS. Resolve one exact tag and use it for both binaries and the `use-podway` source. Treat a missing, incomplete, invalid, or duplicate skill independently from CLI and repository readiness.
+For Podway, support only stable `v0.2.6` through `v0.2.x` on native Apple Silicon macOS. Resolve one exact tag and use it for both binaries and the `use-podway` source. Treat a missing, incomplete, invalid, or duplicate skill independently from CLI and repository readiness.
 
 Keep release lookup, binary installation, user-scoped skill installation or replacement, LaunchAgent installation, repository initialization, managed-procedure installation or update, legacy-state recovery, and managed-Procedure removal as distinct proposed actions. None of these actions activates Podway for an Aquarium workflow.
 
@@ -126,12 +127,18 @@ Never convert or delete Procedure v1 state automatically. On `LEGACY_PROCEDURE_S
 
 Treat tracked `root-kernel-task-v2.yaml`, `root-kernel-goal-v2.yaml`, and `root-kernel-validation-v2.yaml` files as a product-rename migration, not as Procedure v1 runtime state. Report `migration_required`, require any active old session to reach an explicitly chosen terminal disposition first, then propose removal of the old managed files and installation of the corresponding `aquarium-*` files as separate approved actions. Never convert, cancel, reset, or delete runtime history as part of this migration.
 
+Use the v10 inspector's `migration_kinds.product_rename` only for the product rename. For each safe present managed file, require the expected filename and Procedure ID and use the selected Podway v0.2.6 binary's `procedure check --warnings-as-errors` and `procedure preview` results as the document-validity and identity authority. Report `canonical`, `valid_customization`, `invalid`, `missing`, `unsafe`, or `unverifiable`; never add an Aquarium compatibility schema for graph, item, prompt, bound, or route differences.
+
+Treat `update_explanation` values such as `prior_canonical` and `podway_v0.2.5_workaround` only as bounded explanations for an offered canonical update. They never form a validity, ownership, migration, or readiness class. A tracked same-ID `valid_customization` is configured when the other Podway readiness requirements pass.
+
 Aquarium Podway readiness configuration has four disclosed parts:
 
-- Copy all five plugin-owned procedure sources from [the bundled procedure directory](../../assets/podway/procedures/) byte-for-byte to `.podway/procedures/` and check each with `podway procedure check --warnings-as-errors`.
+- Install a missing or explicitly selected canonical copy from [the bundled procedure directory](../../assets/podway/procedures/) byte-for-byte to `.podway/procedures/`, then check its expected ID and validity with the selected Podway binary.
 - `podway init` also creates `.podway/config.yaml`, `.podway/.gitignore`, and ignored runtime state; show the exact proposed files and diff before approval.
-- When a managed procedure differs, show the exact source-to-project diff and obtain approval before replacing it; do not alter an active procedure snapshot.
+- When a valid managed Procedure differs, show the exact current-to-canonical diff and ask whether to preserve that local file or replace it with canonical bytes. Preservation writes no file or metadata. Replacement follows the selected backup policy, rechecks the exact target snapshot, and requires explicit approval for that one diff; never merge, normalize, or reformat it.
 - Treat partial installation as degraded readiness, not activation or legacy state.
+
+Do not create an ownership manifest, provenance registry, or central Aquarium state. Replacing a managed file never alters an active session's immutable Procedure snapshot.
 
 Managed-Procedure removal is a separate destructive proposal. Show the exact managed procedure files to remove, preserve `.podway/config.yaml`, runtime state, custom procedures, and every session, and obtain explicit approval. Do not reset, cancel, or delete any session as part of setup or removal.
 
@@ -147,19 +154,23 @@ Keep source lookup, existing-target backup policy, installation or replacement, 
 
 ## Configure Ouroboros With Separate Approvals
 
-Support only Ouroboros `>=0.51.1,<0.52.0`. Read [tool-catalog.md](references/tool-catalog.md), then diagnose with `--include-ouroboros`. Keep these four states independent: the `ooo` CLI and version, installed user-scoped Ouroboros skills, Ouroboros MCP runtime health, and effective MCP registration in `~/.zcode/cli/config.json`. Do not infer readiness from one passing component.
+Support only Ouroboros `>=0.51.1,<0.52.0`. Read [tool-catalog.md](references/tool-catalog.md), then diagnose with `--include-ouroboros`. Keep these four states independent: the `ooo` CLI and version, installed user-scoped Ouroboros skills, Ouroboros MCP runtime configuration, and effective MCP registration in `~/.zcode/cli/config.json`. Do not infer readiness from one passing component.
 
 Installation requires an already installed `uv`; never install a package manager as a side effect. Resolve one exact `ouroboros-ai` version inside the supported range, disclose the Python package index request and package target, show `uv tool install ouroboros-ai==<exact-version>` or the exact approved upgrade form, and obtain a dedicated approval before running it. Do not install from an unpinned range.
 
-Treat the following as three separate persistent mutations, each with its own displayed command, changed paths, and explicit approval:
+Treat exact package installation or upgrade through `uv` and each selected configuration action as separate persistent mutations. Display each command and its changed paths, obtain explicit approval, re-read targets immediately before mutation, and invalidate stale approval.
 
-1. Exact package installation or upgrade through `uv`.
-2. Installing or refreshing the user-scoped Ouroboros skills under a ZCode skill root from the approved package's bundled skill payload.
-3. Registering the `ouroboros` stdio server in the `mcp.servers` object of `~/.zcode/cli/config.json`, either as the exact displayed merge or through `ooo setup --runtime zcode`, the packaged installer for this host's entry and skills; the packaged rules and `ooo codex` subcommands install and verify another host's artifacts and cover nothing here.
+For full configuration, apply the displayed canonical `ouroboros` entry to the `mcp.servers` object of `~/.zcode/cli/config.json` and install or refresh the user-scoped Ouroboros skills under a ZCode skill root from the approved package's bundled skill payload. `ooo setup --runtime zcode` configures only Ouroboros' own runtime selection in `~/.ouroboros/config.yaml` — the runtime backend and the ZCode CLI path — and writes no ZCode MCP entry and installs no skill on this host, so the registration merge and the skill installation remain separate displayed actions here. The packaged rules and `ooo codex` subcommands install and verify another host's artifacts and cover nothing here.
 
-Approval for one never authorizes another. Re-read targets immediately before each mutation and invalidate stale approval. Setup must not call an Ouroboros provider, authenticate, run `auto`, `run`, `ralph`, or `evolve`, transmit repository source, create a Seed, or start an Aquarium design workflow.
+Approval for package mutation never authorizes configuration, and approval for one configuration action never authorizes another. Setup must not call an Ouroboros provider, authenticate, run `auto`, `run`, `ralph`, or `evolve`, transmit repository source, create a Seed, or start an Aquarium design workflow.
 
-After approved mutations, verify `ooo --version`, `ooo mcp doctor --json`, and the effective `mcp.servers` entry by reading `~/.zcode/cli/config.json`. There is no `zcode mcp` probe; the `/mcp` command in a running session shows live connection status, so verify live exposure separately without invoking a provider. `ooo mcp doctor --json` exits non-zero whenever the CLI environment carries MCP 1.x, even on a correctly configured machine, because its `mcp_import` check fails while the MCP 2 server runs as a separate process; read its remaining checks for runtime health and never present its bare exit code as the registration verdict. Report missing skills, registration, runtime health, and live exposure as distinct gaps, and tell the user when a ZCode restart or a new session is required.
+After approved mutations, verify `ooo --version` and the effective `mcp.servers` entry by reading `~/.zcode/cli/config.json`. There is no `zcode mcp` probe; the `/mcp` command in a running session shows live connection status, so verify live exposure separately without invoking a provider.
+
+Run `ooo mcp doctor --json` only when the registration launches the selected `ooo` executable directly; it inspects that package environment and is not evidence about a separate `uvx --isolated` MCP environment. It also exits non-zero whenever the CLI environment carries MCP 1.x, even on a correctly configured machine, because its `mcp_import` check fails while the MCP 2 server runs as a separate process; read its remaining checks for runtime configuration and never present its bare exit code as the registration verdict.
+
+For the canonical isolated launcher, validate its exact executable, arguments, supported package requirement, and runtime selectors without starting it or contacting the network.
+
+Report missing skills, registration, runtime configuration, and live exposure as distinct gaps, and tell the user when a ZCode restart or a new session is required.
 
 ## Gate Repository Guidance With Two Approvals
 

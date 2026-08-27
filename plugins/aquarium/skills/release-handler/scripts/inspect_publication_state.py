@@ -8,9 +8,9 @@ import re
 import sys
 from typing import Any
 
-REQUEST_SCHEMA_VERSION = "aquarium-release-publication-observation/v1"
-RESULT_SCHEMA_VERSION = "aquarium-release-publication-state/v1"
-ERROR_SCHEMA_VERSION = "aquarium-release-publication-state-error/v1"
+REQUEST_SCHEMA_VERSION = "aquarium-release-publication-observation/v4"
+RESULT_SCHEMA_VERSION = "aquarium-release-publication-state/v4"
+ERROR_SCHEMA_VERSION = "aquarium-release-publication-state-error/v4"
 MAX_REQUEST_BYTES = 64 * 1024
 SEMVER = re.compile(r"^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$")
 OBJECT_ID = re.compile(r"^[0-9a-f]{40,64}$")
@@ -40,39 +40,48 @@ def exact_mapping(value: object, keys: set[str], field: str) -> dict[str, Any]:
     return value
 
 
-def ref_status(observed: str, expected: str, allowed_previous: str | None) -> str:
+def ref_status(observed: str, expected: str) -> str:
     if observed == expected:
         return "matching"
-    if allowed_previous is not None and observed == allowed_previous:
-        return "missing"
     return "conflict"
 
 
 def inspect(payload: object) -> dict[str, object]:
+    if not isinstance(payload, dict):
+        raise ObservationError("observation_invalid", "observation is malformed")
+    schema_version = payload.get("schema_version")
+    if not isinstance(schema_version, str):
+        raise ObservationError("observation_invalid", "observation schema is invalid")
+    if schema_version != REQUEST_SCHEMA_VERSION:
+        raise ObservationError(
+            "schema_unsupported", "observation schema is unsupported"
+        )
     request = exact_mapping(
         payload,
         {
             "schema_version",
             "version",
-            "qa_candidate_sha",
+            "release_basis_candidate_sha",
             "release_commit",
             "qa_evidence_candidate_sha",
+            "qa_evidence_relation_to_release_basis",
+            "qa_binding",
+            "qa_reuse_attempt",
             "gate_evidence_release_commit_sha",
             "local_main_sha",
             "remote_main_sha",
+            "remote_main_relation_to_release_basis",
             "tag",
             "hosted_release",
         },
         "observation",
     )
-    if request["schema_version"] != REQUEST_SCHEMA_VERSION:
-        raise ObservationError(
-            "schema_unsupported", "observation schema is unsupported"
-        )
     version = request["version"]
     if not isinstance(version, str) or SEMVER.fullmatch(version) is None:
         raise ObservationError("observation_invalid", "version is invalid")
-    qa_candidate = object_id(request["qa_candidate_sha"], "qa candidate")
+    release_basis = object_id(
+        request["release_basis_candidate_sha"], "release-basis candidate"
+    )
     release_commit = exact_mapping(
         request["release_commit"], {"sha", "parent_sha", "title"}, "release commit"
     )
@@ -84,14 +93,51 @@ def inspect(payload: object) -> dict[str, object]:
     qa_evidence = optional_object_id(
         request["qa_evidence_candidate_sha"], "QA evidence candidate"
     )
+    qa_relation = request["qa_evidence_relation_to_release_basis"]
+    if not isinstance(qa_relation, str) or qa_relation not in {
+        "equal",
+        "direct_parent",
+    }:
+        raise ObservationError(
+            "observation_invalid", "QA evidence relationship is invalid"
+        )
+    qa_binding = request["qa_binding"]
+    if not isinstance(qa_binding, str) or qa_binding not in {
+        "exact",
+        "approved_qa_neutral_descendant",
+    }:
+        raise ObservationError("observation_invalid", "QA binding is invalid")
+    qa_reuse_attempt = request["qa_reuse_attempt"]
+    if (
+        not isinstance(qa_reuse_attempt, int)
+        or isinstance(qa_reuse_attempt, bool)
+        or qa_reuse_attempt not in {0, 1}
+    ):
+        raise ObservationError("observation_invalid", "QA reuse attempt is invalid")
     gate_evidence = optional_object_id(
         request["gate_evidence_release_commit_sha"], "gate evidence release commit"
     )
     local_main = object_id(request["local_main_sha"], "local main")
     remote_main = object_id(request["remote_main_sha"], "remote main")
+    remote_relation = request["remote_main_relation_to_release_basis"]
+    if not isinstance(remote_relation, str) or remote_relation not in {
+        "equal",
+        "ancestor",
+        "descendant",
+        "diverged",
+    }:
+        raise ObservationError(
+            "observation_invalid", "remote main relationship is invalid"
+        )
+    if (remote_main == release_basis) != (remote_relation == "equal"):
+        raise ObservationError(
+            "observation_invalid", "remote main relationship contradicts its SHA"
+        )
     tag = exact_mapping(request["tag"], {"state", "annotated", "peeled_sha"}, "tag")
     hosted = exact_mapping(
-        request["hosted_release"], {"state", "tag", "target_sha"}, "hosted release"
+        request["hosted_release"],
+        {"state", "tag", "target_sha", "draft", "prerelease"},
+        "hosted release",
     )
     if tag["state"] not in {"absent", "present"} or not isinstance(
         tag["annotated"], bool
@@ -108,23 +154,59 @@ def inspect(payload: object) -> dict[str, object]:
     if hosted_tag is not None and not isinstance(hosted_tag, str):
         raise ObservationError("observation_invalid", "hosted release tag is invalid")
     hosted_target = optional_object_id(hosted["target_sha"], "hosted release target")
+    if not isinstance(hosted["draft"], bool) or not isinstance(
+        hosted["prerelease"], bool
+    ):
+        raise ObservationError(
+            "observation_invalid", "hosted release publication state is invalid"
+        )
     if hosted["state"] == "absent" and (
-        hosted_tag is not None or hosted_target is not None
+        hosted_tag is not None
+        or hosted_target is not None
+        or hosted["draft"]
+        or hosted["prerelease"]
     ):
         raise ObservationError(
             "observation_invalid", "absent hosted release has object data"
         )
 
+    exact_qa_binding = (
+        qa_binding == "exact"
+        and qa_evidence == release_basis
+        and qa_relation == "equal"
+        and qa_reuse_attempt == 0
+    )
+    neutral_qa_binding = (
+        qa_binding == "approved_qa_neutral_descendant"
+        and qa_evidence is not None
+        and qa_evidence != release_basis
+        and qa_evidence != release_sha
+        and qa_relation == "direct_parent"
+        and qa_reuse_attempt == 1
+    )
     evidence_status = (
         "matching"
-        if release_parent == qa_candidate
+        if release_sha != release_basis
+        and release_parent == release_basis
         and release_title == f"[REL] Release {version}"
-        and qa_evidence == qa_candidate
+        and (exact_qa_binding or neutral_qa_binding)
         and gate_evidence == release_sha
         else "unproven"
     )
-    local_main_status = ref_status(local_main, release_sha, None)
-    remote_main_status = ref_status(remote_main, release_sha, qa_candidate)
+    local_main_status = ref_status(local_main, release_sha)
+    if remote_main == release_sha:
+        if remote_relation != "descendant":
+            if evidence_status == "matching":
+                raise ObservationError(
+                    "observation_invalid", "release commit relationship is invalid"
+                )
+            remote_main_status = "conflict"
+        else:
+            remote_main_status = "matching"
+    elif remote_relation in {"equal", "ancestor"}:
+        remote_main_status = "missing"
+    else:
+        remote_main_status = "conflict"
     if tag["state"] == "absent":
         tag_status = "missing"
     elif tag["annotated"] and tag_peeled == release_sha:
@@ -133,7 +215,12 @@ def inspect(payload: object) -> dict[str, object]:
         tag_status = "conflict"
     if hosted["state"] == "absent":
         hosted_status = "missing"
-    elif hosted_tag == version and hosted_target == release_sha:
+    elif (
+        hosted_tag == version
+        and hosted_target == release_sha
+        and not hosted["draft"]
+        and not hosted["prerelease"]
+    ):
         hosted_status = "matching"
     else:
         hosted_status = "conflict"
@@ -172,8 +259,14 @@ def inspect(payload: object) -> dict[str, object]:
     return {
         "schema_version": RESULT_SCHEMA_VERSION,
         "version": version,
-        "qa_candidate_sha": qa_candidate,
+        "release_basis_candidate_sha": release_basis,
+        "qa_evidence_candidate_sha": qa_evidence,
+        "qa_evidence_relation_to_release_basis": qa_relation,
+        "qa_binding": qa_binding,
+        "qa_reuse_attempt": qa_reuse_attempt,
         "release_commit_sha": release_sha,
+        "remote_main_sha": remote_main,
+        "remote_main_relation_to_release_basis": remote_relation,
         "classification": classification,
         "next_action": next_action,
         "statuses": statuses,

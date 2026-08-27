@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "aquarium-dev-setup-inspection.v7"
+SCHEMA_VERSION = "aquarium-dev-setup-inspection.v10"
 MULGAE_COMMAND_RESULT_SCHEMA = "mulgae-command-result.v5"
 MULGAE_DOCTOR_RESULT_SCHEMA = "mulgae-doctor-result.v2"
 MULGAE_MCP_TOOL_TIMEOUT_SEC = 7501
@@ -50,7 +50,7 @@ MULGAE_SKILL_FILES = (
 PODWAY_SKILL_FILES = (
     "SKILL.md",
     "references/lifecycle.md",
-    "references/authoring.md",
+    "references/goal.md",
     "references/recovery.md",
 )
 PODWAY_PROCEDURES = (
@@ -60,6 +60,26 @@ PODWAY_PROCEDURES = (
     "aquarium-design-v2.yaml",
     "aquarium-war-room-v2.yaml",
 )
+PODWAY_PRIOR_CANONICAL_SHA256 = {
+    "aquarium-task-v2.yaml": {
+        "c666f17cf41e8a9403f610f89b0b7397352d8ac6e2e5e05e1c268fc0e6ece3d9",
+        "0ae730df9ca5854ff61b02679e3ac58aa4508ee35c5a09ba76c35e7d0ef3d45d",
+        "b703da6c798801a396d144be1c9c71e0fdb05c95e9e293386bf83c0d238ef927",
+    },
+    "aquarium-goal-v2.yaml": {
+        "90411e16758cb79a01294e008d9a091a52b341fc1e9bb968ce9521fed2910ec3",
+        "8ca12a8ba36e9dd035bc70c903b8a5a0a9e4fd6db00cf75e2448f66082ab6ac6",
+    },
+    "aquarium-validation-v2.yaml": {
+        "45192a644087b811eb34952576798ae4f3e85ebdf87c77fc8dc097d3c8bb2f50"
+    },
+    "aquarium-design-v2.yaml": {
+        "4ec653b2b4d740d77bcd4826f40288d9fadd7d696a3939c197b9789dbba824b6"
+    },
+    "aquarium-war-room-v2.yaml": {
+        "ca9f2363107b315e829ba9f0357d35cbc242d07fbbf5a4702868bbb781dee1cb"
+    },
+}
 LEGACY_PODWAY_PROCEDURES = (
     "root-kernel-task-v2.yaml",
     "root-kernel-goal-v2.yaml",
@@ -67,6 +87,33 @@ LEGACY_PODWAY_PROCEDURES = (
 )
 PODWAY_SOURCE_DIRECTORY = (
     Path(__file__).resolve().parents[3] / "assets" / "podway" / "procedures"
+)
+OUROBOROS_UVX_MCP_ARGS = (
+    "--isolated",
+    "--python",
+    ">=3.12",
+    "--from",
+    "ouroboros-ai[mcp]",
+    "ouroboros",
+    "mcp",
+    "serve",
+)
+OUROBOROS_CODEX_MCP_SUFFIX = (
+    "--runtime",
+    "codex",
+    "--llm-backend",
+    "codex",
+)
+OUROBOROS_CODEX_MCP_ENV = {
+    "OUROBOROS_AGENT_RUNTIME": "codex",
+    "OUROBOROS_LLM_BACKEND": "codex",
+}
+OUROBOROS_RUNTIME_SELECTOR_KEYS = {
+    *OUROBOROS_CODEX_MCP_ENV,
+    "OUROBOROS_RUNTIME",
+}
+OUROBOROS_MCP_PACKAGE = re.compile(
+    rf"ouroboros-ai\[mcp\](?:==(0\.51\.{CANONICAL_NUMERIC_COMPONENT}))?"
 )
 
 
@@ -235,7 +282,23 @@ def supported_podway_version(version: str | None) -> bool:
     if not version:
         return False
     match = re.fullmatch(rf"v?0\.2\.({CANONICAL_NUMERIC_COMPONENT})", version)
-    return bool(match and int(match.group(1)) >= 5)
+    return bool(match and int(match.group(1)) >= 6)
+
+
+def podway_v025_workaround_bytes(name: str, source: bytes) -> bytes | None:
+    if name == "aquarium-goal-v2.yaml":
+        declaration = b"        max_total_length: 1000000\n"
+        if source.count(declaration) != 1:
+            return None
+        return source.replace(declaration, b"", 1)
+    if name in {"aquarium-task-v2.yaml", "aquarium-validation-v2.yaml"}:
+        declaration = (
+            b"        max_item_length: 1200\n        max_total_length: 1000000\n"
+        )
+        if source.count(declaration) != 1:
+            return None
+        return source.replace(declaration, b"        max_item_length: 1000\n", 1)
+    return None
 
 
 def supported_sanho_version(version: str | None) -> bool:
@@ -291,6 +354,13 @@ def ouroboros_version_from_output(output: str) -> str | None:
 def file_sha256(path: Path) -> str | None:
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def file_bytes(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
     except OSError:
         return None
 
@@ -435,6 +505,102 @@ def normalized_probe(probe: dict[str, Any]) -> dict[str, Any]:
     if probe.get("reason"):
         normalized["reason"] = probe["reason"]
     return normalized
+
+
+def resolved_executable(command: Any) -> Path | None:
+    if not isinstance(command, str) or not command:
+        return None
+    candidate = Path(command).expanduser()
+    if candidate.is_absolute():
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate.resolve()
+        return None
+    discovered = shutil.which(command)
+    return Path(discovered).resolve() if discovered else None
+
+
+def ouroboros_direct_launcher_matches(
+    transport: Any, ouroboros_executable: str | None
+) -> bool:
+    if not isinstance(transport, dict) or not ouroboros_executable:
+        return False
+    resolved_command = resolved_executable(transport.get("command"))
+    return bool(
+        transport.get("type") == "stdio"
+        and transport.get("args") == ["mcp", "serve"]
+        and resolved_command
+        and resolved_command == Path(ouroboros_executable).resolve()
+    )
+
+
+ZCODE_OUROBOROS_RUNTIME_VALUES = ("zcode", "codex")
+
+
+def ouroboros_isolated_launcher_matches(transport: Any) -> bool:
+    # The isolated `uvx` launcher shape is host-neutral; the runtime selectors
+    # are not. On this host the selectors must name one coherent runtime —
+    # `zcode`, the runtime this artifact proposes, or `codex`, valid when that
+    # CLI is the configured Ouroboros backend — through the environment keys
+    # or the exact command suffix. Upstream's copy of this matcher accepts the
+    # codex value only, because it classifies registrations for the upstream
+    # host.
+    if not isinstance(transport, dict) or transport.get("type") != "stdio":
+        return False
+    resolved_command = resolved_executable(transport.get("command"))
+    selected_uvx = shutil.which("uvx")
+    if not resolved_command or not selected_uvx:
+        return False
+    if resolved_command != Path(selected_uvx).resolve():
+        return False
+
+    args = transport.get("args")
+    if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
+        return False
+    normalized_args = list(args)
+    if len(normalized_args) < 5:
+        return False
+    package_match = OUROBOROS_MCP_PACKAGE.fullmatch(normalized_args[4])
+    if not package_match:
+        return False
+    pinned_version = package_match.group(1)
+    if pinned_version and not supported_ouroboros_version(pinned_version):
+        return False
+    normalized_args[4] = "ouroboros-ai[mcp]"
+
+    env = transport.get("env", {})
+    if not isinstance(env, dict) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in env.items()
+    ):
+        return False
+    if "_OUROBOROS_NESTED" in env:
+        return False
+    if set(env) - OUROBOROS_RUNTIME_SELECTOR_KEYS:
+        return False
+    env_selected = {
+        env.get(key)
+        for key in OUROBOROS_RUNTIME_SELECTOR_KEYS
+        if env.get(key) is not None
+    }
+    if len(env_selected) > 1:
+        return False
+    env_runtime = next(iter(env_selected)) if env_selected else None
+    if env_runtime is not None and env_runtime not in ZCODE_OUROBOROS_RUNTIME_VALUES:
+        return False
+
+    normalized = tuple(normalized_args)
+    if normalized == OUROBOROS_UVX_MCP_ARGS:
+        return (
+            env.get("OUROBOROS_AGENT_RUNTIME") is not None
+            and env.get("OUROBOROS_LLM_BACKEND") is not None
+            and env_runtime in ZCODE_OUROBOROS_RUNTIME_VALUES
+        )
+    for runtime_value in ZCODE_OUROBOROS_RUNTIME_VALUES:
+        if env_runtime is not None and runtime_value != env_runtime:
+            continue
+        suffix = ("--runtime", runtime_value, "--llm-backend", runtime_value)
+        if normalized == (*OUROBOROS_UVX_MCP_ARGS, *suffix):
+            return True
+    return False
 
 
 def selected_fields(value: Any, names: tuple[str, ...]) -> dict[str, Any]:
@@ -1716,6 +1882,7 @@ def inspect_lora() -> dict[str, Any]:
 
 def inspect_deslop() -> dict[str, Any]:
     name = "deslop"
+    expected_entries = {"SKILL.md", "LICENSE"}
     installations: list[dict[str, Any]] = []
     for root in skill_roots():
         skill_directory = root.joinpath(name)
@@ -1728,6 +1895,7 @@ def inspect_deslop() -> dict[str, Any]:
                     "license_file_present": False,
                     "frontmatter_valid": False,
                     "symlinked": True,
+                    "unexpected_entries": [],
                 }
             )
             continue
@@ -1740,6 +1908,14 @@ def inspect_deslop() -> dict[str, Any]:
             skill_directory, "LICENSE"
         )
         symlinked = skill_symlinked or license_symlinked
+        try:
+            unexpected_entries = sorted(
+                entry.name
+                for entry in skill_directory.iterdir()
+                if entry.name not in expected_entries
+            )
+        except OSError:
+            unexpected_entries = ["<unreadable>"]
         installations.append(
             {
                 "location": str(skill_directory),
@@ -1748,6 +1924,7 @@ def inspect_deslop() -> dict[str, Any]:
                 "frontmatter_valid": skill_file_present
                 and frontmatter_name(skill_path) == name,
                 "symlinked": symlinked,
+                "unexpected_entries": unexpected_entries,
             }
         )
 
@@ -1757,14 +1934,17 @@ def inspect_deslop() -> dict[str, Any]:
         and installations[0]["license_file_present"]
         and installations[0]["frontmatter_valid"]
         and not installations[0]["symlinked"]
+        and not installations[0]["unexpected_entries"]
     )
     return {
         "catalog_status": "active",
         "setup_supported": True,
         "installed": ready,
+        "complete_tree_verified": False,
+        "verification_scope": "structure_only",
         "executable": None,
         "version": None,
-        "status": "configured"
+        "status": "unverifiable"
         if ready
         else ("degraded" if installations else "missing"),
         "agent_skill": {
@@ -1777,12 +1957,16 @@ def inspect_deslop() -> dict[str, Any]:
     }
 
 
-def ouroboros_mcp_registration(repository: Path) -> dict[str, Any]:
+def ouroboros_mcp_registration(
+    repository: Path, ouroboros_executable: str | None
+) -> dict[str, Any]:
     # ZCode has no `mcp get` CLI probe; registrations live in
     # `~/.zcode/cli/config.json` (user level) and `.zcode/config.json`
     # (project level, which overrides the user entry on a name collision),
-    # under the `mcp.servers` object. The entry resolving at all is the
-    # registration signal; a disabled entry degrades rather than disappears.
+    # under the `mcp.servers` object. Classification follows the launcher
+    # contract: the entry must be stdio and match either the direct
+    # `ooo mcp serve` form or the canonical isolated `uvx` launcher with one
+    # coherent runtime selector value.
     probe: dict[str, Any] = {
         "attempted": True,
         "ok": True,
@@ -1804,16 +1988,48 @@ def ouroboros_mcp_registration(repository: Path) -> dict[str, Any]:
     if entry is None:
         probe["reason"] = "registration_not_found"
         return {"status": "missing", "probe": probe}
-    if isinstance(entry, dict) and entry.get("enabled") is False:
-        probe["reason"] = "registration_disabled"
-        return {"status": "degraded", "probe": probe, "scope": scope}
-    return {"status": "configured", "probe": probe, "scope": scope}
+    if not isinstance(entry, dict) or entry.get("type", "stdio") != "stdio":
+        return {
+            "status": "degraded",
+            "probe": probe,
+            "scope": scope,
+            "reason": "registration_not_stdio",
+        }
+    if entry.get("enabled") is False:
+        return {
+            "status": "degraded",
+            "probe": probe,
+            "scope": scope,
+            "reason": "registration_disabled",
+        }
+    if ouroboros_direct_launcher_matches(entry, ouroboros_executable):
+        return {
+            "status": "configured",
+            "probe": probe,
+            "scope": scope,
+            "launcher": "direct",
+        }
+    if ouroboros_isolated_launcher_matches(entry):
+        return {
+            "status": "configured",
+            "probe": probe,
+            "scope": scope,
+            "launcher": "isolated",
+        }
+    return {
+        "status": "degraded",
+        "probe": probe,
+        "scope": scope,
+        "reason": "registration_mismatch",
+    }
 
 
 def inspect_ouroboros(repository: Path, timeout_seconds: float) -> dict[str, Any]:
     tool = base_tool("ooo")
     tool["supported_range"] = ">=0.51.1,<0.52.0"
-    tool["mcp_registration"] = ouroboros_mcp_registration(repository)
+    tool["mcp_registration"] = ouroboros_mcp_registration(
+        repository, tool["executable"]
+    )
     # Ouroboros registers its skills with the host agent, so the component
     # whose health this integration adds on this host is the config
     # registration resolved above.
@@ -1854,37 +2070,59 @@ def inspect_ouroboros(repository: Path, timeout_seconds: float) -> dict[str, Any
     # rather than reprobed.
     tool["host_integration"] = host_integration
 
-    mcp_doctor = json_probe(
-        [tool["executable"], "mcp", "doctor", "--json"],
-        repository,
-        timeout_seconds,
-    )
-    # The MCP 2 server registered in config launches as a separate process
-    # while the CLI environment keeps MCP 1.x, so the doctor's `mcp_import`
-    # check — and the exit code with it — fails on a correctly configured
-    # machine. The remaining checks carry runtime health here; the server's
-    # own health is the registration component.
-    doctor_checks = mcp_doctor.get("result")
-    runtime_probe = normalized_probe(mcp_doctor)
-    if isinstance(doctor_checks, list):
-        failed = sorted(
-            str(check.get("name"))
-            for check in doctor_checks
-            if isinstance(check, dict)
-            and check.get("status") == "fail"
-            and check.get("name") != "mcp_import"
-        )
-        if failed:
-            runtime_probe["reason"] = "doctor_checks_failed"
+    launcher = tool["mcp_registration"].get("launcher")
+    if launcher == "isolated":
+        # The canonical isolated launcher runs the MCP 2 server in its own
+        # package environment; the base CLI's doctor would inspect an
+        # unrelated environment, so the launcher contract itself establishes
+        # runtime configuration.
         tool["mcp_runtime"] = {
-            "status": "degraded" if failed else "configured",
-            "failed_checks": failed,
-            "probe": runtime_probe,
+            "status": "configured",
+            "reason": "isolated_launcher_contract",
+            "probe": skipped_probe("isolated_environment_not_probed"),
         }
+    elif launcher == "direct":
+        mcp_doctor = json_probe(
+            [tool["executable"], "mcp", "doctor", "--json"],
+            repository,
+            timeout_seconds,
+        )
+        # The MCP 2 server registered in config launches as a separate process
+        # while the CLI environment keeps MCP 1.x, so the doctor's
+        # `mcp_import` check — and the exit code with it — fails on a
+        # correctly configured machine. The remaining checks carry runtime
+        # health here; the server's own health is the registration component.
+        doctor_checks = mcp_doctor.get("result")
+        runtime_probe = normalized_probe(mcp_doctor)
+        if isinstance(doctor_checks, list):
+            failed = sorted(
+                str(check.get("name"))
+                for check in doctor_checks
+                if isinstance(check, dict)
+                and check.get("status") == "fail"
+                and check.get("name") != "mcp_import"
+            )
+            if failed:
+                runtime_probe["reason"] = "doctor_checks_failed"
+            tool["mcp_runtime"] = {
+                "status": "degraded" if failed else "configured",
+                "failed_checks": failed,
+                "probe": runtime_probe,
+            }
+        else:
+            tool["mcp_runtime"] = {
+                "status": "degraded",
+                "probe": runtime_probe,
+            }
     else:
+        # Without a matching launcher there is no package environment whose
+        # health would be this server's runtime configuration; probing the
+        # base CLI would inspect an unrelated environment.
+        reason = tool["mcp_registration"].get("reason", "registration_not_found")
         tool["mcp_runtime"] = {
-            "status": "degraded",
-            "probe": runtime_probe,
+            "status": "missing" if reason == "registration_not_found" else "unverifiable",
+            "reason": reason,
+            "probe": skipped_probe(reason),
         }
 
     components_ready = (
@@ -1910,7 +2148,6 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
     legacy_managed: list[dict[str, Any]] = []
     present_count = 0
     legacy_present_count = 0
-    matching_count = 0
     tracked_count = 0
     for name in PODWAY_PROCEDURES:
         source = PODWAY_SOURCE_DIRECTORY / name
@@ -1922,6 +2159,8 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
         present, symlinked = safe_managed_file_state(target, repository)
         source_digest = file_sha256(source) if source_present else None
         target_digest = file_sha256(target) if present else None
+        source_bytes = file_bytes(source) if source_present else None
+        target_bytes = file_bytes(target) if present else None
         matching = (
             present
             and not symlinked
@@ -1930,9 +2169,34 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
             and source_digest is not None
             and target_digest == source_digest
         )
+        workaround = (
+            podway_v025_workaround_bytes(name, source_bytes)
+            if source_bytes is not None
+            else None
+        )
+        if symlinked or source_symlinked:
+            source_state = "unsafe"
+            update_explanation = "unsafe"
+        elif not present:
+            source_state = "missing"
+            update_explanation = "missing"
+        elif not source_present:
+            source_state = "unsafe"
+            update_explanation = "unsafe"
+        elif matching:
+            source_state = "canonical"
+            update_explanation = "current_canonical"
+        elif target_digest in PODWAY_PRIOR_CANONICAL_SHA256[name]:
+            source_state = "pending_validation"
+            update_explanation = "prior_canonical"
+        elif workaround is not None and target_bytes == workaround:
+            source_state = "pending_validation"
+            update_explanation = "podway_v0.2.5_workaround"
+        else:
+            source_state = "pending_validation"
+            update_explanation = "local_customization"
         tracked = present and tracked_by_git(repository, relative_path, timeout_seconds)
         present_count += int(present or symlinked)
-        matching_count += int(matching)
         tracked_count += int(tracked)
         managed.append(
             {
@@ -1943,6 +2207,9 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
                 "source_sha256": source_digest,
                 "installed_sha256": target_digest,
                 "matches_source": matching,
+                "source_state": source_state,
+                "update_explanation": update_explanation,
+                "expected_procedure_id": Path(name).stem,
             }
         )
     for name in LEGACY_PODWAY_PROCEDURES:
@@ -1966,7 +2233,10 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
     ]
     tool["managed_procedures"] = managed
     tool["legacy_managed_procedures"] = legacy_managed
-    tool["migration_required"] = legacy_present_count > 0
+    tool["migration_kinds"] = {
+        "product_rename": legacy_present_count > 0,
+    }
+    tool["migration_required"] = any(tool["migration_kinds"].values())
     tool["readiness_status"] = (
         "not_configured"
         if present_count == 0 and legacy_present_count == 0
@@ -1977,6 +2247,9 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
     tool["daemon_version"] = None
     tool["versions_match"] = False
     if not tool["installed"]:
+        for entry in managed:
+            if entry["source_state"] in {"canonical", "pending_validation"}:
+                entry["source_state"] = "unverifiable"
         tool["probes"]["version"] = skipped_probe("executable_missing")
         tool["probes"]["daemon_status"] = skipped_probe("executable_missing")
         tool["probes"]["doctor"] = skipped_probe("executable_missing")
@@ -1993,19 +2266,28 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
     tool["version_supported"] = supported_podway_version(tool["version"])
 
     daemon_probe = json_probe(
-        [tool["executable"], "daemon", "status", "--json"],
+        [
+            tool["executable"],
+            "--json",
+            "daemon",
+            "wait-ready",
+            "--timeout",
+            "120s",
+        ],
         repository,
-        timeout_seconds,
+        max(timeout_seconds, 125.0),
     )
     normalized_daemon, daemon_payload = normalize_podway_envelope(
         daemon_probe,
-        "daemon.status",
-        ("podway.daemon-status-result/v1",),
+        "daemon.wait-ready",
+        ("podway.daemon-status-result/v2",),
     )
     daemon_version = None
     daemon_reachable = False
+    daemon_ready = False
     daemon_target = None
     if isinstance(daemon_payload, dict):
+        daemon_schema = daemon_payload.get("schema")
         observed_daemon_version = daemon_payload.get("daemon_version")
         daemon_version = (
             observed_daemon_version
@@ -2023,6 +2305,77 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
             if observed_target in {"aarch64-apple-darwin", "x86_64-apple-darwin"}
             else None
         )
+        readiness_state = None
+        readiness_stage = None
+        readiness_elapsed_ms = None
+        worktree_recovery = None
+        if daemon_schema == "podway.daemon-status-result/v2":
+            observed_state = daemon_payload.get("readiness_state")
+            observed_stage = daemon_payload.get("readiness_stage")
+            observed_elapsed = daemon_payload.get("readiness_elapsed_ms")
+            observed_recovery = daemon_payload.get("worktree_recovery")
+            readiness_state = (
+                observed_state
+                if observed_state
+                in {
+                    "not_running",
+                    "unreachable",
+                    "starting",
+                    "recovering",
+                    "ready",
+                    "failed",
+                }
+                else None
+            )
+            readiness_stage = (
+                observed_stage
+                if observed_stage
+                in {"endpoint", "registry", "workspaces", "jobs", "ready", "failed"}
+                else None
+            )
+            readiness_elapsed_ms = (
+                observed_elapsed
+                if isinstance(observed_elapsed, int)
+                and not isinstance(observed_elapsed, bool)
+                and observed_elapsed >= 0
+                else None
+            )
+            if isinstance(observed_recovery, dict):
+                recovery_counts = {
+                    key: observed_recovery.get(key)
+                    for key in ("total", "completed", "failed")
+                }
+                if all(
+                    isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and 0 <= value <= 10_000
+                    for value in recovery_counts.values()
+                ):
+                    worktree_recovery = recovery_counts
+            if readiness_state in {"not_running", "unreachable"}:
+                v2_contract_valid = bool(
+                    observed_stage is None
+                    and observed_elapsed is None
+                    and observed_recovery is None
+                )
+            else:
+                v2_contract_valid = bool(
+                    readiness_state is not None
+                    and readiness_stage is not None
+                    and readiness_elapsed_ms is not None
+                    and worktree_recovery is not None
+                )
+            if not v2_contract_valid:
+                normalized_daemon["ok"] = False
+                normalized_daemon["error_code"] = "invalid_daemon_readiness"
+            daemon_ready = bool(
+                v2_contract_valid
+                and daemon_reachable
+                and daemon_payload.get("status") == "running"
+                and readiness_state == "ready"
+                and readiness_stage == "ready"
+                and worktree_recovery["completed"] == worktree_recovery["total"]
+            )
         normalized_daemon["result"] = {
             "installed": daemon_payload.get("installed") is True,
             "loaded": daemon_payload.get("loaded") is True,
@@ -2030,6 +2383,11 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
             "running": daemon_payload.get("status") == "running",
             "version_valid": daemon_version is not None,
             "target_supported": daemon_target is not None,
+            "ready": daemon_ready,
+            "readiness_state": readiness_state,
+            "readiness_stage": readiness_stage,
+            "readiness_elapsed_ms": readiness_elapsed_ms,
+            "worktree_recovery": worktree_recovery,
         }
     tool["probes"]["daemon_status"] = normalized_daemon
     tool["daemon_version"] = daemon_version
@@ -2078,7 +2436,7 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
                 "session_lifecycle": session.get("lifecycle")
                 if isinstance(session, dict)
                 and session.get("lifecycle")
-                in {"prepared", "active", "completed", "cancelled", "discarded"}
+                in {"prepared", "running", "completed", "cancelled", "discarded"}
                 else None,
                 "session_revision": session.get("revision")
                 if isinstance(session, dict)
@@ -2105,7 +2463,7 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
                     re.IGNORECASE,
                 )
                 and session.get("lifecycle")
-                in {"prepared", "active", "completed", "cancelled", "discarded"}
+                in {"prepared", "running", "completed", "cancelled", "discarded"}
                 and isinstance(session.get("revision"), int)
                 and not isinstance(session.get("revision"), bool)
             )
@@ -2122,35 +2480,86 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
         tool["probes"]["doctor"] = skipped_probe("workspace_not_initialized")
         tool["probes"]["session_status"] = skipped_probe("workspace_not_initialized")
 
-    procedure_checks_ok = True
-    if matching_count == len(PODWAY_PROCEDURES):
-        for entry in managed:
-            check = json_probe(
+    valid_managed_count = 0
+    for entry in managed:
+        if entry["source_state"] not in {"canonical", "pending_validation"}:
+            continue
+        check = json_probe(
+            [
+                tool["executable"],
+                "--json",
+                "procedure",
+                "check",
+                "--warnings-as-errors",
+                entry["path"],
+            ],
+            repository,
+            timeout_seconds,
+        )
+        normalized_check, payload = normalize_podway_envelope(
+            check,
+            "procedure.check",
+            ("podway.procedure-diagnostics-result/v1",),
+        )
+        entry["check"] = normalized_check
+        if isinstance(payload, dict):
+            entry["check"]["valid"] = payload.get("valid") is True
+        check_valid = (
+            normalized_check["ok"]
+            and isinstance(payload, dict)
+            and payload.get("valid") is True
+        )
+        preview_payload = None
+        preview_valid = False
+        if check_valid:
+            preview = json_probe(
                 [
                     tool["executable"],
                     "--json",
                     "procedure",
-                    "check",
-                    "--warnings-as-errors",
+                    "preview",
                     entry["path"],
                 ],
                 repository,
                 timeout_seconds,
             )
-            normalized_check, payload = normalize_podway_envelope(
-                check,
-                "procedure.check",
-                ("podway.procedure-diagnostics-result/v1",),
+            normalized_preview, preview_payload = normalize_podway_envelope(
+                preview,
+                "procedure.preview",
+                ("podway.procedure-preview-result/v1",),
             )
-            entry["check"] = normalized_check
-            if isinstance(payload, dict):
-                entry["check"]["valid"] = payload.get("valid") is True
-            procedure_checks_ok = (
-                procedure_checks_ok
-                and normalized_check["ok"]
-                and isinstance(payload, dict)
-                and payload.get("valid") is True
+            entry["preview"] = normalized_preview
+            if isinstance(preview_payload, dict):
+                entry["preview"]["admissible"] = (
+                    preview_payload.get("admissible") is True
+                )
+                procedure_id = preview_payload.get("procedure_id")
+                entry["preview"]["procedure_id"] = (
+                    procedure_id if isinstance(procedure_id, str) else None
+                )
+            preview_valid = (
+                normalized_preview["ok"]
+                and isinstance(preview_payload, dict)
+                and preview_payload.get("admissible") is True
+                and preview_payload.get("procedure_id")
+                == entry["expected_procedure_id"]
             )
+        check_rejected = isinstance(payload, dict) and payload.get("valid") is False
+        preview_rejected = isinstance(preview_payload, dict) and (
+            preview_payload.get("admissible") is False
+            or isinstance(preview_payload.get("procedure_id"), str)
+            and preview_payload["procedure_id"] != entry["expected_procedure_id"]
+        )
+        procedure_valid = check_valid and preview_valid
+        if procedure_valid:
+            entry["source_state"] = (
+                "canonical" if entry["matches_source"] else "valid_customization"
+            )
+            valid_managed_count += 1
+        elif check_rejected or preview_rejected:
+            entry["source_state"] = "invalid"
+        else:
+            entry["source_state"] = "unverifiable"
 
     doctor_ok = not initialized
     doctor_payload = tool["probes"]["doctor"].get("result") if initialized else None
@@ -2165,7 +2574,7 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
         and tool["version_supported"]
         and tool["platform"]["supported"]
         and normalized_daemon["ok"]
-        and daemon_reachable
+        and daemon_ready
         and daemon_target == "aarch64-apple-darwin"
         and tool["versions_match"]
         and doctor_ok
@@ -2174,9 +2583,8 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
     if present_count == 0:
         tool["status"] = "installed" if healthy else "degraded"
     elif (
-        matching_count == len(PODWAY_PROCEDURES)
+        valid_managed_count == len(PODWAY_PROCEDURES)
         and tracked_count == len(PODWAY_PROCEDURES)
-        and procedure_checks_ok
         and initialized
         and tool["configuration"][1]["present"]
         and healthy

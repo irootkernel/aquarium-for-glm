@@ -1,0 +1,94 @@
+{
+  "dev-setup-bundle": {
+    "source_digest": "745e29fcfa21e89c899fc0298e27d78864af947706b78c0f91326bf08b0f5735",
+    "description": "Apply Aquarium development-tool setup across multiple Git repositories from one external YAML manifest. Use when the user explicitly invokes /aquarium:dev-setup-bundle with a manifest path; single-repository setup belongs to /aquarium:dev-setup."
+  },
+  "dev-setup": {
+    "source_digest": "df94bed01ce5e50a01bc0778c9a5616523397c82ba440b0727c4e0c26ceb6fb9",
+    "description": "Diagnose and configure Aquarium repository tooling, paired skills, MCP registrations, and the evidence-based AGENTS.md operating contract. Use when the user invokes /aquarium:dev-setup or asks to install, initialize, repair, or audit supported tools; routine Procedure v2 session lifecycle belongs to /use-podway."
+  },
+  "docs-setup": {
+    "source_digest": "454934abf72181a79e7402b7a7bb714ed857765584ccc73d1e103b9c6ed22fa0",
+    "description": "Audit, establish, adopt, or migrate a repository's canonical documentation structure and roadmap IDs. Use when the user explicitly invokes /aquarium:docs-setup; do not use for routine task documentation."
+  },
+  "epic-handler": {
+    "source_digest": "96a6d57317f13e2f214bfb6b97251c1163498a462633eafcd9623450f371594e",
+    "description": "Deliver or resume one named roadmap epic through sequential task goals, evidence-gated commits, and epic-wide remediation. Use when the user explicitly invokes /aquarium:epic-handler with a roadmap path and exactly one epic ID; never invoke it implicitly."
+  },
+  "epic-validator": {
+    "source_digest": "5cba7707a474a06cbb4292bf904c62f10869793bd5c867cc5213557a3bd69a29",
+    "description": "Cold-validate one completed roadmap epic through a bounded audit and one remediation-and-confirmation cycle. Use when the user explicitly invokes /aquarium:epic-validator with a roadmap path and exactly one completed epic ID; never invoke it implicitly."
+  },
+  "independent-review": {
+    "source_digest": "9b3b85ff6772939df4f3ef1e03faaa3b35e14eb8170e964d777aaf8159cc8a15",
+    "description": "Run one supervised static review with fresh reviewer subagents against staged changes, a commit or range, one task or epic, or an investigation. Use when the user explicitly invokes /aquarium:independent-review and asks for an independent verdict without remediation."
+  },
+  "new-feature": {
+    "source_digest": "31bfce6aca3cc33e62825671c9fbff3d090d4b2668ec393c22b3635a50b9cae5",
+    "description": "Shape one feature epic for an existing project with Ouroboros, without implementing it. Use when the user explicitly invokes /aquarium:new-feature."
+  },
+  "new-project": {
+    "source_digest": "f342f814fef6b6e60e1bb5d0bf31d52d988fded21566439abe24ddb129a37639",
+    "description": "Shape a greenfield project into an approved PRD and initial roadmap with Ouroboros, without implementing it. Use when the user explicitly invokes /aquarium:new-project."
+  },
+  "orca-review": {
+    "source_digest": "b0d2ba094878d79e35390cb7991c8d04d229a0a3296278c704e25cd795a955f3",
+    "description": "Run the canonical independent-review contract through a user-selected Claude Fable, Kimi, Agy, or Cursor Agent in Orca. Use when the user explicitly invokes /aquarium:orca-review and asks for an external-provider review."
+  },
+  "refactor": {
+    "source_digest": "462dc0b177fa8f0b596fe2ca2987c3b2bf8190768110f590ecef8132473d9e7f",
+    "description": "Shape one major refactor or behavior-change epic with Ouroboros, without implementing it. Use when the user explicitly invokes /aquarium:refactor."
+  },
+  "release-handler": {
+    "source_digest": "0cc701198c9d4e186f7bffaaad44c81ee2225c25b7f2d4c297092411eb4e74d4",
+    "description": "Prepare, validate, publish, or retarget one stable release with cumulative changelog settlement. Use when the user explicitly invokes /aquarium:release-handler for one intended or planned version."
+  },
+  "release-qa": {
+    "source_digest": "f8e3c6a3f35d24711e8a5f8b2913bb376f52dd9fdbfec5959d5adfbedab6fddd",
+    "description": "Run one full scenario-based QA pass for an exact main release candidate, or one bounded confirmation pass after remediation. Use when the user explicitly invokes /aquarium:release-qa or /aquarium:release-handler delegates one intended version."
+  },
+  "task-close": {
+    "source_digest": "52e2ddf89848a0497ec836087d5d1cc3594e4943a789d4120893529abe86885c",
+    "description": "Confirm and close one reviewed roadmap task with an explicitly selected terminal status. Use when /aquarium:task-handler delegates closeout or the user explicitly invokes /aquarium:task-close with exact task identity and complete review evidence."
+  },
+  "task-commit": {
+    "source_digest": "c9c09e073741196b7254966ee33551990e704163eddaaef05e96e31adc4a5e1f",
+    "description": "Prepare and create one authorized Git commit while reconciling roadmap task lifecycle state and preserving unrelated work. Use when the user asks to commit in a repository that may contain a roadmap, an Aquarium handler hands off an approved commit, or the user explicitly invokes /aquarium:task-commit."
+  },
+  "task-document": {
+    "source_digest": "e2294151c06728f3f1e8e27ba3c9f6cb7e3913353c081eb8f70e875584655559",
+    "description": "Update durable documentation and review status for one refined roadmap task. Use when /aquarium:task-handler delegates documentation or the user explicitly invokes /aquarium:task-document to resume that phase."
+  },
+  "task-handler": {
+    "source_digest": "fafa9af8902e73e37f65b5fbf1de1938e9a8459e3f46f547d500994f2a118ad3",
+    "description": "Strengthen or resume the procedure around one named roadmap task goal through planning, implementation, verification, refinement, documentation, review, and closeout. Use when the user explicitly invokes /aquarium:task-handler with a roadmap path and exactly one task ID; never invoke it implicitly."
+  },
+  "task-implement": {
+    "source_digest": "a5e123370cc09111acc702aa60ea90ba12fb98635e30e27a2b01ae255d7a0018",
+    "description": "Implement the approved plan for one named roadmap task. Use when /aquarium:task-handler delegates implementation or the user explicitly invokes /aquarium:task-implement to resume that phase."
+  },
+  "task-plan": {
+    "source_digest": "5e1d99f5c8b82219105ea794430cb6fee490a9a4a89bcf286c170fed92e42fb1",
+    "description": "Plan one named roadmap task without mutation. Use when /aquarium:task-handler delegates planning or the user explicitly invokes /aquarium:task-plan to resume that phase with one task ID."
+  },
+  "task-refine": {
+    "source_digest": "5ce894f6b0037848ab772358b7159208b9e86734b63ae7922bb172efd030dae4",
+    "description": "Deslop and optimize the implementation-checked diff for one roadmap task before final verification. Use when /aquarium:task-handler delegates refinement or the user explicitly invokes /aquarium:task-refine for that phase."
+  },
+  "task-review": {
+    "source_digest": "3c0862d10dc1f9200cdfd30fd92c9ca9bcf19a5e0e301b47c9913bb4b9d3cd74",
+    "description": "Run and resolve Mulgae review for one complete roadmap task diff. Use when /aquarium:task-handler delegates review or the user explicitly invokes /aquarium:task-review with exact task identity."
+  },
+  "task-verify": {
+    "source_digest": "7e93be80baa4460c75ed38fd8904ba7dc255099814cd866e786bfff91daccaec",
+    "description": "Strengthen and verify evidence for one implemented roadmap task. Use when /aquarium:task-handler delegates verification or the user explicitly invokes /aquarium:task-verify to resume that phase."
+  },
+  "test-setup": {
+    "source_digest": "8b2a79bf175c744f0c1574ebcaf982bde5e92793bffe58284b1bb26d4e95de68",
+    "description": "Audit and configure the common Make or Bun testing contract for one repository, with evidence-backed legacy waivers. Use when the user explicitly invokes /aquarium:test-setup for test infrastructure or TESTING.md setup."
+  },
+  "war-room": {
+    "source_digest": "ab6073685466b4486e96fc19a0e7e017dbfee4e302c3cd0de3b8bd4262422ef8",
+    "description": "Diagnose one difficult bug and shape the next work unit with Ouroboros, without implementing a fix. Use when the user explicitly invokes /aquarium:war-room."
+  }
+}

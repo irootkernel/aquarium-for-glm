@@ -196,20 +196,21 @@ def parse_request(payload: object) -> dict[str, Any]:
         raise RequestError(
             "schema_unsupported", "terminal request schema is unsupported"
         )
-    repository = Path(
-        require_string(
-            payload["repository"],
-            "repository_invalid",
-            "repository path is invalid",
-        )
+    repository_value = require_string(
+        payload["repository"],
+        "repository_invalid",
+        "repository path is invalid",
     )
+    repository = Path(repository_value)
+    if not repository.is_absolute():
+        raise RequestError("repository_invalid", "repository path is invalid")
     try:
         repository = repository.resolve(strict=True)
     except OSError as error:
         raise RequestError(
             "repository_unavailable", "repository is unavailable"
         ) from error
-    if not repository.is_absolute() or not repository.is_dir():
+    if not repository.is_dir():
         raise RequestError("repository_invalid", "repository path is invalid")
     require_git_root(repository)
     worktree = require_string(
@@ -287,6 +288,7 @@ def create_terminal(payload: object) -> dict[str, object]:
         ],
         check=False,
         capture_output=True,
+        cwd=request["repository"],
         text=True,
         timeout=30,
     )

@@ -30,6 +30,7 @@ OUTPUT = REPOSITORY / "plugins" / "aquarium"
 OVERRIDES = REPOSITORY / "overrides"
 OVERRIDE_MANIFEST = OVERRIDES / "manifest.json"
 CODEX_EXEMPTIONS = OVERRIDES / "codex-exemptions.json"
+SKILL_DESCRIPTIONS = OVERRIDES / "skill-descriptions.json"
 SYNC_MANIFEST = "sync-manifest.json"
 
 COPIED_DIRECTORIES = ("skills", "references", "assets", "hooks")
@@ -58,6 +59,9 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     # `$use-podway`, `$use-sanho`, `$use-mulgae`, `$use-gaori`. A prefix rule
     # covers the family and any later sibling; `/use-` cannot re-match it.
     ("$use-", "/use-"),
+    # `$create-podway-procedure` is the separately installed maintainer
+    # authoring skill; user-scoped skills carry no plugin namespace here.
+    ("$create-", "/create-"),
     ("$lore-commits", "/lore-commits"),
     ("$lore-query", "/lore-query"),
     ("$orca-cli", "/orca-cli"),
@@ -376,12 +380,85 @@ def inspect_mulgae_mcp(
     # effective registration are read from those config files.
     return zcode_mcp_scopes("gaori", repository, gaori_executable)
 ''',
-            "inspect_ouroboros": r'''def ouroboros_mcp_registration(repository: Path) -> dict[str, Any]:
+            "ouroboros_isolated_launcher_matches": r'''ZCODE_OUROBOROS_RUNTIME_VALUES = ("zcode", "codex")
+
+
+def ouroboros_isolated_launcher_matches(transport: Any) -> bool:
+    # The isolated `uvx` launcher shape is host-neutral; the runtime selectors
+    # are not. On this host the selectors must name one coherent runtime —
+    # `zcode`, the runtime this artifact proposes, or `codex`, valid when that
+    # CLI is the configured Ouroboros backend — through the environment keys
+    # or the exact command suffix. Upstream's copy of this matcher accepts the
+    # codex value only, because it classifies registrations for the upstream
+    # host.
+    if not isinstance(transport, dict) or transport.get("type") != "stdio":
+        return False
+    resolved_command = resolved_executable(transport.get("command"))
+    selected_uvx = shutil.which("uvx")
+    if not resolved_command or not selected_uvx:
+        return False
+    if resolved_command != Path(selected_uvx).resolve():
+        return False
+
+    args = transport.get("args")
+    if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
+        return False
+    normalized_args = list(args)
+    if len(normalized_args) < 5:
+        return False
+    package_match = OUROBOROS_MCP_PACKAGE.fullmatch(normalized_args[4])
+    if not package_match:
+        return False
+    pinned_version = package_match.group(1)
+    if pinned_version and not supported_ouroboros_version(pinned_version):
+        return False
+    normalized_args[4] = "ouroboros-ai[mcp]"
+
+    env = transport.get("env", {})
+    if not isinstance(env, dict) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in env.items()
+    ):
+        return False
+    if "_OUROBOROS_NESTED" in env:
+        return False
+    if set(env) - OUROBOROS_RUNTIME_SELECTOR_KEYS:
+        return False
+    env_selected = {
+        env.get(key)
+        for key in OUROBOROS_RUNTIME_SELECTOR_KEYS
+        if env.get(key) is not None
+    }
+    if len(env_selected) > 1:
+        return False
+    env_runtime = next(iter(env_selected)) if env_selected else None
+    if env_runtime is not None and env_runtime not in ZCODE_OUROBOROS_RUNTIME_VALUES:
+        return False
+
+    normalized = tuple(normalized_args)
+    if normalized == OUROBOROS_UVX_MCP_ARGS:
+        return (
+            env.get("OUROBOROS_AGENT_RUNTIME") is not None
+            and env.get("OUROBOROS_LLM_BACKEND") is not None
+            and env_runtime in ZCODE_OUROBOROS_RUNTIME_VALUES
+        )
+    for runtime_value in ZCODE_OUROBOROS_RUNTIME_VALUES:
+        if env_runtime is not None and runtime_value != env_runtime:
+            continue
+        suffix = ("--runtime", runtime_value, "--llm-backend", runtime_value)
+        if normalized == (*OUROBOROS_UVX_MCP_ARGS, *suffix):
+            return True
+    return False
+''',
+            "inspect_ouroboros": r'''def ouroboros_mcp_registration(
+    repository: Path, ouroboros_executable: str | None
+) -> dict[str, Any]:
     # ZCode has no `mcp get` CLI probe; registrations live in
     # `~/.zcode/cli/config.json` (user level) and `.zcode/config.json`
     # (project level, which overrides the user entry on a name collision),
-    # under the `mcp.servers` object. The entry resolving at all is the
-    # registration signal; a disabled entry degrades rather than disappears.
+    # under the `mcp.servers` object. Classification follows the launcher
+    # contract: the entry must be stdio and match either the direct
+    # `ooo mcp serve` form or the canonical isolated `uvx` launcher with one
+    # coherent runtime selector value.
     probe: dict[str, Any] = {
         "attempted": True,
         "ok": True,
@@ -403,16 +480,48 @@ def inspect_mulgae_mcp(
     if entry is None:
         probe["reason"] = "registration_not_found"
         return {"status": "missing", "probe": probe}
-    if isinstance(entry, dict) and entry.get("enabled") is False:
-        probe["reason"] = "registration_disabled"
-        return {"status": "degraded", "probe": probe, "scope": scope}
-    return {"status": "configured", "probe": probe, "scope": scope}
+    if not isinstance(entry, dict) or entry.get("type", "stdio") != "stdio":
+        return {
+            "status": "degraded",
+            "probe": probe,
+            "scope": scope,
+            "reason": "registration_not_stdio",
+        }
+    if entry.get("enabled") is False:
+        return {
+            "status": "degraded",
+            "probe": probe,
+            "scope": scope,
+            "reason": "registration_disabled",
+        }
+    if ouroboros_direct_launcher_matches(entry, ouroboros_executable):
+        return {
+            "status": "configured",
+            "probe": probe,
+            "scope": scope,
+            "launcher": "direct",
+        }
+    if ouroboros_isolated_launcher_matches(entry):
+        return {
+            "status": "configured",
+            "probe": probe,
+            "scope": scope,
+            "launcher": "isolated",
+        }
+    return {
+        "status": "degraded",
+        "probe": probe,
+        "scope": scope,
+        "reason": "registration_mismatch",
+    }
 
 
 def inspect_ouroboros(repository: Path, timeout_seconds: float) -> dict[str, Any]:
     tool = base_tool("ooo")
     tool["supported_range"] = ">=0.51.1,<0.52.0"
-    tool["mcp_registration"] = ouroboros_mcp_registration(repository)
+    tool["mcp_registration"] = ouroboros_mcp_registration(
+        repository, tool["executable"]
+    )
     # Ouroboros registers its skills with the host agent, so the component
     # whose health this integration adds on this host is the config
     # registration resolved above.
@@ -453,37 +562,59 @@ def inspect_ouroboros(repository: Path, timeout_seconds: float) -> dict[str, Any
     # rather than reprobed.
     tool["host_integration"] = host_integration
 
-    mcp_doctor = json_probe(
-        [tool["executable"], "mcp", "doctor", "--json"],
-        repository,
-        timeout_seconds,
-    )
-    # The MCP 2 server registered in config launches as a separate process
-    # while the CLI environment keeps MCP 1.x, so the doctor's `mcp_import`
-    # check — and the exit code with it — fails on a correctly configured
-    # machine. The remaining checks carry runtime health here; the server's
-    # own health is the registration component.
-    doctor_checks = mcp_doctor.get("result")
-    runtime_probe = normalized_probe(mcp_doctor)
-    if isinstance(doctor_checks, list):
-        failed = sorted(
-            str(check.get("name"))
-            for check in doctor_checks
-            if isinstance(check, dict)
-            and check.get("status") == "fail"
-            and check.get("name") != "mcp_import"
-        )
-        if failed:
-            runtime_probe["reason"] = "doctor_checks_failed"
+    launcher = tool["mcp_registration"].get("launcher")
+    if launcher == "isolated":
+        # The canonical isolated launcher runs the MCP 2 server in its own
+        # package environment; the base CLI's doctor would inspect an
+        # unrelated environment, so the launcher contract itself establishes
+        # runtime configuration.
         tool["mcp_runtime"] = {
-            "status": "degraded" if failed else "configured",
-            "failed_checks": failed,
-            "probe": runtime_probe,
+            "status": "configured",
+            "reason": "isolated_launcher_contract",
+            "probe": skipped_probe("isolated_environment_not_probed"),
         }
+    elif launcher == "direct":
+        mcp_doctor = json_probe(
+            [tool["executable"], "mcp", "doctor", "--json"],
+            repository,
+            timeout_seconds,
+        )
+        # The MCP 2 server registered in config launches as a separate process
+        # while the CLI environment keeps MCP 1.x, so the doctor's
+        # `mcp_import` check — and the exit code with it — fails on a
+        # correctly configured machine. The remaining checks carry runtime
+        # health here; the server's own health is the registration component.
+        doctor_checks = mcp_doctor.get("result")
+        runtime_probe = normalized_probe(mcp_doctor)
+        if isinstance(doctor_checks, list):
+            failed = sorted(
+                str(check.get("name"))
+                for check in doctor_checks
+                if isinstance(check, dict)
+                and check.get("status") == "fail"
+                and check.get("name") != "mcp_import"
+            )
+            if failed:
+                runtime_probe["reason"] = "doctor_checks_failed"
+            tool["mcp_runtime"] = {
+                "status": "degraded" if failed else "configured",
+                "failed_checks": failed,
+                "probe": runtime_probe,
+            }
+        else:
+            tool["mcp_runtime"] = {
+                "status": "degraded",
+                "probe": runtime_probe,
+            }
     else:
+        # Without a matching launcher there is no package environment whose
+        # health would be this server's runtime configuration; probing the
+        # base CLI would inspect an unrelated environment.
+        reason = tool["mcp_registration"].get("reason", "registration_not_found")
         tool["mcp_runtime"] = {
-            "status": "degraded",
-            "probe": runtime_probe,
+            "status": "missing" if reason == "registration_not_found" else "unverifiable",
+            "reason": reason,
+            "probe": skipped_probe(reason),
         }
 
     components_ready = (
@@ -607,6 +738,9 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
     ("skills/dev-setup/scripts/inspect_tools.py", '".zcode/cli/config.json"'),
     ("skills/dev-setup/scripts/inspect_tools.py", "ouroboros_mcp_registration"),
     ("skills/dev-setup/scripts/inspect_tools.py", "zcode_mcp_scopes"),
+    ("skills/dev-setup/scripts/inspect_tools.py", "ZCODE_OUROBOROS_RUNTIME_VALUES"),
+    ("skills/dev-setup/scripts/inspect_tools.py", "registration_mismatch"),
+    ("skills/dev-setup/scripts/inspect_tools.py", "isolated_launcher_contract"),
     ("skills/dev-setup/scripts/inspect_tools.py", '"host_integration"'),
     ("skills/dev-setup/scripts/inspect_tools.py", "doctor_checks_failed"),
     # The test-setup inspector ships host-neutral from upstream; this marker
@@ -615,15 +749,15 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
         "skills/test-setup/scripts/inspect_testing.py",
         "aquarium-test-setup-inspection.v1",
     ),
-    # The v0.1.11 inspectors and the provider-terminal helper also ship
+    # The v0.1.12 rewrites and the newer host-neutral inspectors also ship
     # host-neutral from upstream; the same marker guard applies to each.
     (
         "skills/docs-setup/scripts/inspect_docs.py",
-        "aquarium-docs-inspection/v1",
+        "aquarium-docs-inspection/v2",
     ),
     (
         "skills/release-handler/scripts/inspect_publication_state.py",
-        "aquarium-release-publication-state/v1",
+        "aquarium-release-publication-state/v4",
     ),
     (
         "skills/release-handler/scripts/inspect_release_notes.py",
@@ -634,8 +768,16 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
         "aquarium-independent-review-target/v1",
     ),
     (
+        "skills/orca-review/scripts/inspect_repository_state.py",
+        "aquarium-orca-review-repository-state/v1",
+    ),
+    (
         "skills/orca-review/scripts/create_provider_terminal.py",
         "aquarium-orca-provider-terminal-request/v1",
+    ),
+    (
+        "skills/release-qa/scripts/manage_release_qa.py",
+        "aquarium-release-qa-full-pass/v1",
     ),
     ("hooks/task_commit_gate.py", "/aquarium:task-commit"),
     ("hooks/hooks.json", "${ZCODE_PLUGIN_ROOT}"),
@@ -647,6 +789,7 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
 FORBIDDEN: tuple[tuple[str, str], ...] = (
     ("$aquarium:", "add a substitution rule"),
     ("$use-", "add a substitution rule"),
+    ("$create-", "add a substitution rule"),
     ("$lore-", "add a substitution rule"),
     ("$orca-cli", "add a substitution rule"),
     ("request_user_input", "add a substitution rule or an override"),
@@ -744,6 +887,73 @@ def copy_tree(destination: Path) -> None:
         source = UPSTREAM_PLUGIN / name
         if source.is_dir():
             shutil.copytree(source, destination / name)
+
+
+def tune_skill_descriptions(destination: Path) -> list[str]:
+    """Apply the tuned trigger surface to every generated skill.
+
+    The frontmatter description is the only skill surface the host exposes
+    to the model, so this edition tunes it for that surface: the purpose
+    sentence first, the `/aquarium:<name>` invocation present, a kept
+    `Use when` trigger, and a shorter whole. Each entry records the SHA-256
+    of the pre-tuning description — the value upstream plus substitutions
+    and overrides produced — so an upstream or override change to any
+    description stops the run until the tuning is re-derived, exactly like a
+    file override. A skill without an entry also stops the run: partial
+    tuning would leave inconsistent trigger conventions.
+    """
+    if not SKILL_DESCRIPTIONS.is_file():
+        raise SyncError(
+            f"{SKILL_DESCRIPTIONS} is missing; record one entry per skill"
+        )
+    recorded = json.loads(SKILL_DESCRIPTIONS.read_text(encoding="utf-8"))
+    tuned: list[str] = []
+    skills = destination / "skills"
+    for skill in sorted(path for path in skills.iterdir() if path.is_dir()):
+        name = skill.name
+        entry = recorded.get(name)
+        if not isinstance(entry, dict) or set(entry) != {
+            "source_digest",
+            "description",
+        }:
+            raise SyncError(
+                f"skill `{name}` has no tuning entry carrying `source_digest` "
+                "and `description`; re-derive overrides/skill-descriptions.json"
+            )
+        path = skill / "SKILL.md"
+        lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+        description_lines = [
+            (index, line)
+            for index, line in enumerate(lines)
+            if line.startswith("description:")
+        ]
+        if len(description_lines) != 1:
+            raise SyncError(
+                f"skill `{name}` frontmatter has no single description line"
+            )
+        index, line = description_lines[0]
+        current = line[len("description:") :].strip()
+        if digest_text(current) != entry["source_digest"]:
+            raise SyncError(
+                f"tuned description stale: `{name}` changed upstream or in an "
+                "override; re-derive overrides/skill-descriptions.json"
+            )
+        replacement = entry["description"]
+        if f"/aquarium:{name}" not in replacement or "Use when" not in replacement:
+            raise SyncError(
+                f"tuned description for `{name}` must keep the invocation name "
+                "and a `Use when` trigger"
+            )
+        lines[index] = f'description: "{replacement}"\n'
+        path.write_text("".join(lines), encoding="utf-8")
+        tuned.append(name)
+    extra = sorted(set(recorded) - set(tuned))
+    if extra:
+        raise SyncError(
+            "overrides/skill-descriptions.json names skills the tree does not "
+            "generate: " + ", ".join(extra)
+        )
+    return tuned
 
 
 def transform_skills(destination: Path) -> None:
@@ -1022,8 +1232,11 @@ def generate(staged_root: Path) -> tuple[str, list[str]]:
     copy_tree(plugin)
     transform_text(plugin)
     # Overrides replace whole files, so they run after the substitutions: an
-    # override is hand-authored final content, not text to rewrite.
+    # override is hand-authored final content, not text to rewrite. The
+    # description tuning runs after both, because it owns the final
+    # description surface for every skill, overridden or not.
     overrides = apply_overrides(plugin)
+    tune_skill_descriptions(plugin)
     transform_skills(plugin)
     write_plugin_manifest(plugin)
     validated_exemptions = validate_codex_exemptions(plugin, codex_exemptions)

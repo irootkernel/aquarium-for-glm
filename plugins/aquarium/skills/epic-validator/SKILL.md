@@ -1,34 +1,30 @@
 ---
 name: epic-validator
-description: "Cold-validate one completed roadmap epic through a bounded direct audit, one remediation and confirmation review, severity-based user direction, and isolated commits. Use when the user explicitly invokes /aquarium:epic-validator with one repository, canonical roadmap path, and exactly one epic ID after its member tasks were completed through /aquarium:task-handler, /aquarium:epic-handler, or another evidence-backed workflow; do not invoke it implicitly."
+description: "Cold-validate one completed roadmap epic through a bounded audit and one remediation-and-confirmation cycle. Use when the user explicitly invokes /aquarium:epic-validator with a roadmap path and exactly one completed epic ID; never invoke it implicitly."
 ---
 
 # Epic Validator
 
 Validate a completed epic independently of how it was delivered. Audit first, remediate the first confirmed findings once, run one confirmation review, and require user direction before any further correction or review. Read [release-notes.md](../../references/release-notes.md). Do not invoke `/aquarium:task-handler`, `/aquarium:epic-handler`, their phase skills, or `/aquarium:independent-review`.
 
-Always read [evidence-residency.md](../../references/evidence-residency.md). Use Podway by default. Exclude it only when the current user explicitly opts this validation out before its managed session starts or a higher-priority instruction prohibits it. For an opted-out validation, do not inspect Podway, load `/use-podway`, or read [podway-integration.md](../../references/podway-integration.md), and do not carry the opt-out into a later workflow.
+Always read [evidence-residency.md](../../references/evidence-residency.md) and [documentation-governance.md](../../references/documentation-governance.md). Use Podway by default. Exclude it only when the current user explicitly opts this validation out before its managed session starts or a higher-priority instruction prohibits it. For an opted-out validation, do not inspect Podway, load `/use-podway`, or read [podway-integration.md](../../references/podway-integration.md), and do not carry the opt-out into a later workflow.
 
-Otherwise read the Podway contract and own one `aquarium-validation-v2` session for this exact cold-validation lifecycle. Podway records each bounded pass and user disposition; the roadmap and current implementation remain the semantic authority.
+Otherwise read the Podway contract and use one `aquarium-validation-v2` session for this exact cold-validation lifecycle. Podway records each bounded pass and user disposition; the roadmap and current implementation remain the semantic authority.
 
 ## Establish the Validation Contract
 
 Require one mutable Git repository, one canonical roadmap path inside it, and exactly one epic ID present in that roadmap. Reject task-only requests, multiple epics, and requests without one canonical roadmap epic identity.
 
-Read [design-gates.md](../../references/design-gates.md). Resolve each member task's effective Design Gate impact from the task first and then the epic, applying the documented legacy-only `Not required` rule when neither marker exists. Treat a missing effective marker in an enrolled repository or a `Pending` marker as an incomplete epic contract and stop before remediation.
-
-Resolve every effective active gate plus active gates whose scope covers an integration seam, and include their local offline checks in the requirement matrix and every fresh final audit. Redirect declared outputs and caches to disposable roots and verify that each gate leaves the source repository unchanged.
-
 Before requesting approval:
 
-1. Read applicable instructions, the epic, every member task, linked requirements, decisions, contracts, tests, documentation, and required or generated artifacts.
+1. Read instructions, the epic, member tasks, `docs/README.md`, the active dossier when the epic is not yet completed, linked canonical outcomes, decisions, contracts, operations runbooks, tests, documentation, and required or generated artifacts. For a completed epic with dossier-contract evidence, treat any remaining adopted dossier or `Detailed SOT` reference, any missing `Canonical Outcomes`, or a broken outcome link as a documentation contract gap. Leave historical completed epics without lifecycle fields or declarations grandfathered and unchanged.
 2. Confirm every member task is in a roadmap-defined successful state and its implementation has a committed evidence-backed baseline. The epic itself may be in review or a successful state. When a member task is incomplete, stop and report which handler the user should run; never invoke it here.
 3. Inspect branch, upstream, HEAD, staged, unstaged, untracked, and conflicted state. Record the validation baseline and separate epic-owned residue from unrelated work. Stop when the epic baseline is uncommitted or cannot be isolated safely.
 4. Discover repository-native verification, Gaori, `/use-gaori`, documentation synchronization, Mulgae, `/use-mulgae`, Sanho, `/use-sanho`, lifecycle, and commit guidance. Treat each CLI, repository configuration, project MCP, and agent skill as independent state. Inspect explicit external dependencies read-only and record repository, canonical identity, exact revision, lifecycle, dirty state, evidence, and owner.
 5. Inspect the current goal and stop rather than replace a different unfinished goal.
 6. Honor an explicit pre-session opt-out without Podway discovery and ignore every Podway readiness or session state. Otherwise apply the shared contract's readiness and session checks. On degraded readiness, stop and ask the user to choose `/aquarium:dev-setup` repair or an explicit opt-out for this validation.
-   - Resume only a managed validation session matching this epic and baseline. A nonmatching prepared, running, incomplete, or undisposed terminal session uses the shared lifecycle-conflict route: resume it through its matching owner, leave it untouched through validation opt-out, or hand explicit cancellation or deletion to `/use-podway`. Never describe that conflict as setup repair.
-   - A disposed terminal session with verified handoff evidence and a current `session.start_replace` template becomes an exact successor candidate. Include its fenced eligible replacement in the validation envelope and, after approval, use `start --replace-eligible` without a separate reset before re-observing and beginning the prepared validation session.
+   - Resume a managed validation session matching this epic and baseline. Only when starting a different session, present the existing session and obtain the shared contract's explicit preserve, lifecycle, delete, or eligible-replace choice. Never route by skill owner or describe the choice as setup repair.
+   - A disposed terminal session with verified handoff evidence and a current `session.start_replace` template becomes an exact successor candidate. Include its automatic archival in the validation envelope and, after approval, execute the template's current plain `start` argv without a separate reset before re-observing and beginning the prepared validation session.
 
 Present one bounded validation envelope covering direct audit, authorized checks, disclosed Mulgae source transmission, remediation of confirmed gaps required by existing epic authority, canonical documentation only when current semantics change, conditionally required evidence promotion, isolated staging, and one commit per actual remediation or lifecycle diff. Ask once for explicit approval. A clean validation with no canonical change creates no repository diff or validation-record commit.
 
@@ -50,7 +46,7 @@ For each operationally complete whole-epic root review, record the next positive
 
 Run the audit without an active goal and without source mutation:
 
-1. Build a requirement-to-owner-to-production-to-test-to-document matrix across every member task. Trace runtime wiring, consumers, persistence, concurrency, migrations, generated artifacts, failure and recovery behavior, operational guidance, external dependencies, and roadmap consistency.
+1. Build a requirement-to-owner-to-production-to-test-to-document matrix across every member task. Trace runtime wiring, consumers, persistence, concurrency, migrations, generated artifacts, failure and recovery behavior, operational guidance, external dependencies, roadmap consistency, absence of the completed epic's dossier, and coverage by its canonical outcome links.
 2. Inspect current code and evidence directly. Run only repository-authorized checks needed for the epic claim. Keep current agent-run, explicit user-run, unavailable, forbidden, stale, external, live, commit, and upstream publication evidence distinct; narrow green checks do not prove uncovered requirements.
 3. Run Mulgae on one exact latest epic target that excludes unrelated work and includes every epic-owned staged, unstaged, untracked, generated, and derived file.
 4. Treat a Mulgae review as operationally complete only when `coverage_status=complete`, `ci_decision=pass`, `publication_status=committed`, and the findings query succeeds. Classify that complete review as clean only when zero unresolved valid findings remain; otherwise apply the bounded remediation or explicit disposition rules below. Provider success or exit status alone is insufficient.

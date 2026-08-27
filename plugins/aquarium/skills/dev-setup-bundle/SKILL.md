@@ -1,6 +1,6 @@
 ---
 name: dev-setup-bundle
-description: "Apply Aquarium development-tool setup across multiple Git repositories from one external YAML manifest. Use when the user explicitly invokes /aquarium:dev-setup-bundle with a manifest path. Do not use for single-repository setup or implicit workspace discovery; use /aquarium:dev-setup."
+description: "Apply Aquarium development-tool setup across multiple Git repositories from one external YAML manifest. Use when the user explicitly invokes /aquarium:dev-setup-bundle with a manifest path; single-repository setup belongs to /aquarium:dev-setup."
 ---
 
 # Development Setup Bundle

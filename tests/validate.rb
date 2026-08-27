@@ -58,6 +58,13 @@ skill_paths.each do |path|
   assert(metadata.key?("name") && metadata.key?("description"), "frontmatter must define name and description: #{name}")
   assert(metadata.fetch("name") == name, "skill name/path mismatch: #{name}")
   assert(metadata.fetch("description").include?("Use when"), "description lacks trigger: #{name}")
+  # The description is the only skill surface the host exposes to the model,
+  # and this edition tunes it around the invocation name; a description that
+  # lost the name would break that convention silently.
+  assert(
+    metadata.fetch("description").include?("/aquarium:#{name}"),
+    "description must name the skill's invocation form: #{name}"
+  )
 
   assert(!path.dirname.join("agents").directory?, "Codex sidecar directory must be dropped: #{name}")
 end

@@ -1,6 +1,6 @@
 ---
 name: test-setup
-description: "Audit, propose, and configure Aquarium's common Make or Bun testing contract for one repository, including evidence-backed legacy waivers. Use when the user explicitly invokes /aquarium:test-setup for test infrastructure or TESTING.md setup."
+description: "Audit and configure the common Make or Bun testing contract for one repository, with evidence-backed legacy waivers. Use when the user explicitly invokes /aquarium:test-setup for test infrastructure or TESTING.md setup."
 ---
 
 # Test Setup

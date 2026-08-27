@@ -1,6 +1,6 @@
 ---
 name: task-implement
-description: "Implement the approved plan for one named roadmap task. Use when /aquarium:task-handler delegates implementation or when the user explicitly invokes /aquarium:task-implement to resume that phase with an approved plan and exact task identity."
+description: "Implement the approved plan for one named roadmap task. Use when /aquarium:task-handler delegates implementation or the user explicitly invokes /aquarium:task-implement to resume that phase."
 ---
 
 # Task Implement

@@ -1,6 +1,6 @@
 ---
 name: independent-review
-description: "Run one supervised static review with fresh reviewer subagents against staged changes, a commit or range, one task or epic, or a roadmap-independent investigation. Use when the user explicitly invokes /aquarium:independent-review and asks for an independent verdict without remediation."
+description: "Run one supervised static review with fresh reviewer subagents against staged changes, a commit or range, one task or epic, or an investigation. Use when the user explicitly invokes /aquarium:independent-review and asks for an independent verdict without remediation."
 ---
 
 # Independent Review
