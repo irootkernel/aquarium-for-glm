@@ -1,62 +1,58 @@
 ---
 name: orca-review
-description: "Run the canonical independent-review contract through a user-selected Claude Fable, Kimi, Agy, or Cursor Agent in Orca. Use when the user explicitly invokes /aquarium:orca-review and asks for an external-provider review."
+description: "Run the canonical review contract with one fresh requested native reviewer, such as Claude, owned and supervised by the local Orca runtime for a staged, `HEAD`, commit, or range target. Use when the user explicitly invokes /aquarium:orca-review or names a review target and reviewer; subagent-based review belongs to /aquarium:independent-review."
 ---
 
 # Orca Review
 
-Extend `/aquarium:independent-review` with a removable external provider layer. Target selection, dirty-state handling, static-review limits, adjudication, and the result envelope remain identical to the canonical independent-review contract.
+Run the canonical Aquarium review contract with one fresh requested reviewer owned and supervised entirely by Orca. This path does not discover, launch, capture through, settle through, or otherwise use Dolgorae.
 
-## Load the Contracts
+## Load the contracts
 
 1. Read [review-contract.md](../../references/review-contract.md) completely.
-2. Read [orca-supervision.md](../../references/orca-supervision.md) completely.
-3. Read [provider-contracts.md](references/provider-contracts.md) completely, then apply only the selected provider section.
-4. Resolve the `independent-review` skill directory and use its `scripts/inspect_review_target.py`. Do not maintain another target inspector here.
+2. Read [finding-disposition.md](../../references/finding-disposition.md) completely.
+3. Read [orca-supervision.md](../../references/orca-supervision.md) completely.
+4. Require the separately installed `/orca-cli` skill and apply its live version-matched guides.
 
-## Establish the Target
+## Establish the target
 
-Classify and resolve one `staged`, `commit`, `range`, `task`, `epic`, or `special request` target exactly as the shared review contract specifies. A dirty working tree is never a target. For a staged target, ask whether to stage exact displayed paths, exclude the dirty remainder, or cancel. For commit, range, and confirmed `HEAD` targets, exclude dirty content automatically.
+Resolve one canonical Git root, one `staged`, `head`, `commit`, or `range` source scope, one requested reviewer, and one review focus. A `task`, `epic`, or special request supplies authority and focus but must resolve to one of those four scopes. Read the roadmap and linked authority first. Ask only when the authority does not identify one unambiguous scope and applicable revision.
 
-Use the current checkout, not a private snapshot. When excluded dirty content exists, disclose that it remains outside the authorized scope but can technically be read by a reviewer process running as the same operating-system user. Bind the target inspector's complete result, exact authority paths, included and excluded state, and review focus to the Task.
+`staged` means the current `HEAD`-to-index change in Orca's registered worktree. Confirm through read-only Git inspection that `git diff --cached` is nonempty, and report staged, unstaged, untracked, ignored, and conflicted state without normalizing it. The reviewer reads the live staged target directly; do not capture, copy, hash, snapshot, or bind it to an alternate source representation.
 
-## Discover and Select the Provider
+For `head`, `commit`, and `range`, resolve the requested revisions with ordinary read-only Git commands and preserve the meanings in [review-contract.md](../../references/review-contract.md). Current index and worktree changes remain excluded from those committed targets. Conflicts stop the review.
 
-Probe only `claude`, `kimi`, `agy`, and `cursor-agent` with `command -v`. Resolve each available command to one absolute path and canonical regular-file target outside the repository, record its symlink chain, file type, SHA-256 digest, and local `--version` output, and revalidate that identity immediately before terminal creation and Dispatch. Do not authenticate, list remote models or agents, inspect credentials, update software, or contact a provider during discovery.
+`workspace` and `dirty` remain outside this workflow; they require an immutable capture no backend here provides. Never stage paths merely to manufacture an Orca Review target.
 
-Offer only choices whose local probe succeeds:
+An explicit request naming the target and reviewer authorizes transmission of that target only. "Use orca-review with Claude to review the staged changes" and "Review the staged target with Claude" both select `staged` and the native Orca `claude` reviewer.
 
-- Claude with a Fable lead; Opus and Sonnet subagents are optional when useful;
-- Kimi with K3;
-- Agy with installed defaults, or the exact agent, model, and effort the user supplies;
-- Cursor Agent with Grok 4.6.
+If either the target or reviewer is missing, prefer structured ask/answer to obtain the missing selection; when unavailable, ask one focused question in ordinary conversation. Do not choose a default reviewer. Ask again only if the target, included paths, reviewer, or execution scope changes before Dispatch.
 
-An explicit request that already names the exact target and one available reviewer is transmission consent for that scope. Otherwise prefer structured ask/answer to obtain the missing target or reviewer choice; when that surface is unavailable, ask one focused question in ordinary conversation. Do not require separate preparation and transmission approvals. Ask again only if the target, included paths, reviewer, or execution scope changes before Dispatch.
+## Dispatch and supervise
 
-The selection record must disclose the exact provider command, requested lead identity or Agy override, observed version, target digest, included and excluded state, current-worktree execution, same-user visibility boundary, static-only restrictions, and source categories sent in the Task. Consent authorizes only this review; it grants no authentication change, installation, source edit, test, build, generator, formatter, linter, staging beyond separately approved exact paths, commit, push, publication, retry, or provider switch.
+Resolve the installed Orca command and ready local runtime exactly as [orca-supervision.md](../../references/orca-supervision.md) requires. Create one Run, one review Task, and one fresh native reviewer in Orca's registered `current` worktree with `worker-start --task <task-id> --worktree current --agent <requested-reviewer>`. Pass `--agent claude` when Claude is explicitly requested. Do not create another worktree, a copied checkout, a temporary repository, or a Dolgorae operation.
 
-## Dispatch and Supervise
+Place the declared target, review focus, authority paths, included and excluded state, and the following instructions in every Dispatch, regardless of target:
 
-Resolve the installed Orca command and live guides exactly as [orca-supervision.md](../../references/orca-supervision.md) requires. Create one Run and Task, then create one fresh provider terminal in the current worktree only through `scripts/create_provider_terminal.py` with the selected logical argv from [provider-contracts.md](references/provider-contracts.md).
+- This is review only.
+- Never create, edit, delete, move, format, or generate any file in the current registered worktree.
+- When the reviewer is Claude, it may create or update only Claude-owned session, transcript, and tool-output state beneath `~/.claude`. If the report is too large for the Orca lifecycle message, Claude may also create one unique private review directory beneath `~/.claude`, write only report files inside it, and return every retained report path. Other reviewers may not create output files. Never write under `/tmp` or anywhere else.
+- Read only the declared target. For `head`, `commit`, and `range`, obtain file content and diffs from the resolved revisions through read-only Git commands; never substitute current index or worktree bytes.
+- Do not modify the Git index, refs, configuration, or commits.
+- Do not run tests, builds, formatters, installers, authentication, or unrelated network operations.
+- Report only actionable findings with severity and exact `path:line`.
+- Return `APPROVE` when no actionable finding exists.
 
-Immediately before terminal creation, run `scripts/inspect_repository_state.py --repository <exact-git-root> --snapshot` and bind its complete JSON result as the coordinator-owned baseline. Then feed the terminal-helper request through non-expanding stdin with that same exact Git worktree root and verify its returned Orca terminal result and argv digest before continuing.
+For `staged`, also require inspection of `git diff --cached`, the relevant staged files, and their callers. Apply equivalent target-specific read instructions to `head`, `commit`, and `range`. Require the reviewer to complete the injected Orca lifecycle exactly once and label execution-dependent claims `runtime unverified`. If required evidence cannot be gathered under the restrictions, require a bounded confirmation need instead of a mutation.
 
-The helper-generated command must revalidate provider identity at provider-process start. Verify the requested lead identity when the provider exposes it. A helper failure or missing or mismatched exposed identity stops before source-bearing Dispatch.
+Supervise, settle, acknowledge, and recover only through the live Orca guides. Never retry automatically, switch reviewers, release an active worker, or reinterpret an operational failure as `APPROVE`.
 
-Inject one Dispatch containing the canonical Task. Tell the lead explicitly that this is review, not implementation, and that it must not enter or request a provider plan mode. Regardless of the tools available in normal mode, require the lead to remain read-only; never create, modify, delete, or move a file; and never alter the Git index or a ref.
+## Adjudicate and report
 
-Require the lead to run no tests or builds and no generators, formatters, or linters; perform no authentication, installation, or update; inspect exact target blobs instead of excluded working-tree copies; report only verified actionable findings; label execution-dependent claims `runtime unverified`; and complete the injected lifecycle exactly once. If required evidence cannot be gathered under those restrictions, require a bounded confirmation need instead of a mutation.
+Independently verify every finding against the exact target and authority without changing files or running checks. Preserve reported severity, classify validity as Valid, Invalid, or Needs confirmation, assign effective priority, and recommend a disposition under the shared contract. A static functionality review can establish support in code and documentation but cannot prove runtime behavior.
 
-Provider-native subagents are optional evidence gatherers except where the selected provider contract says otherwise. The lead owns decomposition, evidence review, requirement-goal assessment, deduplication, decisions, and final synthesis. Record which subagents and effective models were actually used when the provider exposes that evidence; absence of optional subagents is not a review failure.
+This standalone workflow is report-only. Do not remediate, run checks, stage, commit, or start another review. Return the shared result, reviewer identity, remediation continuation, Orca object and lifecycle status, and any Claude oversized-report path beneath `~/.claude`. Wrong scope, output, reviewer identity, or lifecycle prevents a clean verdict. Report `dolgorae_used: false`.
 
-Supervise, settle, acknowledge, and recover through the live Orca guides. The exact provider-native auto-approval or permission-bypass argument must prevent ordinary permission prompts. If a permission prompt still appears, treat it as an operational failure and stop without asking the coordinator or user to approve it, sending input, switching modes, or weakening the review restrictions. Never retry automatically, switch providers, release an active worker, or reinterpret an operational failure as `APPROVE`.
+## Mulgae semantic conformance
 
-After accepted completion and before adjudication, feed the complete baseline through non-expanding stdin to `scripts/inspect_repository_state.py --repository <exact-git-root> --compare`. Report the returned modified-file status and changed dimensions. No drift proves only the helper's bounded Git-observable state. HEAD or ref drift, provider-attributed drift, or unexplained drift is operationally incomplete and prevents `APPROVE`; report it without reverting anything.
-
-When exact index or dirty-remainder drift is user-owned, re-run the canonical target inspector, obtain confirmation for the displayed paths, and apply the shared staged-target or excluded-dirty rules instead of invalidating solely because the live staged index changed.
-
-## Adjudicate and Report
-
-Independently verify every finding against the exact target and authority without changing files or running checks. Classify findings as Valid, Invalid, or Needs confirmation under the shared contract. A static functionality review can establish support in code and documentation but cannot prove runtime behavior.
-
-Return the complete shared result envelope plus the selected provider identity, actual optional-subagent evidence, and separate Orca Run, Task, Dispatch, terminal, and lifecycle status. Wrong scope, modified files, missing output, provider-identity mismatch, or incomplete lifecycle prevents a clean verdict. Do not implement remediation.
+When comparing a corresponding Mulgae review, require the same user-facing source-scope meaning and included and excluded disposition. In particular, `staged` means the current `HEAD`-to-index change read through `git diff --cached`. Backend capture and lifecycle details do not need to match. Never make Mulgae depend on Orca lifecycle internals or make Aquarium or Orca own Mulgae provider, extraction, adjudication, publication, archive, or settlement state.

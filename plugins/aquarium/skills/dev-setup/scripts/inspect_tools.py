@@ -11,12 +11,22 @@ import os
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "aquarium-dev-setup-inspection.v10"
+SCRIPT_DIRECTORY = str(Path(__file__).resolve().parent)
+if SCRIPT_DIRECTORY not in sys.path:
+    sys.path.insert(0, SCRIPT_DIRECTORY)
+
+import verify_dolgorae_release as dolgorae_release
+
+SCHEMA_VERSION = "aquarium-dev-setup-inspection.v14"
+DOLGORAE_INVOCATION_ID_RE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+)
 MULGAE_COMMAND_RESULT_SCHEMA = "mulgae-command-result.v5"
 MULGAE_DOCTOR_RESULT_SCHEMA = "mulgae-doctor-result.v2"
 MULGAE_MCP_TOOL_TIMEOUT_SEC = 7501
@@ -53,6 +63,30 @@ PODWAY_SKILL_FILES = (
     "references/goal.md",
     "references/recovery.md",
 )
+HUMANIZER_SKILL_FILES = (
+    "SKILL.md",
+    "LICENSE",
+)
+HUMANIZER_SUPPORTED_RELEASE = "v2.11.1"
+HUMANIZE_KOREAN_SKILL_FILES = (
+    "SKILL.md",
+    "LICENSE",
+    "references/ai-tell-taxonomy.md",
+    "references/baseline.json",
+    "references/baseline_v2.json",
+    "references/design-notes.md",
+    "references/diagnosis-rules.md",
+    "references/empirical-validation.md",
+    "references/metrics.py",
+    "references/metrics_v2.py",
+    "references/quick-rules.footer.md",
+    "references/quick-rules.header.md",
+    "references/quick-rules.md",
+    "references/rewriting-playbook.md",
+    "references/scholarship.md",
+    "references/web-service-spec.md",
+)
+IM_NOT_AI_SUPPORTED_RELEASE = "v2.3.2"
 PODWAY_PROCEDURES = (
     "aquarium-task-v2.yaml",
     "aquarium-goal-v2.yaml",
@@ -62,16 +96,19 @@ PODWAY_PROCEDURES = (
 )
 PODWAY_PRIOR_CANONICAL_SHA256 = {
     "aquarium-task-v2.yaml": {
+        "6bb336f321a83bba429c4173942eb977000014c627245839b3434da7d1055602",
         "c666f17cf41e8a9403f610f89b0b7397352d8ac6e2e5e05e1c268fc0e6ece3d9",
         "0ae730df9ca5854ff61b02679e3ac58aa4508ee35c5a09ba76c35e7d0ef3d45d",
         "b703da6c798801a396d144be1c9c71e0fdb05c95e9e293386bf83c0d238ef927",
     },
     "aquarium-goal-v2.yaml": {
+        "7bf4460688335c1d1985fc1171313ac42ba7f82a64d8bc8733826a4fdd116e38",
         "90411e16758cb79a01294e008d9a091a52b341fc1e9bb968ce9521fed2910ec3",
         "8ca12a8ba36e9dd035bc70c903b8a5a0a9e4fd6db00cf75e2448f66082ab6ac6",
     },
     "aquarium-validation-v2.yaml": {
-        "45192a644087b811eb34952576798ae4f3e85ebdf87c77fc8dc097d3c8bb2f50"
+        "bc454955ef56d9607a9128a085177eb8557f8b24774cba59ddca3c0db88428e8",
+        "45192a644087b811eb34952576798ae4f3e85ebdf87c77fc8dc097d3c8bb2f50",
     },
     "aquarium-design-v2.yaml": {
         "4ec653b2b4d740d77bcd4826f40288d9fadd7d696a3939c197b9789dbba824b6"
@@ -282,7 +319,7 @@ def supported_podway_version(version: str | None) -> bool:
     if not version:
         return False
     match = re.fullmatch(rf"v?0\.2\.({CANONICAL_NUMERIC_COMPONENT})", version)
-    return bool(match and int(match.group(1)) >= 6)
+    return bool(match and int(match.group(1)) >= 8)
 
 
 def podway_v025_workaround_bytes(name: str, source: bytes) -> bytes | None:
@@ -306,6 +343,10 @@ def supported_sanho_version(version: str | None) -> bool:
         return False
     match = re.fullmatch(rf"v?0\.2\.({CANONICAL_NUMERIC_COMPONENT})", version)
     return bool(match and int(match.group(1)) >= 7)
+
+
+def supported_dolgorae_version(version: str | None) -> bool:
+    return dolgorae_release.canonical_supported_tag(version) is not None
 
 
 def supported_gaori_version(version: str | None) -> bool:
@@ -940,6 +981,333 @@ def inspect_sanho(repository: Path, timeout_seconds: float) -> dict[str, Any]:
         and normalized_status.get("contract_valid") is True
         and normalized_doctor.get("contract_valid") is True
         and no_doctor_warnings
+        else "degraded"
+    )
+    return tool
+
+
+def valid_dolgorae_envelope(
+    probe: dict[str, Any], raw_probe: dict[str, Any], command: str
+) -> bool:
+    envelope = probe.get("result")
+    return bool(
+        probe["ok"]
+        and not raw_probe["stderr"]
+        and isinstance(envelope, dict)
+        and set(envelope)
+        == {"schema_version", "ok", "command", "invocation_id", "data"}
+        and envelope.get("schema_version") == 1
+        and envelope.get("ok") is True
+        and envelope.get("command") == command
+        and isinstance(envelope.get("invocation_id"), str)
+        and DOLGORAE_INVOCATION_ID_RE.fullmatch(envelope["invocation_id"])
+    )
+
+
+def dolgorae_capabilities_compatible(data: Any, version: str) -> bool:
+    if not isinstance(data, dict):
+        return False
+    protocol_fields = (
+        "machine_protocol_version",
+        "event_protocol_version",
+        "rpc_protocol_version",
+        "timeline_protocol_version",
+        "event_projection_version",
+        "grpc_error_detail_version",
+    )
+    credential = data.get("controller_credential")
+    bounds = data.get("artifact_bounds")
+    lanes = data.get("lane_capabilities")
+    shared = lanes.get("shared_readonly") if isinstance(lanes, dict) else None
+    features = data.get("features")
+    interactions = data.get("interactions")
+    required_features = (
+        "controller_binding",
+        "operator_capability",
+        "operator_controller_reset",
+        "profile_diagnostics",
+        "profile_membership_repair",
+        "profile_server_migration",
+        "worker_controller_revalidation",
+    )
+    return bool(
+        data.get("dolgorae_version") == version
+        and all(data.get(field) == 1 for field in protocol_fields)
+        and data.get("minimum_rpc_client_version") == 1
+        and isinstance(data.get("maximum_rpc_client_version"), int)
+        and not isinstance(data["maximum_rpc_client_version"], bool)
+        and data["maximum_rpc_client_version"] >= 1
+        and isinstance(data.get("rpc_descriptor_sha256"), str)
+        and re.fullmatch(r"[0-9a-f]{64}", data["rpc_descriptor_sha256"])
+        and data.get("controller_carrier_root") == "home/.dolgorae/controller-carriers"
+        and isinstance(data.get("supported_transports"), list)
+        and "machine_cli" in data["supported_transports"]
+        and data.get("profile_launch_mode") == "dolgorae_owned_direct_executable"
+        and isinstance(data.get("control_modes"), list)
+        and "managed_agent" in data["control_modes"]
+        and isinstance(data.get("execution_lanes"), list)
+        and "shared_readonly" in data["execution_lanes"]
+        and isinstance(shared, dict)
+        and shared.get("writer_support") is False
+        and shared.get("codex_mode") == "plan"
+        and shared.get("command_execution") == "bounded_best_effort"
+        and isinstance(credential, dict)
+        and credential.get("schema_id")
+        == "https://dolgorae.local/schema/controller-credential/v1"
+        and credential.get("schema_version") == 1
+        and isinstance(credential.get("schema_sha256"), str)
+        and re.fullmatch(r"[0-9a-f]{64}", credential["schema_sha256"])
+        and credential.get("capability_byte_length") == 32
+        and credential.get("capability_encoding") == "base64url_no_padding"
+        and credential.get("same_uid") is True
+        and credential.get("regular_file") is True
+        and credential.get("symlinks") == "forbidden"
+        and credential.get("create_exclusive") is True
+        and credential.get("maximum_file_bytes") == 4096
+        and credential.get("client_descendant_pattern") == "<client>/<installation-id>/"
+        and credential.get("normalized_principal")
+        == "kind+subject_id_else_kind+instance_id"
+        and credential.get("initial_generation") == 1
+        and isinstance(credential.get("accepted_kinds"), list)
+        and "workflow_orchestrator" in credential["accepted_kinds"]
+        and isinstance(bounds, dict)
+        and bounds.get("digest") == "sha256"
+        and bounds.get("exact_byte_length") is True
+        and all(
+            isinstance(bounds.get(field), int)
+            and not isinstance(bounds[field], bool)
+            and bounds[field] > 0
+            for field in (
+                "maximum_artifact_bytes",
+                "maximum_chunk_bytes",
+                "maximum_inline_response_bytes",
+            )
+        )
+        and isinstance(bounds.get("visibility_classes"), list)
+        and {"observer", "controller_only"}.issubset(bounds["visibility_classes"])
+        and isinstance(features, dict)
+        and all(features.get(field) is True for field in required_features)
+        and isinstance(interactions, dict)
+        and all(
+            isinstance(interactions.get(field), int)
+            and not isinstance(interactions[field], bool)
+            and interactions[field] > 0
+            for field in ("maximum_response_bytes", "maximum_safe_payload_bytes")
+        )
+    )
+
+
+def is_arm64_macho(path: Path) -> bool:
+    try:
+        with path.open("rb") as executable:
+            header = executable.read(16)
+            return bool(
+                header[:8] == b"\xcf\xfa\xed\xfe\x0c\x00\x00\x01"
+                and header[12:16] == b"\x02\x00\x00\x00"
+            )
+    except OSError:
+        return False
+
+
+def inspect_dolgorae(
+    repository: Path,
+    timeout_seconds: float,
+    verify_official_release: bool = False,
+) -> dict[str, Any]:
+    discovered = shutil.which("dolgorae")
+    tool = base_tool("dolgorae")
+    tool["version_supported"] = False
+    tool["platform"] = {
+        "system": platform.system(),
+        "machine": platform.machine(),
+        "supported": platform.system() == "Darwin"
+        and platform.machine() in {"arm64", "aarch64"},
+    }
+    tool["symlinked"] = bool(discovered and Path(discovered).is_symlink())
+    tool["regular_file"] = False
+    tool["safe_location"] = False
+    tool["arm64_macho"] = False
+    tool["executable_sha256"] = None
+    tool["official_executable"] = False
+    tool["file_identity"] = None
+    tool["identity_stable"] = False
+    tool["capability_sha256"] = None
+    tool["capabilities_compatible"] = False
+    tool["release_verification"] = {
+        "schema_version": dolgorae_release.SCHEMA_VERSION,
+        "status": "not_requested",
+    }
+
+    def verify_release(version: str | None) -> dict[str, Any]:
+        try:
+            return dolgorae_release.verify_release(version, timeout_seconds)
+        except dolgorae_release.ReleaseVerificationError as error:
+            return dolgorae_release.failure_result(error)
+
+    if not discovered:
+        tool["probes"]["version"] = skipped_probe("executable_missing")
+        tool["probes"]["capabilities"] = skipped_probe("executable_missing")
+        if verify_official_release:
+            tool["release_verification"] = verify_release(None)
+        return tool
+
+    executable = Path(discovered)
+    try:
+        executable_stat = executable.stat()
+        tool["regular_file"] = stat.S_ISREG(executable_stat.st_mode)
+        resolved_executable = executable.resolve()
+        home = Path.home().resolve()
+        tool["safe_location"] = bool(
+            executable.is_absolute()
+            and not resolved_executable.is_relative_to(home / ".aquarium")
+            and not resolved_executable.is_relative_to(home / ".aquarium-dev")
+        )
+        if (
+            not tool["symlinked"]
+            and tool["regular_file"]
+            and tool["safe_location"]
+            and os.access(executable, os.X_OK)
+        ):
+            digest = hashlib.sha256(executable.read_bytes()).hexdigest()
+            tool["executable_sha256"] = digest
+            tool["arm64_macho"] = is_arm64_macho(executable)
+            tool["file_identity"] = {
+                "device": executable_stat.st_dev,
+                "inode": executable_stat.st_ino,
+            }
+    except OSError:
+        pass
+
+    if (
+        tool["symlinked"]
+        or not tool["regular_file"]
+        or not tool["safe_location"]
+        or not os.access(executable, os.X_OK)
+    ):
+        tool["probes"]["version"] = skipped_probe("executable_unsafe")
+        tool["probes"]["capabilities"] = skipped_probe("executable_unsafe")
+        if verify_official_release:
+            tool["release_verification"] = verify_release(None)
+        tool["status"] = "degraded"
+        return tool
+
+    raw_version_probe = run_command(
+        [str(executable.resolve()), "--version"], repository, timeout_seconds
+    )
+    version_probe = parse_json_probe(raw_version_probe)
+    normalized_probe_result = normalized_probe(version_probe)
+    envelope = version_probe.get("result")
+    valid_envelope = valid_dolgorae_envelope(
+        version_probe, raw_version_probe, "version"
+    )
+    version_text = envelope.get("data") if isinstance(envelope, dict) else None
+    if (
+        valid_envelope
+        and isinstance(version_text, dict)
+        and set(version_text) == {"text"}
+    ):
+        match = re.fullmatch(
+            rf"dolgorae ({CANONICAL_SEMVER.pattern})", str(version_text["text"])
+        )
+        if match:
+            tool["version"] = normalized_version(match.group(1))
+        else:
+            valid_envelope = False
+    else:
+        valid_envelope = False
+    if not valid_envelope:
+        normalized_probe_result["ok"] = False
+        normalized_probe_result["error_code"] = "unexpected_version_envelope"
+    tool["probes"]["version"] = normalized_probe_result
+    tool["version_supported"] = supported_dolgorae_version(tool["version"])
+
+    release = None
+    if verify_official_release and tool["version_supported"]:
+        tool["release_verification"] = verify_release(tool["version"])
+        if tool["release_verification"]["status"] == "verified":
+            release = tool["release_verification"]["release"]
+            tool["official_executable"] = (
+                tool["executable_sha256"] == release["executable_sha256"]
+            )
+    elif verify_official_release:
+        version_unknown = tool["version"] is None
+        tool["release_verification"] = dolgorae_release.failure_result(
+            dolgorae_release.ReleaseVerificationError(
+                "version_unknown" if version_unknown else "unsupported_version",
+                (
+                    "Dolgorae version could not be determined"
+                    if version_unknown
+                    else dolgorae_release.UNSUPPORTED_VERSION_MESSAGE
+                ),
+            )
+        )
+
+    raw_capabilities_probe = run_command(
+        [str(executable.resolve()), "runtime", "capabilities"],
+        repository,
+        timeout_seconds,
+    )
+    capabilities_probe = parse_json_probe(raw_capabilities_probe)
+    normalized_capabilities = normalized_probe(capabilities_probe)
+    capability_envelope = capabilities_probe.get("result")
+    capability_data = (
+        capability_envelope.get("data")
+        if isinstance(capability_envelope, dict)
+        else None
+    )
+    valid_capabilities_envelope = valid_dolgorae_envelope(
+        capabilities_probe, raw_capabilities_probe, "runtime.capabilities"
+    )
+    valid_capabilities = bool(
+        tool["version"]
+        and valid_capabilities_envelope
+        and dolgorae_capabilities_compatible(capability_data, tool["version"])
+    )
+    if valid_capabilities:
+        canonical = (
+            json.dumps(capability_data, sort_keys=True, separators=(",", ":")).encode(
+                "utf-8"
+            )
+            + b"\n"
+        )
+        tool["capability_sha256"] = hashlib.sha256(canonical).hexdigest()
+        tool["capabilities_compatible"] = True
+    else:
+        normalized_capabilities["ok"] = False
+        if "error_code" not in normalized_capabilities:
+            if not valid_capabilities_envelope:
+                normalized_capabilities["error_code"] = (
+                    "unexpected_capabilities_envelope"
+                )
+            elif not tool["version"]:
+                normalized_capabilities["error_code"] = "version_unknown"
+            else:
+                normalized_capabilities["error_code"] = "incompatible_capabilities"
+    tool["probes"]["capabilities"] = normalized_capabilities
+    try:
+        final_stat = executable.stat()
+        initial_identity = tool["file_identity"]
+        tool["identity_stable"] = bool(
+            isinstance(initial_identity, dict)
+            and final_stat.st_dev == initial_identity["device"]
+            and final_stat.st_ino == initial_identity["inode"]
+            and hashlib.sha256(executable.read_bytes()).hexdigest()
+            == tool["executable_sha256"]
+        )
+    except OSError:
+        tool["identity_stable"] = False
+    if not tool["identity_stable"]:
+        tool["official_executable"] = False
+    tool["status"] = (
+        "installed"
+        if valid_envelope
+        and tool["version_supported"]
+        and tool["platform"]["supported"]
+        and tool["arm64_macho"]
+        and tool["official_executable"]
+        and tool["identity_stable"]
+        and valid_capabilities
+        and release is not None
         else "degraded"
     )
     return tool
@@ -1813,6 +2181,154 @@ def frontmatter_name(skill_path: Path) -> str | None:
     return name_match.group(1).strip() if name_match else None
 
 
+def frontmatter_version(skill_path: Path) -> str | None:
+    try:
+        content = skill_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+    match = re.match(r"\A---\n(.*?)\n---(?:\n|\Z)", content, re.DOTALL)
+    if not match:
+        return None
+    version_match = re.search(
+        r"^(?:  )?version:\s*[\"']?([^\"'#\n]+?)[\"']?\s*$",
+        match.group(1),
+        re.MULTILINE,
+    )
+    return version_match.group(1).strip() if version_match else None
+
+
+def unexpected_skill_entries(
+    directory: Path, expected_files: tuple[str, ...]
+) -> list[str]:
+    expected_file_set = set(expected_files)
+    expected_directories = {
+        str(parent)
+        for relative_path in expected_files
+        for parent in Path(relative_path).parents
+        if str(parent) != "."
+    }
+    actual_files: set[str] = set()
+    actual_directories: set[str] = set()
+    unsafe_entries: set[str] = set()
+    if directory.is_symlink() or not directory.is_dir():
+        return ["<unsafe-or-unreadable>"]
+    try:
+        for root, directories, files in os.walk(directory, followlinks=False):
+            root_path = Path(root)
+            retained_directories = []
+            for name in directories:
+                path = root_path / name
+                relative = str(path.relative_to(directory))
+                if path.is_symlink():
+                    unsafe_entries.add(relative)
+                else:
+                    actual_directories.add(relative)
+                    retained_directories.append(name)
+            directories[:] = retained_directories
+            for name in files:
+                path = root_path / name
+                relative = str(path.relative_to(directory))
+                if path.is_symlink():
+                    unsafe_entries.add(relative)
+                else:
+                    actual_files.add(relative)
+    except OSError:
+        return ["<unsafe-or-unreadable>"]
+    return sorted(
+        unsafe_entries
+        | (actual_files - expected_file_set)
+        | (actual_directories - expected_directories)
+    )
+
+
+def inspect_writing_skill(
+    *,
+    skill_name: str,
+    expected_files: tuple[str, ...],
+    expected_target: Path,
+    supported_release: str,
+    require_version: bool,
+) -> dict[str, Any]:
+    agent_skill = inspect_agent_skill(skill_name, expected_files)
+    for installation in agent_skill["installations"]:
+        installation["unexpected_entries"] = (
+            ["<unsafe-or-unreadable>"]
+            if installation["symlinked"]
+            else unexpected_skill_entries(Path(installation["path"]), expected_files)
+        )
+    structurally_ready = bool(
+        agent_skill["status"] == "configured"
+        and len(agent_skill["installations"]) == 1
+        and Path(agent_skill["installations"][0]["path"]) == expected_target
+        and all(
+            not installation["unexpected_entries"]
+            for installation in agent_skill["installations"]
+        )
+    )
+    version = None
+    if (
+        len(agent_skill["installations"]) == 1
+        and not agent_skill["installations"][0]["symlinked"]
+    ):
+        installation = agent_skill["installations"][0]
+        skill_entry = next(
+            entry for entry in installation["files"] if entry["path"] == "SKILL.md"
+        )
+        if skill_entry["present"] and not skill_entry["symlinked"]:
+            version = frontmatter_version(Path(installation["path"]) / "SKILL.md")
+    version_supported = (
+        version == supported_release.removeprefix("v") if require_version else None
+    )
+    ready = structurally_ready and (version_supported is not False)
+    return {
+        "catalog_status": "active",
+        "setup_supported": True,
+        "installed": ready,
+        "complete_tree_verified": False,
+        "verification_scope": "structure_only",
+        "expected_target": str(expected_target),
+        "supported_release": supported_release,
+        "executable": None,
+        "version": version,
+        "version_supported": version_supported,
+        "status": (
+            "unverifiable"
+            if ready
+            else ("missing" if agent_skill["status"] == "missing" else "degraded")
+        ),
+        "agent_skill": agent_skill,
+        "configuration": [],
+        "probes": {},
+    }
+
+
+def inspect_humanizer() -> dict[str, Any]:
+    return inspect_writing_skill(
+        skill_name="humanizer",
+        expected_files=HUMANIZER_SKILL_FILES,
+        expected_target=Path.home() / ".agents/skills/humanizer",
+        supported_release=HUMANIZER_SUPPORTED_RELEASE,
+        require_version=True,
+    )
+
+
+def effective_writing_skill_root() -> Path:
+    # The Humanizer pair installs user-scoped, and the shared
+    # `~/.agents/skills` root is the cross-agent root ZCode reads natively,
+    # so it is the canonical writing-skill target on this host.
+    return Path.home() / ".agents" / "skills"
+
+
+def inspect_im_not_ai() -> dict[str, Any]:
+    return inspect_writing_skill(
+        skill_name="humanize-korean",
+        expected_files=HUMANIZE_KOREAN_SKILL_FILES,
+        expected_target=effective_writing_skill_root() / "humanize-korean",
+        supported_release=IM_NOT_AI_SUPPORTED_RELEASE,
+        require_version=False,
+    )
+
+
 def inspect_lora() -> dict[str, Any]:
     expected_names = ("lore-commits", "lore-query", "lore-setup")
     skills: dict[str, dict[str, Any]] = {}
@@ -2280,7 +2796,7 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
     normalized_daemon, daemon_payload = normalize_podway_envelope(
         daemon_probe,
         "daemon.wait-ready",
-        ("podway.daemon-status-result/v2",),
+        ("podway.daemon-status-result/v3",),
     )
     daemon_version = None
     daemon_reachable = False
@@ -2309,11 +2825,32 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
         readiness_stage = None
         readiness_elapsed_ms = None
         worktree_recovery = None
-        if daemon_schema == "podway.daemon-status-result/v2":
+        daemon_mode = None
+        if daemon_schema == "podway.daemon-status-result/v3":
+            observed_mode = daemon_payload.get("mode")
+            daemon_mode = (
+                observed_mode
+                if isinstance(observed_mode, str)
+                and len(observed_mode.encode("utf-8")) <= 64
+                and re.fullmatch(r"[a-z](?:[a-z0-9]|-(?=[a-z0-9]))*", observed_mode)
+                else None
+            )
             observed_state = daemon_payload.get("readiness_state")
             observed_stage = daemon_payload.get("readiness_stage")
             observed_elapsed = daemon_payload.get("readiness_elapsed_ms")
             observed_recovery = daemon_payload.get("worktree_recovery")
+            observed_clients = daemon_payload.get("in_flight_client_count")
+            observed_maintenance = daemon_payload.get("maintenance_operation_count")
+            clients_valid = observed_clients is None or bool(
+                isinstance(observed_clients, int)
+                and not isinstance(observed_clients, bool)
+                and 0 <= observed_clients <= 1024
+            )
+            maintenance_valid = observed_maintenance is None or bool(
+                isinstance(observed_maintenance, int)
+                and not isinstance(observed_maintenance, bool)
+                and 0 <= observed_maintenance <= 10_000
+            )
             readiness_state = (
                 observed_state
                 if observed_state
@@ -2353,23 +2890,33 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
                 ):
                     worktree_recovery = recovery_counts
             if readiness_state in {"not_running", "unreachable"}:
-                v2_contract_valid = bool(
-                    observed_stage is None
+                v3_contract_valid = bool(
+                    daemon_mode == "prod"
+                    and observed_stage is None
                     and observed_elapsed is None
                     and observed_recovery is None
+                    and observed_clients is None
+                    and observed_maintenance is None
                 )
             else:
-                v2_contract_valid = bool(
-                    readiness_state is not None
+                v3_contract_valid = bool(
+                    daemon_mode == "prod"
+                    and readiness_state is not None
                     and readiness_stage is not None
                     and readiness_elapsed_ms is not None
                     and worktree_recovery is not None
+                    and clients_valid
+                    and maintenance_valid
                 )
-            if not v2_contract_valid:
+            if not v3_contract_valid:
                 normalized_daemon["ok"] = False
-                normalized_daemon["error_code"] = "invalid_daemon_readiness"
+                normalized_daemon["error_code"] = (
+                    "unsupported_daemon_mode"
+                    if daemon_mode is not None and daemon_mode != "prod"
+                    else "invalid_daemon_readiness"
+                )
             daemon_ready = bool(
-                v2_contract_valid
+                v3_contract_valid
                 and daemon_reachable
                 and daemon_payload.get("status") == "running"
                 and readiness_state == "ready"
@@ -2384,6 +2931,7 @@ def inspect_podway(repository: Path, timeout_seconds: float) -> dict[str, Any]:
             "version_valid": daemon_version is not None,
             "target_supported": daemon_target is not None,
             "ready": daemon_ready,
+            "mode": daemon_mode,
             "readiness_state": readiness_state,
             "readiness_stage": readiness_stage,
             "readiness_elapsed_ms": readiness_elapsed_ms,
@@ -2604,16 +3152,24 @@ def inspect(
     include_podway: bool = False,
     include_ouroboros: bool = False,
     require_mulgae_mcp: bool = False,
+    verify_dolgorae_release: bool = False,
 ) -> dict[str, Any]:
     repository = resolve_repository(requested_path, timeout_seconds)
     tools = {
         "sanho": inspect_sanho(repository, timeout_seconds),
+        "dolgorae": inspect_dolgorae(
+            repository,
+            timeout_seconds,
+            verify_official_release=verify_dolgorae_release,
+        ),
         "mulgae": inspect_mulgae(
             repository, timeout_seconds, require_mcp=require_mulgae_mcp
         ),
         "gaori": inspect_gaori(repository, timeout_seconds),
         "lora": inspect_lora(),
         "deslop": inspect_deslop(),
+        "humanizer": inspect_humanizer(),
+        "im-not-ai": inspect_im_not_ai(),
     }
     if include_podway:
         tools["podway"] = inspect_podway(repository, timeout_seconds)
@@ -2648,6 +3204,11 @@ def parse_arguments() -> argparse.Namespace:
         help="Include explicitly requested Ouroboros integration diagnostics",
     )
     parser.add_argument(
+        "--verify-dolgorae-release",
+        action="store_true",
+        help="Verify Dolgorae against bounded official GitHub Release metadata",
+    )
+    parser.add_argument(
         "--require-mulgae-mcp",
         action="store_true",
         help="Require an explicitly selected Mulgae MCP registration for status",
@@ -2680,6 +3241,7 @@ def main() -> int:
                 include_podway=arguments.include_podway,
                 include_ouroboros=arguments.include_ouroboros,
                 require_mulgae_mcp=arguments.require_mulgae_mcp,
+                verify_dolgorae_release=arguments.verify_dolgorae_release,
             )
         )
         return 0

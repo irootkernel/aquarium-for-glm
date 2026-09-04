@@ -71,6 +71,17 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     ("$seed", "/seed"),
     ("$pm", "/pm"),
     ("$qa", "/qa"),
+    # v0.1.14 routes repository prose guidance through the Humanizer pair.
+    # The Korean form is listed first only to keep the family readable; the
+    # two literals share no prefix boundary, so order cannot cross-match.
+    ("$humanize-korean", "/humanize-korean"),
+    ("$humanizer", "/humanizer"),
+    # v0.1.14 pins roadmap commit identities to task-scoped shell variables.
+    # They are environment overrides in a `git -c` command, not skill sigils,
+    # so they take the uppercase spelling that style implies; uppercase names
+    # are also deliberately outside the lowercase sigil scan.
+    ("aquarium_commit_name", "AQUARIUM_COMMIT_NAME"),
+    ("aquarium_commit_email", "AQUARIUM_COMMIT_EMAIL"),
     ("`request_user_input`", "`AskUserQuestion`"),
     # ZCode tracks work through its todo list, so the Codex goal maps onto it.
     ("Codex goal", "ZCode todo list"),
@@ -92,6 +103,97 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         "supervised `worker-start --worktree current --agent codex` path. Do not reuse a "
         "terminal or create another Git worktree.",
         "Do not reuse a terminal or create another Git worktree.",
+    ),
+    # v0.1.14 rewrites the shared review contract around Dolgorae captures and
+    # six source scopes. independent-review keeps running on the host's own
+    # Agent tool here, so its half of the contract is restated for that
+    # backend: four inspector-backed scopes, blob-bound targets, and no
+    # capture machinery. The Orca half of the contract stays accurate as
+    # written. `workspace` and `dirty` need an immutable capture that neither
+    # backend provides on this host, so they are unsupported for both.
+    (
+        "| Dolgorae capture | Unsupported |",
+        "| Unsupported | Unsupported |",
+    ),
+    (
+        "reviewed through `git diff --cached`. | Dolgorae capture |",
+        "reviewed through `git diff --cached`. | Live index read |",
+    ),
+    (
+        "| Dolgorae capture | Current registered worktree Git reads |",
+        "| Resolved commit blobs | Current registered worktree Git reads |",
+    ),
+    (
+        "Independent Review uses Dolgorae's checked immutable capture as target authority. "
+        "Its complete candidate, capture, manifest, path-safety, lifecycle, settlement, and "
+        "recovery rules are defined by [dolgorae-review-contract.md](dolgorae-review-contract.md).",
+        "Independent Review binds each reviewer to the target inspector's dispatch-time "
+        "digest and, for committed scopes, to resolved commit blobs rather than later "
+        "working-tree copies; that binding is its target authority. `workspace` and `dirty` "
+        "require an immutable capture this backend does not provide, so they stay "
+        "unsupported here; [dolgorae-review-contract.md](dolgorae-review-contract.md) "
+        "documents the upstream backend this edition does not use.",
+    ),
+    (
+        "`independent-review` uses one guarded Dolgorae `specialist.review` v2 operation "
+        "to capture the target and run one fresh Codex Reviewer. It creates and accepts no "
+        "Orca Run, Task, Dispatch, worker, terminal, context, or worktree. Missing or "
+        "invalid Dolgorae state fails closed without Orca fallback.",
+        "`independent-review` dispatches fresh reviewer subagents through the host's own "
+        "Agent tool against the selected Git target. It creates and accepts no Orca Run, "
+        "Task, Dispatch, worker, terminal, context, or worktree. A missing, failed, or "
+        "otherwise unusable subagent dispatch fails closed without provider fallback.",
+    ),
+    (
+        "Independent Review follows Dolgorae's checked settlement and recovery contract. "
+        "Orca Review follows its live Orca guides and [orca-supervision.md](orca-supervision.md).",
+        "Independent Review keeps technical review status separate from dispatch status, "
+        "never retries an active or unknown reviewer automatically, and treats further "
+        "waiting or a re-dispatch as an explicit user request. Orca Review follows its "
+        "live Orca guides and [orca-supervision.md](orca-supervision.md).",
+    ),
+    (
+        "Independent Review additionally returns its target digest, capture, manifest, "
+        "source-mutation observation, target-integrity result, and Dolgorae settlement "
+        "evidence.",
+        "Independent Review additionally returns its target digest, the dispatch-time index "
+        "observation for a `staged` target, any later source-mutation observation, and "
+        "separate dispatch and reviewer status.",
+    ),
+    (
+        "`workspace` and `dirty` remain outside this workflow. Use "
+        "`/aquarium:independent-review` when one of those scopes is required.",
+        "`workspace` and `dirty` remain outside this workflow; they require an immutable "
+        "capture no backend here provides.",
+    ),
+    # The aquarium-dev channel is upstream-ecosystem tooling, but its setup
+    # prohibitions name the host, and the host here is ZCode. Its plugin
+    # artifacts are equally never installed into this host's plugin cache,
+    # so that boundary broadens past the upstream Codex home.
+    ("configure Codex", "configure ZCode"),
+    ("Codex configuration", "ZCode configuration"),
+    (
+        "are never installed into a Codex home by this workflow",
+        "are never installed into any host's plugin home by this workflow",
+    ),
+    # The shared disposition contract's re-review sentence describes both
+    # capture-owning backends; Independent Review here rebinds a fresh
+    # dispatch instead, so the sentence must not claim a native capture.
+    (
+        "Independent Review and Mulgae create fresh native captures.",
+        "Independent Review rebinds a fresh reviewer dispatch to the "
+        "corrected target; Mulgae creates a fresh native capture.",
+    ),
+    # The upstream Dolgorae consumer contract ships as documentation of the
+    # backend this edition does not use; its opening must say so instead of
+    # asserting a binding every shipped workflow here denies.
+    (
+        "This contract binds Aquarium review workflows to official stable "
+        "Dolgorae releases from v0.1.1 through v0.1.x on Apple Silicon.",
+        "This contract documents the upstream backend this edition does not "
+        "use: no review workflow shipped here runs Dolgorae. Upstream binds "
+        "its Aquarium review workflows to official stable Dolgorae releases "
+        "from v0.1.1 through v0.1.x on Apple Silicon.",
     ),
     # orca-review routes to external provider CLIs; the default review backend
     # here is the host's own reviewer subagent, so "non-Codex" names the wrong
@@ -627,6 +729,29 @@ def inspect_ouroboros(repository: Path, timeout_seconds: float) -> dict[str, Any
     tool["status"] = "configured" if components_ready else "degraded"
     return tool
 ''',
+            # v0.1.14 adds im-not-ai inspection against upstream's
+            # `effective_codex_skill_root()`, which resolves the writing-skill
+            # target through the Codex home. ZCode reads the shared
+            # `~/.agents/skills` root natively and knows no equivalent config
+            # environment, so the target is that shared root and the deleted
+            # Codex-home resolver is replaced by a ZCode-named helper bundled
+            # ahead of the inspector that uses it.
+            "inspect_im_not_ai": r'''def effective_writing_skill_root() -> Path:
+    # The Humanizer pair installs user-scoped, and the shared
+    # `~/.agents/skills` root is the cross-agent root ZCode reads natively,
+    # so it is the canonical writing-skill target on this host.
+    return Path.home() / ".agents" / "skills"
+
+
+def inspect_im_not_ai() -> dict[str, Any]:
+    return inspect_writing_skill(
+        skill_name="humanize-korean",
+        expected_files=HUMANIZE_KOREAN_SKILL_FILES,
+        expected_target=effective_writing_skill_root() / "humanize-korean",
+        supported_release=IM_NOT_AI_SUPPORTED_RELEASE,
+        require_version=False,
+    )
+''',
         },
         "delete": [
             "mcp_registration_probe",
@@ -638,6 +763,7 @@ def inspect_ouroboros(repository: Path, timeout_seconds: float) -> dict[str, Any
             "missing_mcp_scope",
             "failed_mcp_scope",
             "codex_version_from_output",
+            "effective_codex_skill_root",
         ],
     },
 }
@@ -744,6 +870,7 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
     ("skills/dev-setup/scripts/inspect_tools.py", "isolated_launcher_contract"),
     ("skills/dev-setup/scripts/inspect_tools.py", '"host_integration"'),
     ("skills/dev-setup/scripts/inspect_tools.py", "doctor_checks_failed"),
+    ("skills/dev-setup/scripts/inspect_tools.py", "effective_writing_skill_root"),
     # The test-setup inspector ships host-neutral from upstream; this marker
     # guards that it arrives whole rather than transformed away.
     (
@@ -769,16 +896,35 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
         "aquarium-independent-review-target/v1",
     ),
     (
-        "skills/orca-review/scripts/inspect_repository_state.py",
-        "aquarium-orca-review-repository-state/v1",
-    ),
-    (
-        "skills/orca-review/scripts/create_provider_terminal.py",
-        "aquarium-orca-provider-terminal-request/v1",
-    ),
-    (
         "skills/release-qa/scripts/manage_release_qa.py",
         "aquarium-release-qa-full-pass/v1",
+    ),
+    # v0.1.14 adds the Dolgorae release verifier and the aquarium-dev
+    # channel scripts; each ships host-neutral from upstream, so the same
+    # arrival guard applies to every one of them.
+    (
+        "skills/dev-setup/scripts/verify_dolgorae_release.py",
+        "aquarium-dolgorae-release-verification.v1",
+    ),
+    (
+        "skills/aquarium-dev/scripts/aquarium_dev.py",
+        "aquarium-dev-manager-result/v1",
+    ),
+    (
+        "skills/aquarium-dev/scripts/aquarium_dev_launcher.py",
+        "aquarium-dev-artifact-manifest/v2",
+    ),
+    (
+        "skills/aquarium-dev/scripts/build_aquarium_artifact.py",
+        "aquarium-dev-producer-description/v1",
+    ),
+    (
+        "skills/aquarium-dev/scripts/dev_contract.py",
+        "aquarium-dev-producer-description/v1",
+    ),
+    (
+        "skills/aquarium-dev/scripts/dev_manager.py",
+        "aquarium-dev-enrollment/v1",
     ),
     ("hooks/task_commit_gate.py", "/aquarium:task-commit"),
     ("hooks/hooks.json", "${ZCODE_PLUGIN_ROOT}"),

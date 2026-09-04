@@ -7,11 +7,13 @@ description: "Plan one named roadmap task without mutation. Use when /aquarium:t
 
 Plan only one task. Require the repository, canonical roadmap path, and exact task ID established by `/aquarium:task-handler`; when invoked directly, reconstruct and validate those inputs before proceeding.
 
+Read [epic-execution-sot.md](../../references/epic-execution-sot.md).
+
 ## Explore Without Mutation
 
-Read applicable repository instructions, the task entry, its parent epic, the epic's linked active dossier, `docs/README.md`, every relevant canonical role owner, current architecture, Git state, existing tests, CI and task runners, documentation synchronization rules, and configured development-tool guidance. Resolve those authorities from the canonical roadmap; do not require the user to name the dossier or related document paths.
+Read applicable repository instructions, the task entry, its parent epic, the handler-resolved execution SOT and any active dossier, `docs/README.md`, every relevant canonical role owner, current architecture, Git state, existing tests, CI and task runners, documentation synchronization rules, and configured development-tool guidance. Resolve those authorities from the canonical roadmap; do not require the user to name document paths.
 
-Treat a member task without its required active dossier as a contract gap and require an explicit `/aquarium:docs-setup` `adopt` retrofit first.
+When invoked directly, perform the shared semantic discovery and return any required consolidation to the owning handler rather than creating a dossier or routing to `docs-setup`.
 
 Do not create a goal, edit files, generate code, run rewriting formatters, stage changes, invoke providers, or alter external state.
 
@@ -25,6 +27,7 @@ Produce a decision-complete plan containing:
 - requirement-to-verification matrix;
 - specifications, architecture, decision, implementation-tip, operations, public-documentation, rollout, and review impact;
 - exact repository-native verification commands;
+- review finding remediation, affected checks, exact restaging of already staged affected paths, and any provider re-review budget;
 - known permission, tool, provider, and environment gaps.
 
 Ask for explicit approval of the plan. Do not treat discussion, partial agreement, or approval of a different action as plan approval. If approval is refused, withheld, or given for a different action, stop, report the exact missing decision, and do not enter implementation.

@@ -1,4 +1,8 @@
 {
+  "aquarium-dev": {
+    "source_digest": "698a29011810ec8a4b03dc32d2c4d6062c4f8326b1fa247ef3151dd638bc9cac",
+    "description": "Diagnose, enroll, repair, rebuild, and expose the explicit Aquarium development channel for one supported canonical checkout, keeping production installations untouched. Use when the user explicitly invokes /aquarium:aquarium-dev; never invoke it implicitly."
+  },
   "dev-setup-bundle": {
     "source_digest": "745e29fcfa21e89c899fc0298e27d78864af947706b78c0f91326bf08b0f5735",
     "description": "Apply Aquarium development-tool setup across multiple Git repositories from one external YAML manifest. Use when the user explicitly invokes /aquarium:dev-setup-bundle with a manifest path; single-repository setup belongs to /aquarium:dev-setup."
@@ -20,8 +24,8 @@
     "description": "Cold-validate one completed roadmap epic through a bounded audit and one remediation-and-confirmation cycle. Use when the user explicitly invokes /aquarium:epic-validator with a roadmap path and exactly one completed epic ID; never invoke it implicitly."
   },
   "independent-review": {
-    "source_digest": "9b3b85ff6772939df4f3ef1e03faaa3b35e14eb8170e964d777aaf8159cc8a15",
-    "description": "Run one supervised static review with fresh reviewer subagents against staged changes, a commit or range, one task or epic, or an investigation. Use when the user explicitly invokes /aquarium:independent-review and asks for an independent verdict without remediation."
+    "source_digest": "7f291b13c78dfa2b9146e5778bb6f9450d00d29ffec8c6a5958558db7b7215e1",
+    "description": "Run one supervised static review with fresh reviewer subagents against staged changes, `HEAD`, a commit or range, one task or epic, or an investigation. Use when the user explicitly invokes /aquarium:independent-review and asks for an independent verdict without remediation."
   },
   "new-feature": {
     "source_digest": "31bfce6aca3cc33e62825671c9fbff3d090d4b2668ec393c22b3635a50b9cae5",
@@ -32,8 +36,8 @@
     "description": "Shape a greenfield project into an approved PRD and initial roadmap with Ouroboros, without implementing it. Use when the user explicitly invokes /aquarium:new-project."
   },
   "orca-review": {
-    "source_digest": "b0d2ba094878d79e35390cb7991c8d04d229a0a3296278c704e25cd795a955f3",
-    "description": "Run the canonical independent-review contract through a user-selected Claude Fable, Kimi, Agy, or Cursor Agent in Orca. Use when the user explicitly invokes /aquarium:orca-review and asks for an external-provider review."
+    "source_digest": "d42a6ba77ff816aa7f1ba63c60af2e5242c254c40fdf77574d0674dca8759a15",
+    "description": "Run the canonical review contract with one fresh requested native reviewer, such as Claude, owned and supervised by the local Orca runtime for a staged, `HEAD`, commit, or range target. Use when the user explicitly invokes /aquarium:orca-review or names a review target and reviewer; subagent-based review belongs to /aquarium:independent-review."
   },
   "refactor": {
     "source_digest": "462dc0b177fa8f0b596fe2ca2987c3b2bf8190768110f590ecef8132473d9e7f",

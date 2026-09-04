@@ -4,7 +4,7 @@ Read this reference whenever an Aquarium workflow consumes evidence from Mulgae,
 
 ## Classify Evidence Before Using It
 
-- **Runtime evidence** lives in ignored or disposable state such as `.mulgae/**`, `.gaori/runs/**`, `.podway/runtime/**`, or `/tmp/**`. Its paths, run IDs, invocation IDs, and session IDs may be recorded in the active conversation or Podway session for bounded recovery and adjudication, but deletion is expected and Git does not preserve it.
+- **Runtime evidence** lives in ignored, disposable, or provider-owned state such as `.mulgae/**`, `.gaori/runs/**`, `.podway/runtime/**`, `/tmp/**`, or `~/.claude/**`. Its paths, run IDs, invocation IDs, and session IDs may be recorded in the active conversation or Podway session for bounded recovery and adjudication, but Git does not preserve it and its retention remains owned by the producing tool or user.
 - **Orchestration evidence** is the bounded command, actor, exit status, target identity, result quality, finding disposition, and runtime reference returned between Aquarium phases. It is not repository documentation and must not be copied into a roadmap or handoff as an execution log.
 - **Canonical repository information** states the current goal, lifecycle, requirement, contract, accepted risk, actionable handoff, or revalidation condition. It must remain useful without any ignored runtime directory.
 - **Promoted evidence** is an exceptional tracked package created only when downstream correctness requires durable evidence that current code, tests, specifications, and Git history cannot express more clearly.
@@ -62,7 +62,7 @@ Copy only the smallest reviewed, bounded, non-sensitive native artifact that sup
 
 Use repository-relative paths only. Redact a safe structured projection before staging or stop with an evidence gap when any prohibited content is necessary to interpret the payload.
 
-- Mulgae may contribute only a bounded structured JSON projection of verified target digest, capture kind, coverage, CI decision, publication status, structured extraction status, and locally adjudicated finding ID, severity, disposition, and affected repository-relative paths. Obtain the native digest from `target.content_sha256` in the final artifact identified by the exact-run status `final_artifact_uri`; no other digest field is authoritative.
+- Mulgae may contribute only a bounded structured JSON projection of verified target digest, capture kind, coverage, CI decision, publication status, structured extraction status, and locally adjudicated finding ID, reported severity, effective priority, validity, disposition, and affected repository-relative paths. Obtain the native digest from `target.content_sha256` in the final artifact identified by the exact-run status `final_artifact_uri`; no other digest field is authoritative.
   Accepted Markdown reports, finding descriptions or recommendations, evidence quotes, excerpts, transcripts, and extraction artifacts remain private runtime state.
 - Gaori may contribute only finalized redacted status or summary output that satisfies the common content restrictions above. Raw logs and excerpts remain original unredacted evidence and are never promoted.
 - Podway databases, history, recorded claims, and runtime handoff files are never promotion sources. Promote the native evidence or approved canonical document that Podway referenced instead.

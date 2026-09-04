@@ -134,7 +134,53 @@ if inspection.file?
   assert(script.include?('".zcode/cli/config.json"'), "inspection must read the ZCode MCP registration")
   assert(script.include?('"host_integration"'), "inspection must report the host integration component")
   assert(script.include?("zcode_mcp_scopes"), "inspection must classify Mulgae and Gaori registrations from ZCode config")
+  assert(script.include?("effective_writing_skill_root"), "inspection must resolve the writing-skill target through the ZCode helper")
+  assert(!script.include?("effective_codex_skill_root"), "inspection must not resolve skill targets through a Codex home")
 end
+
+# --- reviewer backend restatement ---------------------------------------------
+
+# Upstream v0.1.14 builds the shared review contract around Dolgorae
+# captures. This edition runs independent-review on the host's own Agent
+# tool, so the contract is restated for that backend. No forbidden needle
+# covers the word "Dolgorae" alone, so a substitution that stopped matching
+# would ship the upstream backend silently; these assertions pin the
+# restated half of the contract.
+review_contract = PLUGIN.join("references/review-contract.md")
+if review_contract.file?
+  contract = review_contract.read
+  assert(!contract.include?("Dolgorae capture"), "the review contract must not offer Dolgorae captures on this backend")
+  assert(contract.include?("Live index read"), "the review contract must name the live staged acquisition")
+  assert(contract.include?("Resolved commit blobs"), "the review contract must name the committed acquisition")
+  assert(
+    contract.include?("dispatches fresh reviewer subagents through the host's own Agent tool"),
+    "the review contract must describe the subagent backend"
+  )
+end
+
+independent_review = PLUGIN.join("skills/independent-review/SKILL.md")
+if independent_review.file?
+  review_skill = independent_review.read
+  assert(review_skill.include?("`Agent` tool"), "independent-review must dispatch through the host Agent tool")
+  assert(!review_skill.include?("dolgorae specialist review"), "independent-review must not run the Dolgorae operation")
+  assert(review_skill.include?("[finding-disposition.md](../../references/finding-disposition.md)"), "independent-review must load the shared disposition contract")
+end
+
+# --- v0.1.14 development channel scripts -------------------------------------
+
+# The aquarium-dev channel and the Dolgorae verifier ship host-neutral from
+# upstream; sync.py guards each schema marker, and this asserts the complete
+# script set arrives at all.
+if PLUGIN.join("skills/aquarium-dev/SKILL.md").file?
+  %w[aquarium_dev.py aquarium_dev_launcher.py build_aquarium_artifact.py
+     dev_contract.py dev_manager.py].each do |name|
+    assert(PLUGIN.join("skills/aquarium-dev/scripts/#{name}").file?, "aquarium-dev script missing: #{name}")
+  end
+end
+assert(
+  PLUGIN.join("skills/dev-setup/scripts/verify_dolgorae_release.py").file?,
+  "the Dolgorae release verifier was not generated"
+)
 
 # The test-setup inspector ships host-neutral from upstream; the schema marker
 # guards that it survives the transformation whole.

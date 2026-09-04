@@ -15,13 +15,13 @@ Read [manifest.md](references/manifest.md), then read [the development setup ski
 2. Treat a nonzero result or an error envelope as a manifest-wide failure. Treat an `invalid` target in a successful plan as an isolated preflight failure and continue with the remaining `ready` targets.
 3. Never create, copy, edit, stage, or commit the manifest. Keep its absolute path and SHA-256 only for this request. Do not discover manifests, repositories, or tools outside the normalized plan.
 4. For every ready target, read applicable repository instructions and inspect branch, upstream, staged, unstaged, untracked, and conflict state. Preserve unrelated work. If an approved change overlaps existing work and cannot be applied exactly, fail that action for that target instead of overwriting it.
-5. Run the existing `inspect_tools.py` once for each ready target with `--include-podway`, `--include-ouroboros`, and `--require-mulgae-mcp` only when the normalized selection requires those dimensions. The inspector reports user-global, isolated project-local, and effective Mulgae and Gaori MCP state independently. Inspection is read-only evidence, not setup authority.
+5. Run the existing `inspect_tools.py` once for each ready target with `--verify-dolgorae-release`, `--include-podway`, `--include-ouroboros`, and `--require-mulgae-mcp` only when the normalized selection requires those dimensions. The inspector reports user-global, isolated project-local, and effective Mulgae and Gaori MCP state independently. Inspection is read-only evidence, not setup authority.
 
 ## Confirm the Normalized Selection
 
 Show the manifest digest and an ordered matrix of ready and invalid targets, input paths, canonical Git roots, effective tools, explicit local MCP overrides, repository-guidance proposal policy, worktree state, and local readiness. Disclose that Mulgae and Gaori MCP are user-global by default and `project_mcp` is only an explicit per-target local override.
 
-Disclose that confirming a selection containing Sanho, Mulgae, Gaori, or Podway authorizes the bounded official GitHub Releases and raw-file freshness comparison defined by `dev-setup`, but no installation or replacement.
+Disclose that confirming a selection containing Dolgorae authorizes its bounded official GitHub Release metadata lookup, while Sanho, Mulgae, Gaori, or Podway also authorize the raw-file freshness comparison defined by `dev-setup`. Neither selection authorizes an archive download, installation, or replacement.
 
 Use the host's structured ask/answer tool when available to confirm the normalized selection before any network comparison. A refusal stops the bundle without mutation. Confirmation is not approval for a CLI, skill, daemon, configuration, MCP registration, managed Procedure, root AGENTS.md/CLAUDE.md edit, or any other persistent action.
 
@@ -29,9 +29,9 @@ Immediately before that confirmation, rerun the normalizer and require the manif
 
 ## Prepare Shared Components Once
 
-Resolve the union of effective tools across ready targets. Compare each selected Sanho, Mulgae, Gaori, or Podway paired skill once and reuse the verified exact tag, file set, digests, and ephemeral payload throughout this bundle request. Resolve other approved upstream sources once. Never refetch merely because another target selects the same tool.
+Resolve the union of effective tools across ready targets. Resolve selected Dolgorae release metadata once. Compare each selected Sanho, Mulgae, Gaori, or Podway paired skill once and reuse the verified exact tag, file set, digests, and ephemeral payload throughout this bundle request. Resolve other approved upstream sources once. Never refetch merely because another target selects the same tool.
 
-Handle user-global CLIs, paired skills, Lora, Deslop, the Podway daemon, Ouroboros package, host integration, and runtime components, and selected Mulgae or Gaori global MCP registrations before repository-local actions. Configure each selected global MCP at most once for the bundle.
+Handle user-global CLIs, paired skills, Lora, Deslop, Humanizer, im-not-ai, the Podway daemon, Ouroboros package, host integration, and runtime components, and selected Mulgae or Gaori global MCP registrations before repository-local actions. Configure each selected global MCP at most once for the bundle.
 
 Follow every distinct proposal, backup, approval, stale-target check, checksum, version, and verification boundary in `dev-setup`; a bundle selection never groups or waives them.
 
@@ -42,6 +42,8 @@ If a shared action fails or is declined, mark every dependent target `partial`, 
 Process ready targets in manifest order. Pass `dev-setup` a normalized bundle handoff containing the requesting skill, manifest digest, target index, canonical Git root, effective tools, explicit local MCP overrides, and repository-guidance policy. Never pass the manifest path or ask `dev-setup` to read it.
 
 Use the normalized tools as `Install and configure` selections, treat their Mulgae and Gaori MCP registrations as global unless named by the target's normalized local override, and use the repository-guidance value as its preselected choice. `agents_guidance: propose` preselects preparation of the complete AGENTS.md operating contract and CLAUDE.md delegation proposal, not merely tool references.
+
+Humanizer and im-not-ai remain shared installations even when selected by only one target. For a target with `agents_guidance: propose`, include only the selected writing tools' language rules in the displayed repository-guidance diff. With `agents_guidance: skip`, install or diagnose the selected writing tools without changing repository instructions.
 
 Still show and separately approve every exact persistent action required by `dev-setup`. Ask only for unresolved identifiers or mandatory policy choices that repository state and the manifest selection cannot supply, such as a new Sanho project name, documentation repository URL, or missing commit-header convention.
 
