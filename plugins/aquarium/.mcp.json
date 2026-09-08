@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "aquarium-dev": {
+      "type": "stdio",
+      "command": "${ZCODE_PLUGIN_ROOT}/tools/aquarium-dev/mcp-launcher",
+      "args": [],
+      "cwd": "${ZCODE_PLUGIN_ROOT}",
+      "timeoutMs": 3600000
+    }
+  }
+}

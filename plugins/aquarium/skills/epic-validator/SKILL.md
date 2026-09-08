@@ -5,6 +5,8 @@ description: "Cold-validate one completed roadmap epic through a bounded audit a
 
 # Epic Validator
 
+Read [mulgae-review-contract.md](../../references/mulgae-review-contract.md) for Aquarium review inputs, terminal evidence, recovery acceptance, and round counting.
+
 Validate a completed epic independently of how it was delivered. Audit first, remediate the first confirmed findings once, run one confirmation review, and require user direction before any further correction or review. Read [release-notes.md](../../references/release-notes.md). Do not invoke `/aquarium:task-handler`, `/aquarium:epic-handler`, their phase skills, `/aquarium:independent-review`, or `/aquarium:orca-review`.
 
 Always read [evidence-residency.md](../../references/evidence-residency.md), [finding-disposition.md](../../references/finding-disposition.md), [documentation-governance.md](../../references/documentation-governance.md), and [epic-execution-sot.md](../../references/epic-execution-sot.md).
@@ -12,6 +14,8 @@ Always read [evidence-residency.md](../../references/evidence-residency.md), [fi
 Use Podway by default. Exclude it only when the current user explicitly opts this validation out before its managed session starts or a higher-priority instruction prohibits it. For an opted-out validation, do not inspect Podway, load `/use-podway`, or read [podway-integration.md](../../references/podway-integration.md), and do not carry the opt-out into a later workflow.
 
 Otherwise read the Podway contract and use one `aquarium-validation-v2` session for this exact cold-validation lifecycle. Podway records each bounded pass and user disposition; the roadmap and current implementation remain the semantic authority. A session created from an earlier managed Procedure version keeps its immutable snapshot and is not migrated in place.
+
+Create a ZCode todo list only on explicit user request under its tool contract, whether Podway is active or opted out. Continue an existing authorized ZCode todo list through audit, remediation, and confirmation within its own scope. Remediation groups organize the work; they do not create separate ZCode todo lists or Podway sessions.
 
 ## Establish the Validation Contract
 
@@ -25,7 +29,7 @@ Before requesting approval:
 3. Inspect branch, upstream, HEAD, staged, unstaged, untracked, and conflicted state. Record the validation baseline and separate epic-owned residue from unrelated work. Stop when the epic baseline is uncommitted or cannot be isolated safely.
 4. Discover repository-native verification, Gaori, `/use-gaori`, documentation synchronization, Mulgae, `/use-mulgae`, Sanho, `/use-sanho`, lifecycle, and commit guidance. Treat each CLI, repository configuration, project MCP, and agent skill as independent state. Inspect explicit external dependencies read-only and record repository, canonical identity, exact revision, lifecycle, dirty state, evidence, and owner.
 5. Inspect the current goal and stop rather than replace a different unfinished goal.
-6. Honor an explicit pre-session opt-out without Podway discovery and ignore every Podway readiness or session state. Otherwise apply the shared contract's readiness and session checks. On degraded readiness, stop and ask the user to choose `/aquarium:dev-setup` repair or an explicit opt-out for this validation.
+6. Honor an explicit pre-session opt-out without Podway discovery and ignore every Podway readiness or session state. Otherwise apply the shared contract's readiness and session checks. On degraded readiness, route a missing or unsupported global Podway CLI, daemon, or `use-podway` skill to `/aquarium:dev-setup-global`; route repository configuration or managed-Procedure gaps to `/aquarium:dev-setup`; then stop and ask the user to choose the exact routed repair or an explicit opt-out for this validation.
    - Resume a managed validation session matching this epic and baseline. Only when starting a different session, present the existing session and obtain the shared contract's explicit preserve, lifecycle, delete, or eligible-replace choice. Never route by skill owner or describe the choice as setup repair.
    - A disposed terminal session with verified handoff evidence and a current `session.start_replace` template becomes an exact successor candidate. Include its automatic archival in the validation envelope and, after approval, execute the template's current plain `start` argv without a separate reset before re-observing and beginning the prepared validation session.
 
@@ -39,20 +43,20 @@ Accept that opt-out only before the first managed-session mutation. Afterward cl
 
 Do not create a goal, edit files, invoke providers, stage, commit, or alter external state before approval.
 
-When a selected long or noisy check is routed through Gaori, reference `/use-gaori` and follow it when available. If it is missing and repository policy requires it, stop and route to `/aquarium:dev-setup`; otherwise run the repository's original documented command directly and report that evidence compression was unavailable. Never infer an unknown original command, and keep command result, extraction quality, and acceptance authority separate throughout audits and remediation.
+When a selected check uses Gaori, read [gaori-integration.md](../../references/gaori-integration.md). Delegate native execution to `/use-gaori` and consume the exact command result and evidence through that contract, including prerequisite routing and optional direct-command fallback.
 
-Before each authorized Mulgae review, reference `/use-mulgae` and follow it when available, preferring its attached MCP workflow. If the skill or project MCP is unavailable and repository policy requires it, stop and route that exact gap to `/aquarium:dev-setup`; otherwise use the supported configured CLI fallback, report the unavailable integration once, and preserve exact preflight, run, publication, and findings evidence. Never start a second MCP server or blindly retry an uncertain review mutation.
+Before each Mulgae review, supply the complete target, goal revision, ordinal, mode, and approved scope through the shared Mulgae contract. Delegate native execution and recovery to `/use-mulgae`; use the shared prerequisite routing and consume only established terminal evidence.
 
-For each complete whole-epic root review, record the next positive ordinal, exact committed run ID, finding IDs, reported severity, effective priority, validity, and disposition. Round one is `remediation-eligible`; round two and every user-authorized later review are `confirmation-only`. On resumption, reconstruct the ordinal from verbose validation Procedure history and exact run IDs; an unprovable ordinal stops before review. Cold validation never selects `hardening-deferral-eligible` mode.
+For each complete whole-epic root or verified composite review, record the next positive ordinal, exact committed run ID, finding IDs, reported severity, effective priority, validity, and disposition. Round one is `remediation-eligible`; round two and every user-authorized later review are `confirmation-only`. On resumption, reconstruct the ordinal from verbose validation Procedure history and exact run IDs with verified original-root lineage; an unprovable ordinal stops before review. Cold validation never selects `hardening-deferral-eligible` mode.
 
 ## Audit the Epic Directly
 
-Run the audit without an active goal and without source mutation:
+Run the audit without source mutation. An existing authorized ZCode todo list may remain active during the audit:
 
 1. Build a requirement-to-owner-to-production-to-test-to-document matrix across every member task. Trace runtime wiring, consumers, persistence, concurrency, migrations, generated artifacts, failure and recovery behavior, operational guidance, external dependencies, roadmap consistency, repository-defined dossier disposition when applicable, and coverage by the completed epic's canonical sources.
 2. Inspect current code and evidence directly. Run only repository-authorized checks needed for the epic claim. Keep current agent-run, explicit user-run, unavailable, forbidden, stale, external, live, commit, and upstream publication evidence distinct; narrow green checks do not prove uncovered requirements.
 3. Run Mulgae on one exact latest epic target that excludes unrelated work and includes every epic-owned staged, unstaged, untracked, generated, and derived file.
-4. Treat a Mulgae review as operationally complete only when `coverage_status=complete`, `ci_decision=pass`, `publication_status=committed`, and the findings query succeeds. Classify that complete review as clean only when zero unresolved valid findings remain; otherwise apply the bounded remediation or explicit disposition rules below. Provider success or exit status alone is insufficient.
+4. Accept a full-target root or its verified composite under the shared Mulgae contract, counting each original root once. Treat a Mulgae review as operationally complete under the shared contract, independently of CI outcome and finding adjudication. Classify that complete review as clean only when `ci_decision=pass` and zero unresolved valid findings remain; otherwise apply the bounded remediation or explicit disposition rules below. Provider success or exit status alone is insufficient.
    Record `structured_extraction_status` independently as `structured`, `mixed`, or `reports_only`. `reports_only` is not itself a failure and does not replace or relax any completion condition above; the accepted reports remain authoritative, and every extracted finding remains an advisory hypothesis that requires local verification.
 5. Verify every candidate finding against current authority and implementation. Record only confirmed gaps; do not turn review hypotheses into work automatically.
 
@@ -60,32 +64,32 @@ With Podway active, create or resume the matching prepared validation session on
 
 Select only actions allowed by `guidance.allowed_actions` and represented by current `mutation_templates` entries. A clean decision advances to final review; confirmed gaps advance to remediation. Do not record candidate findings as confirmed Podway gaps before adjudication.
 
-## Group and Complete Remediation Goals
+## Group and Complete Remediation
 
 Group confirmed gaps by canonical requirement owner and coherent implementation boundary. Do not add new roadmap tasks or invent task IDs.
 
-- For a gap owned by one existing task, create or resume one remediation goal containing that task ID and hand the isolated correction to `/aquarium:task-commit` under that task ID. If the roadmap defines a reopen state, transition through it and return to success; otherwise preserve the successful state without adding remediation history to the roadmap.
-- For a cross-task seam or omitted epic-level design requirement owned by no existing task, create one epic remediation goal and hand the isolated correction to `/aquarium:task-commit` under the epic ID.
+- For a gap owned by one existing task, group the remediation under that task ID and hand the isolated correction to `/aquarium:task-commit` under that task ID. If the roadmap defines a reopen state, transition through it and return to success; otherwise preserve the successful state without adding remediation history to the roadmap.
+- For a cross-task seam or omitted epic-level design requirement owned by no existing task, group the remediation under the epic ID and hand the isolated correction to `/aquarium:task-commit` under that epic ID.
 - For work owned by another repository, stop with its owner, exact revision, and missing evidence. Never mutate that repository.
 
-If ownership is ambiguous, stop before goal creation and report the missing authority. Order task-owned groups by dependencies and roadmap order, then epic-owned groups. Never run two remediation goals concurrently.
+If ownership is ambiguous, stop before remediation and report the missing authority. Order task-owned groups by dependencies and roadmap order, then epic-owned groups. Never run two remediation groups concurrently.
 
-For each goal:
+For each remediation group:
 
 1. Implement the smallest complete correction, add or update regression coverage and any durable specification required by changed current behavior, and run affected authorized checks. In an enrolled repository, include one concise release-note `entry` for a changed shipped outcome or record `intentional no-note`; otherwise record `not-enrolled`.
-2. Fix every valid in-scope Medium-or-higher finding from the initial audit and root review, then repeat affected checks without starting a per-goal or follow-up review. Apply each Low disposition under the shared contract with its required local checks.
+2. Fix every valid in-scope Medium-or-higher finding from the initial audit and root review, then repeat affected checks without starting a per-group or follow-up review. Apply each Low disposition under the shared contract with its required local checks.
 3. Update the roadmap only for an actual lifecycle change or actionable downstream handoff. Record Low future work in the canonical deferred-feedback or TODO owner, not as accepted risk. Never add a routine `Validation remediation`, `Validation record`, command log, tested snapshot, runtime path, run ID, or commit list.
 4. Record resulting remediation commit IDs in Podway and the orchestration report, not in canonical documentation.
 
-Confirm the goal-owned diff, including any necessary lifecycle or current-semantics documentation, equals the verified correction for the recorded source findings. Hand that exact scope, its evidence, owning task or epic ID, release-note target and decision, zero or more approved promoted manifest path and digest pairs or their explicit absence, and approved one-commit authority to `/aquarium:task-commit`.
+Confirm the group's diff, including any necessary lifecycle or current-semantics documentation, equals the verified correction for the recorded source findings. Hand that exact scope, its evidence, owning task or epic ID, release-note target and decision, zero or more approved promoted manifest path and digest pairs or their explicit absence, and approved one-commit authority to `/aquarium:task-commit`.
 
-Verify the returned commit snapshot, residue, and hook evidence before completing the goal. The later whole-epic confirmation review, not the source review, owns coverage of those committed bytes.
+Verify the returned commit snapshot, residue, and hook evidence before completing the remediation group. Complete an authorized ZCode todo list only when its full objective is achieved; a remediation commit alone does not establish that. The later whole-epic confirmation review, not the source review, owns coverage of those committed bytes.
 
 ## Confirm Once and Stop on New Findings
 
-After all initial remediation goals complete, discard the prior matrix, findings, checks, and review result. With no active goal, repeat the direct audit and run exactly one round-two whole-epic Mulgae confirmation review from the latest committed snapshot. Do not start a third review automatically.
+After all initial remediation groups complete, discard the prior matrix, findings, checks, and review result. Continue any authorized ZCode todo list while repeating the direct audit and running exactly one round-two whole-epic Mulgae confirmation review from the latest committed snapshot. Do not start a third review automatically.
 
-If round two is incomplete, stop without retry. If it has no valid finding, continue. A valid Medium-or-higher finding blocks validation; ask for one correction-and-review budget or stop. Risk acceptance and deferral are unavailable. When only Low findings remain, handle them inside the approved envelope. Self-evident fixes receive integrity checks, bounded behavioral fixes receive a focused test, future risks go to the canonical deferred-feedback owner, and structural work becomes a TODO candidate. State that the review predates changed bytes.
+If round two is incomplete, follow supported exact recovery within the approved envelope; otherwise stop without resubmitting the review. If CI passes and it has no valid finding, continue. A failed CI decision remains a verification gap even without findings; return it to its owning check or implementation within the approved remediation envelope, or stop for direction when no further remediation and review are authorized. A valid Medium-or-higher finding blocks validation; ask for one correction-and-review budget or stop. Risk acceptance and deferral are unavailable. When only Low findings remain, handle them inside the approved envelope. Self-evident fixes receive integrity checks, bounded behavioral fixes receive a focused test, future risks go to the canonical deferred-feedback owner, and structural work becomes a TODO candidate. State that the review predates changed bytes.
 
 Resolve every `Needs confirmation` finding before selecting the final-review decision. Use existing read-only evidence first. If resolution requires a check, run it only when the approved validation envelope already authorizes it; otherwise leave the decision unset and ask for bounded confirmation authority. Reclassify the same finding as `Valid` or `Invalid`, manually rework `final-review`, and evaluate the decision again. Do not consume another review ordinal unless the provider review runs again.
 
@@ -95,7 +99,7 @@ With Podway active, record each remediation group, fresh audit, reported severit
 
 When an external blocker is resolved, revalidate its exact committed revision and evidence before restarting the audit. Product or canonical-document changes make affected evidence stale. A completed Low disposition may use its required local checks without provider re-review, but the preceding review must be recorded as predating those bytes. An approved promoted-evidence projection remains outside the review target and receives commit-boundary validation.
 
-Declare completion only when every required check has current passing evidence, whole-epic Mulgae evidence is operationally complete, every member task and the epic have roadmap-defined successful states, no epic-owned residue remains, and one of these closeout conditions holds:
+Declare completion only when every required check has current passing evidence, whole-epic Mulgae evidence is operationally complete with passing CI, every member task and the epic have roadmap-defined successful states, no epic-owned residue remains, and one of these closeout conditions holds:
 
 - The fresh from-scratch audit and latest review are clean.
 - No valid Medium-or-higher finding remains, and every Low finding has a completed `low-self-evident-fix`, `low-bounded-fix`, `low-deferred-feedback`, or `low-todo-candidate` record with the required local evidence.

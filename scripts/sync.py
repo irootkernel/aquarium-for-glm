@@ -34,7 +34,11 @@ SKILL_DESCRIPTIONS = OVERRIDES / "skill-descriptions.json"
 EDITION_SKILLS = REPOSITORY / "edition-skills"
 SYNC_MANIFEST = "sync-manifest.json"
 
-COPIED_DIRECTORIES = ("skills", "references", "assets", "hooks")
+# v0.1.15 moves the aquarium-dev channel out of the skill tree into a
+# bundled CLI + MCP package. ZCode loads plugin MCP servers from a root
+# `.mcp.json` that `write_mcp_manifest` derives, so the package ships like
+# any other upstream directory.
+COPIED_DIRECTORIES = ("skills", "references", "assets", "hooks", "tools")
 TEXT_SUFFIXES = (".md",)
 SCRIPT_SUFFIXES = (".py",)
 DATA_SUFFIXES = (".json",)
@@ -85,6 +89,24 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     ("`request_user_input`", "`AskUserQuestion`"),
     # ZCode tracks work through its todo list, so the Codex goal maps onto it.
     ("Codex goal", "ZCode todo list"),
+    # v0.1.15's Podway integration reference tracks completion against "the
+    # Codex objective" — the goal object's user-facing name on the upstream
+    # host. It maps onto the same todo-list surface here, as does the
+    # contract of the tool that owns it.
+    ("Codex objective", "ZCode todo-list objective"),
+    (
+        "follow the current Codex tool contract",
+        "follow the current host todo-list contract",
+    ),
+    # v0.1.15's bundle skill prepares Ouroboros once per discovered Codex
+    # home. This host has one integration surface, so the preparation unit
+    # is that single surface.
+    (
+        "one CLI upgrade and one integration update per distinct discovered "
+        "Codex home, not one installation per repository",
+        "one CLI upgrade and one single-surface ZCode integration update, not "
+        "one installation per repository",
+    ),
     ("a fresh Codex reviewer", "a fresh independent reviewer"),
     ("one fresh Codex reviewer", "one fresh independent reviewer"),
     ("supervised Codex reviewer", "supervised independent reviewer"),
@@ -144,13 +166,22 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         "Task, Dispatch, worker, terminal, context, or worktree. A missing, failed, or "
         "otherwise unusable subagent dispatch fails closed without provider fallback.",
     ),
+    # v0.1.15 rewords settlement around same-release `$use-dolgorae`
+    # delegation. The Agent-tool backend here has no provider lifecycle to
+    # delegate to, so the restated half keeps dispatch/review separation
+    # and the explicit-user-request boundary for waiting or re-dispatch.
     (
-        "Independent Review follows Dolgorae's checked settlement and recovery contract. "
-        "Orca Review follows its live Orca guides and [orca-supervision.md](orca-supervision.md).",
-        "Independent Review keeps technical review status separate from dispatch status, "
-        "never retries an active or unknown reviewer automatically, and treats further "
-        "waiting or a re-dispatch as an explicit user request. Orca Review follows its "
-        "live Orca guides and [orca-supervision.md](orca-supervision.md).",
+        "Independent Review delegates settlement and recovery to the "
+        "same-release `/use-dolgorae` skill and Dolgorae's checked contract. "
+        "Orca Review follows its live Orca guides and "
+        "[orca-supervision.md](orca-supervision.md), including authoritative "
+        "observation on deadline exhaustion.",
+        "Independent Review keeps technical review status separate from dispatch "
+        "status, never retries an active or unknown reviewer automatically, and "
+        "treats further waiting or a re-dispatch as an explicit user request. "
+        "Orca Review follows its live Orca guides and "
+        "[orca-supervision.md](orca-supervision.md), including authoritative "
+        "observation on deadline exhaustion.",
     ),
     (
         "Independent Review additionally returns its target digest, capture, manifest, "
@@ -176,6 +207,23 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         "are never installed into a Codex home by this workflow",
         "are never installed into any host's plugin home by this workflow",
     ),
+    # v0.1.15 moves the aquarium-dev channel into `tools/aquarium-dev` and a
+    # shared development contract reference. Its restart sentence and its
+    # launcher/manager boundary clauses name the host, and the host here is
+    # ZCode.
+    ("Restart Codex after installation or update.", "Restart ZCode after installation or update."),
+    (
+        "has no Codex-home configuration, authentication, plugin installation, "
+        "or MCP configuration operation",
+        "has no host configuration, authentication, plugin installation, or "
+        "MCP configuration operation",
+    ),
+    (
+        "The launcher does not read or mutate Codex authentication, plugins, "
+        "skills, apps, or MCP configuration.",
+        "The launcher does not read or mutate the host's authentication, "
+        "plugins, skills, or MCP configuration.",
+    ),
     # The shared disposition contract's re-review sentence describes both
     # capture-owning backends; Independent Review here rebinds a fresh
     # dispatch instead, so the sentence must not claim a native capture.
@@ -186,14 +234,49 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     ),
     # The upstream Dolgorae consumer contract ships as documentation of the
     # backend this edition does not use; its opening must say so instead of
-    # asserting a binding every shipped workflow here denies.
+    # asserting a binding every shipped workflow here denies. v0.1.15 raises
+    # the documented floor to v0.1.2, so the needle tracks it.
     (
         "This contract binds Aquarium review workflows to official stable "
-        "Dolgorae releases from v0.1.1 through v0.1.x on Apple Silicon.",
+        "Dolgorae releases from v0.1.2 through v0.1.x on Apple Silicon.",
         "This contract documents the upstream backend this edition does not "
         "use: no review workflow shipped here runs Dolgorae. Upstream binds "
         "its Aquarium review workflows to official stable Dolgorae releases "
-        "from v0.1.1 through v0.1.x on Apple Silicon.",
+        "from v0.1.2 through v0.1.x on Apple Silicon.",
+    ),
+    # v0.1.15 routes explicitly requested reviews and External Specialist
+    # Engagements through the paired `$use-dolgorae` skill. This edition
+    # dispatches those through the host's own `Agent`-tool subagents, so the
+    # guidance bullet keeps the third-party skill only for Dolgorae-native
+    # lifecycle operations the backend cannot serve.
+    (
+        "- Use `/use-dolgorae` for explicitly requested workspace, global "
+        "Profile, review, External Specialist Engagement, and recovery "
+        "operations. Keep execution and lifecycle rules in the paired skill.",
+        "- Route explicitly requested reviews and External Specialist "
+        "Engagements through fresh reviewer subagents dispatched with the "
+        "host's own `Agent` tool. Use `/use-dolgorae` only for an explicitly "
+        "requested Dolgorae-native workspace, global Profile, or recovery "
+        "operation, and keep its execution and lifecycle rules in that paired "
+        "skill.",
+    ),
+    # v0.1.15 restates Ouroboros readiness around per-Codex-home rows. This
+    # host has one integration surface — the user-global config registration
+    # and the ZCode skill root — so the reference's readiness sentence is
+    # restated for that shape (the global inspector reports it under
+    # `integration`; see the `inspect_ouroboros` surgery).
+    (
+        "Use the global v2 inspector's `current_home_readiness`, not "
+        "`all_discovered_homes_readiness`. Require rules and skills in the "
+        "current Codex home, the matching MCP package, and a `home_binding` "
+        "to that same home; shared `~/.agents/skills` copies do not satisfy "
+        "readiness.",
+        "Use the global inspector's single `integration` result: the "
+        "user-global `mcp.servers` registration in `~/.zcode/cli/config.json`, "
+        "its runtime configuration, the matching MCP package, and the "
+        "installed user-scoped skills. On this host the shared "
+        "`~/.agents/skills` root is the canonical skill target, not a legacy "
+        "location, so copies there count toward readiness.",
     ),
     # orca-review routes to external provider CLIs; the default review backend
     # here is the host's own reviewer subagent, so "non-Codex" names the wrong
@@ -244,7 +327,10 @@ SCRIPT_SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     (
         r'''    codex_home = os.environ.get("CODEX_HOME")
     if codex_home:
-        candidates.append(Path(codex_home).expanduser().joinpath("skills"))
+        try:
+            candidates.append(Path(codex_home).expanduser().joinpath("skills"))
+        except (OSError, ValueError, RuntimeError):
+            pass
     candidates.extend(
         [Path.home().joinpath(".codex/skills"), Path.home().joinpath(".agents/skills")]
     )
@@ -257,6 +343,35 @@ SCRIPT_SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         [Path.home().joinpath(".zcode/skills"), Path.home().joinpath(".agents/skills")]
     )
 ''',
+    ),
+    # v0.1.15 adds a `trusted_global_skills` presence map inside `inspect()`
+    # that still resolves `humanize-korean` through the Codex home — the same
+    # upstream bug the `inspect_im_not_ai` surgery already corrects (upstream
+    # fixed its own copy after v0.1.15, unreleased). The map entry is pinned
+    # to the shared `~/.agents/skills` root, and the deletion of
+    # `effective_codex_skill_root` below would otherwise leave a dangling
+    # reference here.
+    (
+        '            "humanize-korean": effective_codex_skill_root() / "humanize-korean",',
+        '            "humanize-korean": Path.home() / ".agents/skills/humanize-korean",',
+    ),
+    # The aquarium-dev MCP runtime reads the plugin's own manifest to bind
+    # its source identity. In the generated tree that manifest is the ZCode
+    # one, so the literal path moves with it.
+    (
+        '    manifest = directory.parent.parent / ".codex-plugin/plugin.json"',
+        '    manifest = directory.parent.parent / ".zcode-plugin/plugin.json"',
+    ),
+    # `tools/aquarium-dev/mcp_server.py` states its own tool boundary in the
+    # instructions every MCP client shows; the host it must not configure is
+    # the one running this plugin.
+    ("configures Codex", "configures ZCode"),
+    # The restated global Ouroboros inspector keeps upstream's module
+    # docstring shape, but its per-Codex-home wording describes machinery
+    # the surgery below removes, so the docstring moves with it.
+    (
+        '"""Read-only Ouroboros package and per-Codex-home inspection."""',
+        '"""Read-only Ouroboros package and single-surface ZCode inspection."""',
     ),
     # The repository configuration inventories listed the Codex project
     # config file, which belongs to another host and is not the registration
@@ -605,11 +720,21 @@ def ouroboros_isolated_launcher_matches(transport: Any) -> bool:
             "launcher": "direct",
         }
     if ouroboros_isolated_launcher_matches(entry):
+        # The pinned package version is reported for the runtime-package
+        # axis upstream derives from the registration transport; the
+        # matcher has already validated its shape, so only the pin is
+        # re-read here.
+        pin = None
+        args = entry.get("args")
+        if isinstance(args, list) and len(args) > 4 and isinstance(args[4], str):
+            package_match = OUROBOROS_MCP_PACKAGE.fullmatch(args[4])
+            pin = package_match.group(1) if package_match else None
         return {
             "status": "configured",
             "probe": probe,
             "scope": scope,
             "launcher": "isolated",
+            "pinned_version": pin,
         }
     return {
         "status": "degraded",
@@ -619,19 +744,53 @@ def ouroboros_isolated_launcher_matches(transport: Any) -> bool:
     }
 
 
-def inspect_ouroboros(repository: Path, timeout_seconds: float) -> dict[str, Any]:
-    tool = base_tool("ooo")
-    tool["supported_range"] = ">=0.51.1,<0.52.0"
+def inspect_ouroboros(
+    repository: Path,
+    timeout_seconds: float,
+    *,
+    codex_home: Path | None = None,
+    cli_observation: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    # ZCode has no Codex-home model: Ouroboros' integration surface here is
+    # the user-global `mcp.servers` entry of `~/.zcode/cli/config.json`
+    # plus the `~/.ouroboros/config.yaml` runtime config `ooo setup
+    # --runtime zcode` manages. `codex_home` is accepted for signature
+    # compatibility with upstream's per-home callers and never specializes
+    # the result; `cli_observation` reuses a caller's CLI probe exactly as
+    # upstream's form does.
+    tool = (
+        dict(cli_observation)
+        if cli_observation is not None
+        else inspect_ouroboros_cli(repository, timeout_seconds)
+    )
+    tool["supported_range"] = ">=0.51.1,<0.54.0"
     tool["mcp_registration"] = ouroboros_mcp_registration(
         repository, tool["executable"]
     )
+    launcher = tool["mcp_registration"].get("launcher")
     # Ouroboros registers its skills with the host agent, so the component
     # whose health this integration adds on this host is the config
     # registration resolved above.
-    host_integration = {
+    tool["host_integration"] = {
         "status": tool["mcp_registration"]["status"],
         "probe": tool["mcp_registration"]["probe"],
     }
+    # The runtime-package axis mirrors upstream's: an isolated launcher pins
+    # the MCP package version it runs, a direct launcher selects the
+    # installed CLI, and any other shape leaves the package unverifiable.
+    tool["runtime_package"] = {"status": "unverifiable", "version": None}
+    if launcher == "isolated":
+        pinned = tool["mcp_registration"].get("pinned_version")
+        if pinned:
+            tool["runtime_package"] = {
+                "status": "pinned" if pinned == tool.get("version") else "different",
+                "version": pinned,
+            }
+    elif launcher == "direct":
+        tool["runtime_package"] = {
+            "status": "selected_cli",
+            "version": tool.get("version"),
+        }
 
     if not tool["installed"]:
         tool["version_supported"] = False
@@ -645,25 +804,6 @@ def inspect_ouroboros(repository: Path, timeout_seconds: float) -> dict[str, Any
             "probe": skipped_probe("executable_missing"),
         }
         return tool
-
-    version_raw = run_command(
-        [tool["executable"], "--version"], repository, timeout_seconds
-    )
-    tool["version"] = ouroboros_version_from_output(
-        f"{version_raw.get('stdout', '')}\n{version_raw.get('stderr', '')}"
-    )
-    tool["version_supported"] = version_raw["ok"] and supported_ouroboros_version(
-        tool["version"]
-    )
-    tool["probes"]["version"] = {
-        key: version_raw[key] for key in ("attempted", "ok", "exit_code", "timed_out")
-    }
-
-    # `ooo codex doctor` verifies another host's routing artifacts and the
-    # `ooo zcode` group ships no doctor command. The config registration
-    # resolved above is the host-integration signal here, so it is recorded
-    # rather than reprobed.
-    tool["host_integration"] = host_integration
 
     launcher = tool["mcp_registration"].get("launcher")
     if launcher == "isolated":
@@ -764,6 +904,111 @@ def inspect_im_not_ai() -> dict[str, Any]:
             "failed_mcp_scope",
             "codex_version_from_output",
             "effective_codex_skill_root",
+        ],
+    },
+    # v0.1.15 adds a user-global diagnosis skill that reuses the project
+    # inspector across file boundaries. Its global MCP view calls the
+    # codex-CLI probe functions the plan above deletes from that inspector,
+    # so it is restated on the config-file scopes the inspector exposes.
+    "skills/dev-setup-global/scripts/inspect_global_tools.py": {
+        "replace": {
+            "inspect_global_mcp": r'''def inspect_global_mcp(
+    inspector: Any,
+    name: str,
+    executable: str | None,
+    root: Path,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    # ZCode has no `mcp` CLI to probe; the user-global registration is the
+    # `mcp.servers` entry of `~/.zcode/cli/config.json`, which the project
+    # inspector reads directly. Reading from the filesystem-root cwd keeps
+    # any repository `.zcode/config.json` out of the global view, mirroring
+    # the neutral-cwd probe upstream runs through its host CLI.
+    neutral_cwd = Path(root.anchor)
+    reading = inspector.zcode_mcp_entries(name, neutral_cwd)
+    if reading["invalid_config"]:
+        return {
+            "status": "degraded",
+            "reason": f"{reading['invalid_config']}_config_invalid_json",
+        }
+    return inspector.zcode_mcp_scope_status(reading["scopes"]["user"], executable)
+''',
+        },
+    },
+    # v0.1.15 inspects Ouroboros per Codex home: discover `~/.codex*` homes,
+    # probe each through the codex CLI, and bind registrations to a home.
+    # This host has one integration surface — the user-global config
+    # registration and the ZCode skill root — so the home machinery is
+    # restated as a single integration row, and `legacy_skills` becomes the
+    # shared-root inventory: on this host `~/.agents/skills` is the
+    # canonical Ouroboros skill target, not a legacy location.
+    "skills/dev-setup-global/scripts/inspect_ouroboros.py": {
+        "replace": {
+            "inspect_ouroboros": r'''def inspect_ouroboros(
+    inspector: Any,
+    cwd: Path,
+    timeout: float,
+    explicit_homes: tuple[str, ...] = (),
+    verify_release: bool = False,
+) -> dict[str, Any]:
+    # ZCode has one Ouroboros integration surface: the user-global
+    # `mcp.servers` entry of `~/.zcode/cli/config.json` and the
+    # `~/.ouroboros/config.yaml` runtime config `ooo setup --runtime zcode`
+    # manages. Upstream's per-Codex-home rules and skills have no ZCode
+    # equivalent, so the discovered-home rows collapse into the single
+    # registration the project inspector resolves. Explicitly supplied
+    # extra homes name that other host's layout; they are reported as not
+    # applicable rather than silently filtered.
+    cli = inspector.inspect_ouroboros_cli(cwd, timeout)
+    integration = inspector.inspect_ouroboros(cwd, timeout)
+    assets = packaged_assets(inspector, cli, cwd, timeout)
+    freshness = (
+        release_freshness(inspector, cli, timeout)
+        if verify_release
+        else {"status": "not_checked", "source": PYPI_URL}
+    )
+    return {
+        "status": "missing" if not cli["installed"] else integration["status"],
+        "supported_range": SUPPORTED_RANGE,
+        "cli": {
+            **{
+                key: cli[key]
+                for key in ("installed", "executable", "version", "version_supported")
+            },
+            "status": "missing"
+            if not cli["installed"]
+            else "installed"
+            if cli["version_supported"]
+            else "degraded",
+            "version_probe": cli["probes"]["version"],
+        },
+        "integration": {
+            key: integration[key]
+            for key in (
+                "host_integration",
+                "mcp_registration",
+                "mcp_runtime",
+                "runtime_package",
+            )
+        },
+        "extra_homes": {
+            "status": "not_applicable",
+            "reason": "no_per_home_integration_on_zcode",
+            "requested": list(explicit_homes),
+        },
+        "freshness": freshness,
+        "shared_root_skills": legacy_skills(assets),
+    }
+''',
+        },
+        "delete": [
+            "discover_homes",
+            "inspect_home",
+            "unavailable_home",
+            "inspect_artifacts",
+            "artifact_targets",
+            "artifact_paths",
+            "directory_entries",
         ],
     },
 }
@@ -871,6 +1116,8 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
     ("skills/dev-setup/scripts/inspect_tools.py", '"host_integration"'),
     ("skills/dev-setup/scripts/inspect_tools.py", "doctor_checks_failed"),
     ("skills/dev-setup/scripts/inspect_tools.py", "effective_writing_skill_root"),
+    ("skills/dev-setup/scripts/inspect_tools.py", '"runtime_package"'),
+    ("skills/dev-setup/scripts/inspect_tools.py", '"pinned_version"'),
     # The test-setup inspector ships host-neutral from upstream; this marker
     # guards that it arrives whole rather than transformed away.
     (
@@ -899,35 +1146,77 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
         "skills/release-qa/scripts/manage_release_qa.py",
         "aquarium-release-qa-full-pass/v1",
     ),
-    # v0.1.14 adds the Dolgorae release verifier and the aquarium-dev
-    # channel scripts; each ships host-neutral from upstream, so the same
-    # arrival guard applies to every one of them.
+    # v0.1.14 adds the Dolgorae release verifier; v0.1.15 moves it beside
+    # the new global inspector. Each ships host-neutral from upstream, so
+    # the same arrival guard applies.
     (
-        "skills/dev-setup/scripts/verify_dolgorae_release.py",
+        "skills/dev-setup-global/scripts/verify_dolgorae_release.py",
         "aquarium-dolgorae-release-verification.v1",
     ),
+    # v0.1.15 replaces the aquarium-dev skill with a bundled CLI + MCP
+    # package under `tools/aquarium-dev`; the channel scripts ship
+    # host-neutral from upstream, so the arrival guards move with them.
     (
-        "skills/aquarium-dev/scripts/aquarium_dev.py",
+        "tools/aquarium-dev/aquarium_dev.py",
         "aquarium-dev-manager-result/v1",
     ),
     (
-        "skills/aquarium-dev/scripts/aquarium_dev_launcher.py",
+        "tools/aquarium-dev/aquarium_dev_launcher.py",
         "aquarium-dev-artifact-manifest/v2",
     ),
     (
-        "skills/aquarium-dev/scripts/build_aquarium_artifact.py",
+        "tools/aquarium-dev/build_aquarium_artifact.py",
         "aquarium-dev-producer-description/v1",
     ),
     (
-        "skills/aquarium-dev/scripts/dev_contract.py",
+        "tools/aquarium-dev/dev_contract.py",
         "aquarium-dev-producer-description/v1",
     ),
     (
-        "skills/aquarium-dev/scripts/dev_manager.py",
+        "tools/aquarium-dev/dev_manager.py",
         "aquarium-dev-enrollment/v1",
+    ),
+    (
+        "tools/aquarium-dev/runtime_entry.py",
+        "aquarium-dev-runtime/v1",
+    ),
+    # The runtime entry binds the bundled package to the plugin's own
+    # manifest, which is the ZCode one in the generated tree; this marker
+    # guards the substitution that retargets it.
+    (
+        "tools/aquarium-dev/runtime_entry.py",
+        '".zcode-plugin/plugin.json"',
+    ),
+    (
+        "tools/aquarium-dev/install.py",
+        "aquarium-dev-runtime-inspection/v1",
+    ),
+    (
+        "tools/aquarium-dev/mcp_server.py",
+        "Manage the Aquarium development channel",
+    ),
+    # v0.1.15's user-global inspector ships one host-neutral entrypoint and
+    # the two restated ZCode views the surgery plans above produce.
+    (
+        "skills/dev-setup-global/scripts/inspect_global_tools.py",
+        "aquarium-dev-setup-global-inspection.v3",
+    ),
+    (
+        "skills/dev-setup-global/scripts/inspect_global_tools.py",
+        "zcode_mcp_entries",
+    ),
+    (
+        "skills/dev-setup-global/scripts/inspect_ouroboros.py",
+        "no_per_home_integration_on_zcode",
     ),
     ("hooks/task_commit_gate.py", "/aquarium:task-commit"),
     ("hooks/hooks.json", "${ZCODE_PLUGIN_ROOT}"),
+    # v0.1.15 registers the aquarium-dev MCP server through a root
+    # `.mcp.json`; `write_mcp_manifest` derives the ZCode form, and these
+    # markers guard the schema conversion and the template rooting.
+    (".mcp.json", '"mcpServers"'),
+    (".mcp.json", "${ZCODE_PLUGIN_ROOT}/tools/aquarium-dev/mcp-launcher"),
+    (".mcp.json", '"timeoutMs": 3600000'),
 )
 
 # Strings that must not survive into the generated tree, scanned across the
@@ -1324,7 +1613,12 @@ def write_plugin_manifest(destination: Path) -> None:
     `.zcode-plugin/plugin.json`, the first name ZCode probes. Only fields
     ZCode documents are emitted; the Codex `interface` block and `repository`
     are dropped rather than reported as diagnostics — display metadata lives
-    in the root `marketplace.json` entry instead.
+    in the root `marketplace.json` entry instead. Upstream v0.1.15 also
+    points its manifest at the MCP file through a `mcpServers` path; that
+    key is deliberately absent here because ZCode auto-loads a root
+    `.mcp.json` directly, and its documented manifest forms are a directory,
+    an array, or inline objects — not a file path. `write_mcp_manifest`
+    owns the derived file.
     """
     codex = upstream_manifest()
     author = codex.get("author")
@@ -1342,6 +1636,65 @@ def write_plugin_manifest(destination: Path) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "plugin.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+
+
+def write_mcp_manifest(destination: Path) -> None:
+    """Derive the ZCode plugin MCP manifest from the upstream Codex one.
+
+    Upstream v0.1.15 registers the bundled `aquarium-dev` MCP server in a
+    root `.mcp.json` using the Codex host's field names. ZCode auto-loads
+    the same filename from the plugin root but reads a different schema —
+    a top-level `mcpServers` object with stdio `command`/`args`/`cwd`/
+    `env`/`timeoutMs` — and drops a server outright when it carries an
+    unknown key, so the fields are converted rather than copied. Plugin
+    MCP is also the one scope where ZCode expands `${...}` templates, and
+    `${ZCODE_PLUGIN_ROOT}` is the same anchor the hooks contract uses, so
+    the launcher command and cwd are rooted there instead of a relative
+    path the host may not resolve.
+    """
+    source = UPSTREAM_PLUGIN / ".mcp.json"
+    if not source.is_file():
+        raise SyncError(
+            "upstream no longer ships a root .mcp.json; re-derive the ZCode "
+            "MCP manifest conversion"
+        )
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    servers = payload.get("mcp_servers")
+    if not isinstance(servers, dict) or not servers:
+        raise SyncError(
+            "upstream .mcp.json carries no `mcp_servers` object; re-derive "
+            "the ZCode MCP manifest conversion"
+        )
+    converted: dict[str, Any] = {}
+    for name, entry in sorted(servers.items()):
+        if not isinstance(entry, dict):
+            raise SyncError(f"upstream .mcp.json server `{name}` is not an object")
+        unknown = sorted(set(entry) - {"command", "args", "cwd", "tool_timeout_sec"})
+        if unknown:
+            raise SyncError(
+                f"upstream .mcp.json server `{name}` carries fields this "
+                "conversion does not handle: " + ", ".join(unknown)
+            )
+        command = entry["command"]
+        if not isinstance(command, str) or not command.startswith("./"):
+            raise SyncError(
+                f"upstream .mcp.json server `{name}` command is not a "
+                "plugin-relative `./` path; re-derive the conversion"
+            )
+        zcode_entry: dict[str, Any] = {
+            "type": "stdio",
+            "command": "${ZCODE_PLUGIN_ROOT}/" + command[2:],
+            "args": entry.get("args", []),
+        }
+        if "cwd" in entry:
+            zcode_entry["cwd"] = "${ZCODE_PLUGIN_ROOT}"
+        if "tool_timeout_sec" in entry:
+            zcode_entry["timeoutMs"] = entry["tool_timeout_sec"] * 1000
+        converted[name] = zcode_entry
+    (destination / ".mcp.json").write_text(
+        json.dumps({"mcpServers": converted}, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
     )
 
 
@@ -1426,6 +1779,7 @@ def generate(staged_root: Path) -> tuple[str, list[str], list[str]]:
     tune_skill_descriptions(plugin)
     transform_skills(plugin)
     write_plugin_manifest(plugin)
+    write_mcp_manifest(plugin)
     validated_exemptions = validate_codex_exemptions(plugin, codex_exemptions)
     check_forbidden(plugin, validated_exemptions)
     check_sigils(plugin)

@@ -52,7 +52,9 @@ Reject `confirmation` as `INCOMPLETE` if that exact reconciliation, the manifest
 
 In `full` mode, follow every section below and explore the complete Design Gate and release-delta matrices. In `confirmation` mode, do not rebuild or broaden those matrices. Preserve the project-derived cluster boundaries and scenario inventory from the frozen previous full-pass matrix, and dispatch fresh workers for every retained cluster.
 
-Do not admit confirmation from prose or a hand-copied manifest. Resolve this skill's directory and run `scripts/manage_release_qa.py begin-confirmation --input <begin.json>` before dispatch. The helper validates the canonical record and manifest, Git ancestry, exact clean local-main candidate, physical evidence roots, and atomically claims the sole attempt. Any nonzero result is `INCOMPLETE` and starts no worker.
+Do not admit confirmation from prose or a hand-copied manifest. Resolve this skill's directory and run `scripts/manage_release_qa.py begin-confirmation --input <begin.json>` before dispatch. The helper validates the canonical record and manifest, Git ancestry, exact clean local-main candidate, physical evidence roots, and atomically creates the sole claim. Preserve the returned claim path and digest; `finish-confirmation` requires both.
+
+Before a settlement admission exists, an identical repeated begin verifies the existing artifact and returns the same successful claim receipt for recovery without replacing it. Once an admission exists, begin fails with `confirmation_already_started` so it cannot authorize another worker dispatch. A conflicting claim is invalid. Any nonzero result is `INCOMPLETE` and starts no worker.
 
 For each cluster, rerun every retained scenario and every verified finding reproduction. Require every remediation-changed surface to map to at least one retained scenario or finding reproduction, and return `INCOMPLETE` when that mapping or its evidence is missing because confirmation cannot add new coverage.
 
@@ -90,7 +92,15 @@ Map every commit and material changed surface to one or more release-delta scena
 
 Give every user-visible or operationally risky change at least one executable scenario. Static inspection is sufficient only when the changed contract has no executable behavior. Record exclusions with exact evidence instead of silently sampling them away.
 
-When release notes are enrolled, map every changelog entry to the exact delta surface it describes and every material user-visible, compatibility, security, privacy, or operational delta to one concise entry. Confirm that intentional omissions are actually internal-only, completed release text is unchanged, and the open section contains no claim outside the candidate delta.
+When release notes are enrolled, apply the shared release-notes settlement criteria whether invoked directly or by release-handler. Map every open-section entry to the exact delta surfaces it describes and every material final user-visible, compatibility, security, privacy, or operational outcome to a concise entry.
+
+Several commits may map to one entry; entry order need not follow commit order. Keep every commit and material changed surface in the release-delta matrix even when its note is merged or omitted.
+
+Verify that omissions are supported by evidence: the change is internal-only, or it was superseded or fully reverted within this cycle with no remaining independent shipped outcome. Check final behavior against the previous release, or the current public surface for a confirmed first release.
+
+Preserve required user actions and all material remaining impacts. Confirm that completed release sections are byte-identical to the baseline and the open section contains no stale intermediate claim or claim outside the candidate delta.
+
+Report incorrect shipped claims, material omissions, lost required user actions, or changes to completed release text as findings. Suggest consolidation for redundant entries that remain accurate without making wording or ordering preferences findings. The structural inspector does not establish semantic correctness.
 
 Do not edit the changelog during QA. A substantive note edit after `PASS` creates a new candidate; only the enclosing release workflow may later change the open heading to the publication date without changing entry bytes.
 
@@ -129,9 +139,23 @@ In `full` mode, store beneath the retained evidence root and return an authorita
 
 Before reporting the full verdict or applying remediation, run `scripts/manage_release_qa.py freeze-full --input <full-pass.json> --output <evidence-root>/confirmation-record.json`. The input supplies every worker result, the exact ordered commit matrix, every changed-path surface mapping, and Design Gate state.
 
-A nonzero result makes the pass `INCOMPLETE`; never reconstruct the record after remediation. The helper computes `INCOMPLETE` before `FINDINGS` before `PASS`, writes the canonical `aquarium-release-qa-confirmation-record/v1` atomically with private permissions, and freezes even a complete `FINDINGS` pass.
+A nonzero result makes the pass `INCOMPLETE`; never reconstruct the record after remediation. The helper computes `INCOMPLETE` before `FINDINGS` before `PASS`, writes the create-once canonical `aquarium-release-qa-confirmation-record/v2` with private permissions, and freezes even a complete `FINDINGS` pass.
 
-After an admitted confirmation finishes, run `scripts/manage_release_qa.py finish-confirmation --input <finish.json> --output <confirmation-root>/confirmation-result.json`. It requires every retained cluster and scenario exactly once with no extras, all finding reproductions, fresh in-root evidence, the unchanged clean candidate, and the matching attempt claim. Its `aquarium-release-qa-confirmation-result/v1` verdict is authoritative; a nonzero result or any missing evidence is `INCOMPLETE`.
+After an admitted confirmation finishes, run `scripts/manage_release_qa.py finish-confirmation --input <finish.json> --output <confirmation-root>/confirmation-result.json`.
+
+It authenticates the matching claim path and digest before consuming the attempt, then creates one claim-keyed `aquarium-release-qa-confirmation-settlement-admission/v1` artifact that freezes the canonical finish request and submitted evidence digests. Validation reads each cluster once, verifies that byte sequence against the admission, and uses those verified bytes to compute the terminal verdict.
+
+It requires every retained cluster and stable scenario ID exactly once with no extras, independent of scenario array order, plus each exact frozen finding-to-scenario pair, fresh in-root evidence, and the unchanged clean candidate.
+
+Physical output normalization resolves the parent once, rejects empty, dot, and parent-directory basenames, applies a 240-byte limit to the terminal basename, and reserves the admission filename without case sensitivity so the terminal path cannot alias its admission artifact.
+
+The admission converges on one create-once `aquarium-release-qa-confirmation-result/v2` terminal record with `PASS`, `FINDINGS`, `INCOMPLETE`, or `REJECTED`. A rejected admitted submission consumes the claim. A changed request or divergent concurrent contender receives `settlement_pending` while the admitted request has no terminal record and `settlement_replay` after settlement; neither can replace the admission or terminal record.
+
+An exact retry must reuse the admitted `--output`. For a terminal result without a diagnostic, it verifies the retained admitted evidence and independently derives the clusters and verdict before returning the result as-is. Changed or missing evidence, or a result that differs from those derived values, returns `result_invalid` without replacing the admission or terminal record. Diagnostic terminal results preserve the recorded rejection or evidence-change outcome. Before a terminal exists, an exact retry may resume an interrupted settlement only while every admitted evidence byte remains unchanged and its freshly derived snapshot still matches the admission; unavailable or changed bytes settle as `INCOMPLETE`, while a fresh snapshot that conflicts with the canonical admission settles as `REJECTED`.
+
+A non-canonical admission fails without creating a terminal record. A canonical admission with a malformed snapshot shape settles as `REJECTED`; that terminal requires a new full release QA pass. An unexpected transient helper failure leaves the admission pending for the same exact retry instead of persisting a terminal `REJECTED` result.
+
+A malformed request that cannot authenticate the exact claim is rejected before admission. Any nonzero helper result is `INCOMPLETE` for the release workflow even when its immutable terminal record says `REJECTED`.
 
 Return the intended version, previous release or confirmed first-release state, candidate SHA, commit range, Design Gate enrollment state, active-gate matrix, commit-to-scenario release-delta matrix, authoritative frozen confirmation record, scenario commands and outcomes, source-repository status, retained `/tmp` evidence root, verified findings, and evidence gaps.
 

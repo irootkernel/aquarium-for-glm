@@ -1,237 +1,78 @@
 ---
 name: dev-setup
-description: "Diagnose and configure Aquarium repository tooling, paired skills, MCP registrations, and the evidence-based AGENTS.md operating contract. Use when the user invokes /aquarium:dev-setup or asks to install, initialize, repair, or audit supported tools; routine Procedure v2 session lifecycle belongs to /use-podway."
+description: "Diagnose and configure Aquarium repository-local tooling and root agent guidance. Use when the user invokes /aquarium:dev-setup or asks to initialize, repair, or audit project configuration such as .podway, .mulgae, .gaori, Sorage binding, project MCP, AGENTS.md, or CLAUDE.md. Use /aquarium:dev-setup-global for user-global installation or updates."
 ---
 
-# Development Setup
+# Repository Development Setup
 
-Configure selected development tools and evidence-based repository operating guidance without inventing shared project state or silently rewriting instruction files. Treat diagnosis, installation, native configuration, and root AGENTS.md/CLAUDE.md editing as distinct authority boundaries.
+Diagnose the repository first, propose only changes supported by repository evidence, and leave user-global installation and updates to `/aquarium:dev-setup-global`.
 
-Read [podway-integration.md](../../references/podway-integration.md) only when the user explicitly selects Podway diagnosis or setup. Managed Aquarium Procedures or other repository state never select Podway by themselves.
+This skill owns root AGENTS.md and CLAUDE.md guidance. A general setup always reviews the complete guidance against the standard structure and behavior, then proposes a full reorganization where needed. `/aquarium:docs-setup` owns documentation structure and roadmap identity.
 
-Do not use this skill to observe, cancel, discard, or reset a routine supported Procedure v2 current session, or to plan or apply a workspace runtime-mode move. Return an exact standalone `/use-podway` lifecycle request naming the repository, operation, and any session ID or target mode supplied by the caller instead. Keep installation, daemon, workspace readiness, managed-Procedure changes, and `LEGACY_PROCEDURE_STATE_UNSUPPORTED` recovery in this skill; the legacy `podway reset --all` path is a setup-recovery exception, not normal session cleanup.
+Read [podway-integration.md](../../references/podway-integration.md) only when Podway is selected by the request, repository guidance, or an Aquarium readiness requirement. Read the applicable sections of [the shared tool catalog](../../references/tool-catalog.md) for every repository component in scope. Read [agents-guidance.md](references/agents-guidance.md) whenever root operating guidance is in scope.
 
-## Establish the Repository
+Do not use this skill for routine supported Procedure v2 observation, cancellation, discard, reset, or workspace runtime-mode moves. Route those operations to `/use-podway`. Keep repository initialization, managed Procedure readiness, product-rename migration, and `LEGACY_PROCEDURE_STATE_UNSUPPORTED` recovery here.
 
-1. Resolve the requested working directory to one Git root.
-2. Read applicable instruction files and inspect the branch, upstream, staged, unstaged, and untracked state.
-3. Resolve this skill's directory (the directory containing this `SKILL.md`) and, when `python3` is available, run `python3 <skill-directory>/scripts/inspect_tools.py --repository <git-root>`. This default inspection omits Podway and Ouroboros completely and keeps an absent optional Mulgae MCP registration non-gating.
-   When the current request explicitly selects Dolgorae, add `--verify-dolgorae-release`; when it selects Podway, add `--include-podway`; when it selects Ouroboros, add `--include-ouroboros`; when it selects Mulgae MCP in either scope, add `--require-mulgae-mcp`. Rerun with the applicable flag when a component is selected later through ask/answer. Read the JSON as local diagnostic evidence, not as installation or mutation authority.
+## Establish Scope From Evidence
 
-   When Aquarium production-binary readiness is in scope, include Podway, add `--verify-dolgorae-release`, and require supported global binaries for Podway, Mulgae, Gaori, and Dolgorae. A missing required binary is fail-closed readiness and must produce the exact tool-scoped setup proposal; it is never waived by an Aquarium development artifact. Sanho is explicitly excluded from this required binary baseline and remains optional.
-4. If `python3` is unavailable or the inspection script fails, report that gap and perform the same read-only discovery manually. Do not install Python as part of fallback diagnosis.
-5. Discover existing root instruction files, project authorities, tool guidance, commit-message rules, verification commands, and non-secret environment variable names from repository files before asking questions.
-   Never read credential values in this skill, even after setup approval. Do not open `.env*`, authentication, key, token, secret, or credential files. Use only non-secret documentation and templates proven to contain placeholders, plus redacted readiness from the owning CLI. When a check would require credential values, report the gap. Defer network contact or file changes to a separately authorized step except for the exact selected-skill freshness comparison authorized below.
-6. Do not create or read `.aquarium` or any equivalent central selection file. `/aquarium:dev-setup-bundle` may separately normalize an explicit external manifest, but this skill receives only its bounded normalized handoff and never the manifest path or contents.
+1. Resolve the requested working directory to one Git root and inspect applicable instructions, branch, upstream, staged, unstaged, untracked, and conflict state.
+2. Resolve this skill's directory and run `python3 <skill-directory>/scripts/inspect_tools.py --repository <git-root>`, adding only the flags required for repository components selected by explicit request, repository files or guidance, or an Aquarium readiness contract. Add `--include-podway` for Podway readiness, `--include-sorage` for the disclosed Sorage readiness diagnostic, and `--require-mulgae-mcp` when repository authority requires Mulgae MCP readiness to affect status.
+3. Select only evidenced repository components: Sanho workspace state; Mulgae Config v3, local configuration, bootstrap or refresh, and project MCP; Gaori repository config, active rules, ignore policy, and project MCP; Sorage Project binding and `.sorage/` ignore or tracking safety; Podway workspace, managed Procedures, migrations, and legacy recovery; and root AGENTS.md and CLAUDE.md operating guidance.
+4. Treat an absent optional tool component with no repository evidence as out of scope, not missing. An explicit component request adds that component to scope. General setup includes root guidance even when the files are absent. A request limited to a tool or a scoped continuation stays within that component and its direct prerequisites; it does not add a full guidance review. Honor explicit guidance exclusions, including bundle `agents_guidance: skip`.
+5. Never ask the user to choose `Install and configure`, `Diagnose only`, or `Skip`, and never ask whether to `Show proposal`, `Diagnose only`, or `Skip`. Diagnosis is automatic. For tool configuration, report no change when ready and otherwise prepare the smallest exact proposal. For guidance, follow the whole-file review below.
 
-## Use Ask/Answer for Decisions
+If Python is unavailable or inspection fails, report the gap and perform the same read-only discovery manually. Do not install Python as a side effect.
 
-Use the host's structured ask/answer tool, normally `AskUserQuestion`, whenever it is available.
+Never read credential values or open `.env*`, authentication, key, token, secret, or credential files. Use repository authorities, safe placeholders, and redacted native readiness only. Do not create or read `.aquarium` or another central selection file.
 
-- Ask one to three short questions per call with two or three meaningful, mutually exclusive choices.
-- Put the recommended choice first and label it recommended.
-- Do not simulate a multiple-choice UI in prose.
-- Use direct text only for an identifier that cannot be discovered or represented by choices, such as an unknown private documentation repository URL.
-- If ask/answer is unavailable, ask one concise approval question at a time. Never infer approval from silence or from approval of a different setup action.
+## Trust Canonical Global Installations
 
-After read-only discovery, use these batches and component boundaries:
+This skill may inspect an owning global executable only through the bounded version, compatibility, and readiness probes required to diagnose a selected repository component. For a canonical user-global skill path under `~/.agents/skills`, check only whether the path exists. Do not read its files, validate frontmatter, follow or reject symlinks, hash content, enumerate duplicates, contact upstream, or ask about installation or freshness.
 
-- Ask about Sanho, Dolgorae, Mulgae, and Gaori first, then Podway, Ouroboros, Lora, upstream Deslop, Humanizer, im-not-ai, and whether to prepare a repository operating-guidance proposal rooted in AGENTS.md.
-- For each tool offer `Install and configure`, `Diagnose only`, and `Skip`, adapting the wording to current state.
-- For Dolgorae, recommend the newest verified official stable v0.1.x CLI at or above v0.1.1 while reporting release identity, executable checksum, platform, version envelope, capabilities, and review admission independently. Dolgorae has no Aquarium paired skill or MCP registration.
-- For Sanho, Mulgae, Gaori, and Podway, recommend installing or upgrading the CLI and paired skill while reporting each component independently.
-- For Ouroboros, report the CLI, installed user-scoped skills, MCP registration, and runtime readiness independently.
-- For every paired or third-party skill, reject any symlink from the configured skill root through the required files before reading or hashing it. For Lora, Deslop, Humanizer, and im-not-ai, report every discovered user-global installation, frontmatter validity, duplicate or symlink state, and upstream freshness independently.
+Existence here means the repository workflow may use the global skill. Exact tree safety, provenance, duplicate detection, exact-upstream compatibility, and freshness belong exclusively to `/aquarium:dev-setup-global`.
 
-Disclose in the Dolgorae selection choice that either affirmative selection automatically contacts its official GitHub Releases metadata endpoint to resolve and verify one supported stable release. This metadata lookup needs no separate approval and authorizes no archive download or installation. Disclose separately in the Sanho, Mulgae, Gaori, and Podway choices that either affirmative selection also downloads four public skill files from `raw.githubusercontent.com` for paired-skill comparison.
+Stop the dependent proposal when a required global executable or canonical skill path is absent, the owning CLI reports an incompatible runtime, a required user-global MCP registration is missing or degraded, a required user-global service such as the Podway daemon is unavailable or not ready, or selected Sorage diagnosis reports `initialization_required` or `not_initialized`.
 
-When Mulgae or Gaori is selected, inspect its active user-global registration in `~/.zcode/cli/config.json` and any project-local registration in the repository's `.zcode/config.json` independently. If neither is configured, offer `Configure global MCP` (recommended), `Configure project MCP`, and `Skip`. If a project-local registration exists, ask whether it is intentional; preserve it only when the user confirms local scope, because a project entry overrides the user-global entry of the same name. Otherwise propose removal of only that named local registration. Never infer local intent from the presence of `.zcode/config.json` or another local MCP entry.
+Return an exact continuation naming `/aquarium:dev-setup-global`, the missing, incompatible, degraded, or uninitialized global component, the canonical Git root and requesting workflow, the bounded observed reason code, and the exact repository request to resume after global repair.
 
-A `dev-setup-bundle` handoff is a preselected multi-tool setup request, not a scoped repair continuation. Require the requesting skill, manifest digest, target index, canonical Git root, effective tools, explicit local MCP overrides, and repository-guidance policy.
+Do not offer to install, upgrade, replace, or compare global state from this skill.
 
-Reinspect that repository, use the normalized tools as `Install and configure` selections, use explicit local MCP overrides and repository-guidance values as their preselected choices, and retain every exact mutation, backup, approval, and stale-target boundary below. Treat selected Mulgae or Gaori MCP as user-global by default and use an override only for its named target.
+## Respect Host Mode
 
-Reject a handoff that includes an unsupported tool, selects a local MCP override outside Mulgae or Gaori, selects an override for an absent effective tool, or asks this skill to read the manifest.
+In Plan Mode, run every non-mutating repository diagnostic available and return exact proposed repository diffs or actions only for verified gaps. Never mutate files or native state. A diagnostic such as Sorage Project resolution that may open and migrate local state is deferred as an execution-phase prerequisite and must not become a question merely because it cannot run in Plan Mode.
 
-When another Aquarium skill routes a continuation request, treat it as scoped intake: the request must name the requesting skill, repository, exact failing tool or check, and evidence gap. Reject a handoff whose only requested action is routine supported Procedure v2 session observation, cancellation, discard, or reset, and return the exact `/use-podway` lifecycle request without starting broad setup discovery.
+Outside Plan Mode, use the same automatic discovery. Before each persistent action, show the exact command or complete diff, target paths, side effects, preserved state, verification, and backup policy when replacement or removal is involved. Establish `Choose a Backup Policy for Existing State` from the shared catalog before the first action-specific approval for an overwrite or removal, then obtain the action-specific approval required by the host. Re-read every target immediately before an approved mutation and invalidate stale approval.
 
-Otherwise keep the read-only discovery above, then ask only about the named tool and anything its repair requires, including explicitly requested Podway readiness repair or managed-Procedure removal. Skip the remaining batches and the repository-guidance question unless the user asks for it, and end by reporting the resolved gap and the exact prompt that resumes the routing workflow.
+An explicit diagnosis-only request suppresses mutation proposals. A scoped continuation inspects only the named repository component and its direct prerequisites.
 
-Read [tool-catalog.md](references/tool-catalog.md) for every tool selected for diagnosis or setup.
+## Configure Repository Components
 
-A selection expresses intent and authorizes only the disclosed bounded metadata lookup for Dolgorae or selected-skill freshness comparison for Sanho, Mulgae, Gaori, or Podway. It does not authorize an archive download, a command that writes persistent files, installation, skill replacement, hook changes, provider contact, or user-global mutation.
+- Preserve the existing Sanho workspace, Mulgae, Gaori, Sorage, and Podway version, validity, approval, backup, and verification rules in the shared catalog, but apply only their repository-local portions.
+- Prefer global Mulgae and Gaori MCP registrations as prerequisites. Create, change, or remove a project-local registration in the repository's `.zcode/config.json` only when the user explicitly requested local scope or repository authority already requires it. Preserve unrelated ZCode configuration.
+- For Sorage, do not run doctor or Project resolution in Plan Mode because native open-and-migrate paths may write local database or journal state. Outside Plan Mode, disclose those bounded diagnostic side effects before the automatic selected-component diagnosis. Initialization remains global; Project add, bind, unarchive, and repository ignore changes remain local and separately approved.
+- For Podway, preserve custom same-ID Procedures that Podway validates, show exact canonical replacement diffs, and keep session lifecycle and runtime-mode changes outside setup. Managed-Procedure removal and legacy reset retain their destructive-action approvals.
+- Never stage, commit, push, authenticate a provider, transmit source, start a review or test, or invoke a workflow as part of setup.
 
-## Compare Selected Agent Skills First
+## Reconcile Repository Guidance
 
-Immediately after Sanho, Mulgae, Gaori, or Podway is selected as either `Install and configure` or `Diagnose only`, and before proposing any other network operation for that tool, compare its paired skill. Do not fetch or compare a skipped or not-yet-selected tool, and do not widen a scoped continuation to the other three tools.
+Review the complete AGENTS.md and CLAUDE.md during general setup or an explicit guidance request. Reuse verified repository facts while assessing structure, behavior, duplication, and project-specific constraints. An explicit diagnosis-only request reports findings without drafting a proposal.
 
-Within one confirmed `dev-setup-bundle` request, accept the bundle owner's already verified exact tag, complete source file set, digests, endpoint provenance, ephemeral payload, and installed-target digest snapshot for a selected tool instead of repeating the comparison for each repository. Revalidate the payload and target snapshot before an approved action, use it only for the matching tool, and preserve every cleanup and stale-approval rule below.
+When a change is needed:
 
-1. From the official GitHub Releases metadata, resolve the newest non-draft, non-prerelease tag within the tool's supported release line. For Sanho, Mulgae, and Gaori, fetch only `SKILL.md`, `references/lifecycle.md`, `references/authoring.md`, and `references/recovery.md`. For Podway, fetch only `SKILL.md`, `references/lifecycle.md`, `references/goal.md`, and `references/recovery.md`.
-   Fetch the selected set for that tag from the catalog's `raw.githubusercontent.com` source into an ephemeral temporary directory. `create-podway-procedure` is a separate maintainer authoring dependency and is never installed, compared, or required by this workflow.
-2. Before comparing, require all four regular files, compute their SHA-256 digests, and verify the expected `name: use-sanho`, `name: use-mulgae`, `name: use-gaori`, or `name: use-podway` frontmatter. Reject redirects or responses that resolve outside the disclosed official endpoints. Never execute fetched content.
-3. Compare the verified source against exactly `~/.agents/skills/<skill-name>` as complete directory trees. Treat missing expected files, different bytes, invalid frontmatter, symlinks, and any extra local files as differences. Other agent skill roots remain diagnostic evidence only; never update or remove another discovered copy through this automatic comparison.
-4. If the trees match exactly, report the source tag and `current` status without asking an update question. If the exact target is absent, first inspect the already discovered diagnostic roots. When another copy exists, report the duplicate risk and do not propose installation until the user separately chooses a removal or migration that leaves one canonical target; never create a known duplicate.
-   Otherwise show the exact target and ask separately whether to install it. If the target differs, show the source tag, the complete file-set diff including additions and deletions, and ask separately whether to replace it after establishing the backup policy. One skill target requires one explicit installation or replacement approval; approval for another tool does not apply.
-5. If metadata lookup, download, validation, or comparison fails, report `freshness_unverifiable` with the failed endpoint or validation stage, make no freshness claim, remove the temporary payload when possible, and continue any safe local diagnosis. Do not propose an installation or replacement from an unverified payload.
+1. Preserve the meaning of repository-specific rules, applicable stricter constraints, unrelated content, and tool-managed blocks. Resolve actual semantic conflicts with the user.
+2. Reorganize the full instruction body around the standard in `agents-guidance.md`, including its seven core behaviors and mandatory commit-message authority. Rewrite and consolidate common prose, move rules to their proper sections, and remove duplication; do not limit the proposal to small additions or preserve the old arrangement for its own sake.
+3. Include tool references only for evidenced repository integrations and canonical global skills that exist. Do not inspect those global skill contents.
+4. Show one complete combined AGENTS.md and CLAUDE.md diff.
+5. Apply only that exact diff under authorization that covers it and after a fresh target snapshot check. Use existing approval when it covers the displayed changes; otherwise obtain approval once.
 
-The automatic comparison authorizes only these selected-skill metadata and raw-file reads plus ephemeral payload preparation. CLI archives, checksums, package managers, repository remotes, providers, MCP processes, and every other network operation retain their normal disclosure and explicit approval requirements. Reuse the verified exact tag and payload for a later approved skill action instead of performing a second release lookup.
+When the full review establishes that both files already satisfy the standard in structure and meaning, report no change. Equivalent wording does not require a rewrite. Guidance approval never authorizes tool setup, staging, commit, or publication.
 
-If a selected tool's installed CLI, or Podway's CLI and daemon, does not match that tag, report the compatibility mismatch and keep each required runtime upgrade and skill replacement as separately approved actions; never create a mixed-version installation.
+## Bundle and Continuation Intake
 
-Immediately before an approved installation or replacement, re-read the exact target and require it to match the absence or complete digest snapshot used for the displayed proposal. If it changed, discard the approval, fetch and validate a fresh payload, regenerate the complete diff, and ask again. Clean up every ephemeral payload after an exact match, refusal, failure, or completed action.
+A `dev-setup-bundle` handoff must name the requesting skill, manifest digest, target index, canonical Git root, effective tools, explicit local MCP overrides, and repository-guidance policy. Accept the full effective tool list only as target intent: process repository components and guidance here, while the bundle owner sends the global union once to `/aquarium:dev-setup-global`.
 
-## Choose a Backup Policy for Existing State
+Reject unsupported tools, invalid local MCP overrides, or any request to read the manifest. Preserve per-target partial failure and return `ready`, `partial`, `failed`, `declined`, or `skipped` with an exact resumption request.
 
-When an approved setup plan will first overwrite or remove existing tool, skill, configuration, service, managed-Procedure, or runtime state, establish one backup policy for the current setup request. If the user already explicitly requested backups or no backups, adopt that choice without asking again. Otherwise offer `Create and verify backups` and `Proceed without backups`, recommending the backup choice. Do not ask about backups for diagnosis or a new installation that replaces nothing.
+## Report
 
-Keep the selected policy for later overwrite and removal proposals in the same setup request unless the user changes it. The policy does not authorize any mutation: continue to show and separately approve every exact replacement or removal. Never persist the choice in repository or user-global configuration.
-
-For the backup policy, show the exact backup path, commands, verification, and restoration procedure before approval, and stop before mutation if the selected backup cannot be verified. For the no-backup policy, state the exact existing paths or state that will be lost and the available recovery boundary.
-
-A published Git ref may allow a distributed skill or binary to be installed again, but it does not recover local modifications. Treat tracked state as recoverable only when it already exists in Git history, and disclose that private configuration, untracked files, and runtime history may be permanently lost.
-
-Preparing and validating an incoming payload in a temporary location is not a backup and remains required.
-
-## Propose Exact Setup Actions
-
-For each selected tool:
-
-1. For Dolgorae, reuse the exact release metadata from its automatic bounded lookup. For Sanho, Mulgae, Gaori, or Podway, reuse the exact version, source provenance, and verified payload from the automatic selected-skill comparison. Do not ask for a second lookup approval. For Lora, Deslop, Humanizer, im-not-ai, or any lookup outside those bounded comparisons, disclose the official repository and release- or commit-metadata endpoint and obtain explicit approval before resolving it; lookup approval authorizes no installation or other mutation.
-2. Show the exact resolved stable version and source provenance. If the automatic comparison was `freshness_unverifiable`, repeat the bounded comparison without separate approval before proposing a skill action, but obtain approval for any other lookup or download.
-3. Show the exact install and initialization commands, network endpoints, target paths, native files, ignore changes, expected side effects, and the active backup policy when existing state will be overwritten or removed.
-4. Identify existing state that will be preserved or lost and any command that might stage files or install hooks.
-5. Obtain separate explicit ask/answer approval for the displayed action.
-6. Execute only the approved action, stop on unexpected prompts or side effects, and verify with read-only commands.
-
-For Sanho, support only stable `v0.2.7` through `v0.2.x`. Resolve one exact tag and use it for both the CLI and `use-sanho` source. Keep CLI installation or upgrade, user-scoped skill installation or replacement, workspace initialization, and lifecycle repair as separate approval boundaries. A paired recommendation is not approval for both components. Treat missing, incomplete, invalid, and duplicate skill installations separately from CLI or workspace health.
-
-For Dolgorae, support official stable `v0.1.1` through `v0.1.x` on Apple Silicon. Resolve and verify the exact release dynamically from official GitHub metadata, reject prereleases and releases outside the range, and require a checked machine version and v0.1.1-compatible capabilities. The v0.1.1 baseline has archive SHA-256 `8870f7ea63239f6e7328fec568d70fab6f53a2221cdc083fe106e70dcbe089f2` and executable SHA-256 `cd6287e1603f934564d53dddc4e5639f503f2c4d2b86523b27ef829af72ded17`.
-
-Downloading the archive and installing its executable are separate approvals. Extract only the expected regular `README.txt` and `bin/dolgorae` entries into ephemeral storage, reject links and special files, then propose the exact absolute user target, normally `~/.local/bin/dolgorae`.
-
-Disclose that the Integration Preview is ad-hoc signed and not notarized, so Gatekeeper may require explicit local approval. Do not initialize a workspace, create a profile, authenticate, call a provider, transmit source, or start a review during setup.
-
-For Mulgae, support only stable `v0.1.18` through `v0.1.x` on native Apple Silicon macOS. Resolve one exact tag and use it for both the CLI and `use-mulgae` source. Require Go `1.26.6` or newer for installation, without treating an older Go toolchain as a runtime failure of an already healthy binary.
-
-Keep CLI installation or upgrade, user-scoped skill installation or replacement, project Config v3 and ignore changes, local bootstrap or refresh, provider credential-profile mapping, and global or project-local MCP configuration as separate approval boundaries. Treat missing, incomplete, invalid, and duplicate skill installations and missing MCP registration independently from CLI and configuration health.
-
-Report Mulgae CLI compatibility, Doctor v2 contract support, Config v3, local configuration, provider identity, configured readiness, role-route readiness, each configured provider's binary availability and CLI compatibility, and MCP registration separately. Do not expose static admission, heartbeat, historical review, or `review_qualified` as setup dimensions.
-
-Never authenticate a provider, inspect a prior run, or start a Mulgae heartbeat, review, qualification, preflight capture, live provider request, source transmission, or MCP server during setup. Doctor v2 may run only Mulgae's adapter-owned local version commands in its offline boundary.
-
-For Gaori, support only stable `v0.1.14` through `v0.1.x`. Resolve one exact tag and use it for both the CLI and `use-gaori` source. Keep CLI installation or upgrade, user-scoped skill installation or replacement, repository config and ignore changes, and global or project-local MCP configuration as separate approval boundaries. Treat missing, incomplete, invalid, and duplicate skill installations and missing MCP registration independently from CLI health. Never start a Gaori run or MCP test command during setup.
-
-Approval for one tool does not authorize another. Never use `sudo`, `--force`, destructive cleanup, credential extraction, provider invocation, source transmission, staging, committing, or pushing unless the user separately grants that exact authority.
-
-For Podway, support only stable `v0.2.8` through `v0.2.x` on native Apple Silicon macOS. Resolve one exact tag and use it for both binaries and the `use-podway` source. Treat a missing, incomplete, invalid, or duplicate skill independently from CLI and repository readiness.
-
-Keep release lookup, binary installation, user-scoped skill installation or replacement, LaunchAgent installation, repository initialization, managed-procedure installation or update, legacy-state recovery, and managed-Procedure removal as distinct proposed actions. None of these actions activates Podway for an Aquarium workflow.
-
-Verify the release checksum before installing both matching binaries, then install or refresh the per-user LaunchAgent using the approved absolute daemon path. Disclose that the release is unsigned and not notarized, runs as a same-user local service after GUI login, and stores runtime state in the worktree.
-
-If an installation is interrupted after Podway prepares authenticated service metadata, rerun the same approved `podway daemon install --daemon-path <absolute-podwayd-path>` command without a socket override. Do not edit service metadata or LaunchAgent files manually.
-
-Never convert or delete Procedure v1 state automatically. On `LEGACY_PROCEDURE_STATE_UNSUPPORTED`, report the exact worktree and stable error code, apply the current backup policy, and separately propose the confirmed `podway reset --all` recovery. Do not treat the inspection status `not_configured` as legacy Procedure state.
-
-Treat tracked `root-kernel-task-v2.yaml`, `root-kernel-goal-v2.yaml`, and `root-kernel-validation-v2.yaml` files as a product-rename migration, not as Procedure v1 runtime state. Report `migration_required`, require any active old session to reach an explicitly chosen terminal disposition first, then propose removal of the old managed files and installation of the corresponding `aquarium-*` files as separate approved actions. Never convert, cancel, reset, or delete runtime history as part of this migration.
-
-Use the v14 inspector's `migration_kinds.product_rename` only for the product rename. For each safe present managed file, require the expected filename and Procedure ID and use the selected Podway v0.2.8 binary's `procedure check --warnings-as-errors` and `procedure preview` results as the document-validity and identity authority. Report `canonical`, `valid_customization`, `invalid`, `missing`, `unsafe`, or `unverifiable`; never add an Aquarium compatibility schema for graph, item, prompt, bound, or route differences.
-
-Treat `update_explanation` values such as `prior_canonical` and `podway_v0.2.5_workaround` only as bounded explanations for an offered canonical update. They never form a validity, ownership, migration, or readiness class. A tracked same-ID `valid_customization` is configured when the other Podway readiness requirements pass.
-
-Aquarium Podway readiness configuration has four disclosed parts:
-
-- Install a missing or explicitly selected canonical copy from [the bundled procedure directory](../../assets/podway/procedures/) byte-for-byte to `.podway/procedures/`, then check its expected ID and validity with the selected Podway binary.
-- `podway init` also creates `.podway/config.yaml`, `.podway/.gitignore`, and ignored runtime state; show the exact proposed files and diff before approval.
-- When a valid managed Procedure differs, show the exact current-to-canonical diff and ask whether to preserve that local file or replace it with canonical bytes. Preservation writes no file or metadata. Replacement follows the selected backup policy, rechecks the exact target snapshot, and requires explicit approval for that one diff; never merge, normalize, or reformat it.
-- Treat partial installation as degraded readiness, not activation or legacy state.
-
-Do not create an ownership manifest, provenance registry, or central Aquarium state. Replacing a managed file never alters an active session's immutable Procedure snapshot.
-
-Managed-Procedure removal is a separate destructive proposal. Show the exact managed procedure files to remove, preserve `.podway/config.yaml`, runtime state, custom procedures, and every session, and obtain explicit approval. Do not reset, cancel, or delete any session as part of setup or removal.
-
-## Install Third-Party Skills From Exact Upstream Sources
-
-Aquarium does not bundle Lora, Lore, Deslop, Humanizer, or im-not-ai source. Read the selected catalog section, obtain approval for the disclosed GitHub lookup, resolve an exact upstream ref, and compare the complete installed target with a temporary detached checkout before proposing installation or replacement. Never install directly from a moving `main`, use a full commit SHA as an `npx skills` URL fragment, merge local and upstream files, or treat frontmatter validity as freshness proof.
-
-After lookup, disclose the exact command and temporary target and obtain separate approval before executing upstream code to materialize a comparison payload.
-
-For Lora, install only `lore-commits` and `lore-query` from the approved checkout through the catalog's local-source `npx skills add` command. After installation, compare the complete source and target file sets and every digest, rejecting extras and symlinks; structural inspector output alone never proves current source. Do not install `lore-setup`.
-
-For Deslop, install only `deslop` from the approved Cursor Team Kit checkout and preserve that checkout's upstream LICENSE beside the installed `SKILL.md`. Require byte-identical source files, `name: deslop`, one regular non-symlink installation, and no extra target files before reporting it current.
-
-Humanizer supports exactly `v2.11.1`, and im-not-ai supports exactly `v2.3.2`. Resolve each named release through official GitHub metadata and require the detached checkout `HEAD` to equal the resolved release commit.
-
-- Humanizer's complete payload is its root `SKILL.md` plus `LICENSE`, installed at `~/.agents/skills/humanizer`, the shared cross-agent skill root this host reads natively. Require `name: humanizer` and a v2 version matching the resolved tag.
-- Before materializing im-not-ai's installer payload, read the checked-out `install.sh` and require every write target to derive from the isolated temporary `CODEX_HOME` this workflow creates for it.
-  Disclose that exact `install.sh --codex-only --copy` command and temporary target and obtain separate execution approval, then run it without `--force`, add the checkout's root LICENSE, and compare that complete regular-file tree with the active ZCode skill target, `~/.agents/skills/humanize-korean`, before proposing it as a separately approved installation. Require `name: humanize-korean`; never run the installer against an active skill root.
-
-Do not invoke either writing skill, create a prose workspace, or rewrite repository documents during installation. Installation and repository guidance are independent choices. A structurally valid local tree remains `unverifiable` until it is compared byte-for-byte with the approved exact upstream payload.
-
-Keep source lookup, existing-target backup policy, installation or replacement, and the ZCode restart as separate disclosed boundaries. A scoped continuation from `task-handler` or `task-refine` selects only Deslop; after successful installation, return the exact repository, roadmap, and task prompt needed to resume the caller.
-
-## Configure Ouroboros With Separate Approvals
-
-Support only Ouroboros `>=0.51.1,<0.52.0`. Read [tool-catalog.md](references/tool-catalog.md), then diagnose with `--include-ouroboros`. Keep these four states independent: the `ooo` CLI and version, installed user-scoped Ouroboros skills, Ouroboros MCP runtime configuration, and effective MCP registration in `~/.zcode/cli/config.json`. Do not infer readiness from one passing component.
-
-Installation requires an already installed `uv`; never install a package manager as a side effect. Resolve one exact `ouroboros-ai` version inside the supported range, disclose the Python package index request and package target, show `uv tool install ouroboros-ai==<exact-version>` or the exact approved upgrade form, and obtain a dedicated approval before running it. Do not install from an unpinned range.
-
-Treat exact package installation or upgrade through `uv` and each selected configuration action as separate persistent mutations. Display each command and its changed paths, obtain explicit approval, re-read targets immediately before mutation, and invalidate stale approval.
-
-For full configuration, apply the displayed canonical `ouroboros` entry to the `mcp.servers` object of `~/.zcode/cli/config.json` and install or refresh the user-scoped Ouroboros skills under a ZCode skill root from the approved package's bundled skill payload. `ooo setup --runtime zcode` configures only Ouroboros' own runtime selection in `~/.ouroboros/config.yaml` — the runtime backend and the ZCode CLI path — and writes no ZCode MCP entry and installs no skill on this host, so the registration merge and the skill installation remain separate displayed actions here. The packaged rules and `ooo codex` subcommands install and verify another host's artifacts and cover nothing here.
-
-Approval for package mutation never authorizes configuration, and approval for one configuration action never authorizes another. Setup must not call an Ouroboros provider, authenticate, run `auto`, `run`, `ralph`, or `evolve`, transmit repository source, create a Seed, or start an Aquarium design workflow.
-
-After approved mutations, verify `ooo --version` and the effective `mcp.servers` entry by reading `~/.zcode/cli/config.json`. There is no `zcode mcp` probe; the `/mcp` command in a running session shows live connection status, so verify live exposure separately without invoking a provider.
-
-Run `ooo mcp doctor --json` only when the registration launches the selected `ooo` executable directly; it inspects that package environment and is not evidence about a separate `uvx --isolated` MCP environment. It also exits non-zero whenever the CLI environment carries MCP 1.x, even on a correctly configured machine, because its `mcp_import` check fails while the MCP 2 server runs as a separate process; read its remaining checks for runtime configuration and never present its bare exit code as the registration verdict.
-
-For the canonical isolated launcher, validate its exact executable, arguments, supported package requirement, and runtime selectors without starting it or contacting the network.
-
-Report missing skills, registration, runtime configuration, and live exposure as distinct gaps, and tell the user when a ZCode restart or a new session is required.
-
-## Gate Repository Guidance With Two Approvals
-
-Handle root AGENTS.md and CLAUDE.md independently from tool setup. The root `AGENTS.md` is the instruction file this host reads natively; the root `CLAUDE.md` is the canonical delegation file that redirects instruction-file readers of other hosts to it.
-
-1. Ask whether to prepare an evidence-based repository operating-guidance proposal. Offer `Show proposal`, `Diagnose only`, and `Skip`.
-2. For either `Show proposal` or `Diagnose only`, read [agents-guidance.md](references/agents-guidance.md) and inspect the non-secret local sources it identifies. Diagnosis reports coverage and conflicts without drafting or mutation.
-3. For `Show proposal`, resolve every material conflict and the mandatory `Project Configuration` > `Commit Messages` rule before finalizing the proposal. If no authoritative commit header exists, ask the user to choose one; recent Git history is evidence only and never sufficient authority by itself.
-4. For `Show proposal` only, display the exact root AGENTS.md and CLAUDE.md paths and one complete combined diff. Do not edit either file yet. Preserve substantive CLAUDE.md guidance in AGENTS.md before proposing the canonical delegation file.
-5. For `Show proposal` only, ask whether to `Apply exactly this diff`, `Revise proposal`, or `Do not apply`.
-6. Before applying a shown proposal, re-read both files and compare them with the bytes or explicit absence used to produce it. If either changed, discard the approval, regenerate the combined diff, and ask again.
-7. Apply only the approved shown diff. Then show the actual diff and verify the required structure, mandatory commit-message subsection, CLAUDE.md delegation, repository-specific rules, and unrelated user content.
-
-The first answer authorizes proposal preparation or diagnosis only. General setup approval, install approval, and the instruction to use this skill never authorize instruction-file mutation. The second approval covers only the exact displayed root AGENTS.md/CLAUDE.md diff; it never authorizes nested instruction files, staging, committing, or publication.
-
-When an installed and selected writing skill is included in an approved guidance proposal, add only its corresponding language rule.
-
-- Route English human-authored documentation through `/humanizer` and Korean human-authored documentation through `/humanize-korean` as the final prose pass. For mixed-language documents, route each prose block by its dominant language.
-- Preserve code, commands, identifiers, URLs, citations, quotes, legal text, generated content, and repository facts exactly. Run each applicable pass once after substantive editing, accept the result only when meaning and protected content remain intact, and fail closed with the unchanged draft plus the reason when the skill is unavailable or validation fails.
-- Treat im-not-ai's `_workspace/` as disposable local work: keep it untracked, remove it after the accepted text is applied, and never cite it as durable evidence.
-
-## Report the Result
-
-Report:
-
-- selected, skipped, and planned tools;
-- resolved versions and sources;
-- Humanizer and im-not-ai installation, exact-upstream comparison, canonical target, project-guidance selection, and restart state separately;
-- each selected paired skill's comparison tag, exact `~/.agents/skills` target, `current`, `missing`, `different`, or `freshness_unverifiable` result, temporary-payload cleanup, and any installation or replacement decision;
-- selected backup policy, existing state backed up or deliberately left without a backup, backup verification and restoration paths when applicable, and the disclosed recovery boundary;
-- Sanho CLI, workspace, and `use-sanho` skill state separately;
-- Dolgorae supported release, official metadata verification, platform, version envelope, compatible capabilities, executable checksum, and stable review admission separately;
-- Mulgae CLI and Doctor v2 compatibility, project Config v3, local configuration, provider identity, binary availability, provider CLI compatibility, configured and role-route readiness, `use-mulgae` skill, installation prerequisites, and global, local, and effective MCP scope separately;
-- Gaori CLI, repository config, `use-gaori` skill, and global, local, and effective MCP scope separately;
-- Podway CLI, daemon, workspace, Aquarium readiness, legacy-state detection, and `use-podway` skill state separately;
-- Ouroboros CLI and version support, installed user-scoped skills, MCP runtime, effective registration, and live exposure separately;
-- commands run and their exit status;
-- native configuration and ignore paths changed;
-- verification evidence and remaining auth or environment gaps;
-- whether repository guidance was skipped, diagnosed, proposed, revised, or applied, including AGENTS.md structure, mandatory commit-message authority, and CLAUDE.md delegation state;
-- worktree changes, with staging and publication state stated separately.
-
-For a `dev-setup-bundle` handoff, also return the manifest digest, target index, canonical Git root, and a target result of `ready`, `partial`, `failed`, `declined`, or `skipped`, with unmet dependencies and an exact resumption request. Return the result to the bundle owner so it can continue independent targets and produce one aggregate report.
-
-Do not claim a tool is configured merely because its binary exists. Do not claim repository guidance was approved when only a proposal was requested.
+Report selected and out-of-scope repository components, diagnostic evidence, proposed or completed repository changes, deferred side-effectful diagnostics, global continuation gaps, verification, preserved worktree state, and whether staging, commit, or publication occurred. Do not report a global component as current or exact-upstream-verified; that claim belongs to `/aquarium:dev-setup-global`.

@@ -4,6 +4,23 @@ This file records concise shipped outcomes of the Aquarium for GLM edition. Rele
 
 ## v0.1.15 - Unreleased
 
+### Added
+
+- Ship the upstream `dev-setup-global` skill as `/aquarium:dev-setup-global` — user-global CLI, paired-skill, service, and MCP diagnosis and updates — restated for this host: global MCP registrations live in the `mcp.servers` object of `~/.zcode/cli/config.json`, paired skills install under the shared `~/.agents/skills` root, and its two inspection scripts carry new surgery so the global MCP view reads the ZCode config scopes and Ouroboros reports one single-surface `integration` object with a `shared_root_skills` inventory instead of upstream's per-Codex-home rows.
+- Carry the new `tools/aquarium-dev/` bundled CLI + MCP package and derive a ZCode-form root `.mcp.json` from upstream's Codex-form file — `mcpServers` with stdio fields, `tool_timeout_sec` converted to `timeoutMs`, and the launcher rooted at `${ZCODE_PLUGIN_ROOT}` — so the plugin's `aquarium-dev` MCP server registers without any user-global entry; `tests/validate.rb` pins the conversion against the upstream file.
+- Add optional Sorage v0.1.x setup to the shared catalog, with the pinned-skill file, repository Project binding, and ignore-safety rules carried from upstream in ZCode terms.
+
+### Changed
+
+- Regenerate from upstream Aquarium v0.1.15 (`23f28ee`): tool floors rise to Dolgorae v0.1.2 (now with its paired `use-dolgorae` skill), Mulgae v0.1.19 on the `mulgae-command-result.v6` envelope, Gaori v0.1.16 with the `use-gaori-status` skill, and Podway v0.2.9 with `use-podway` pinned to commit `9014225…`; the shared tool catalog moves to `references/` and is shared by both setup skills; `dev-setup` narrows to repository-local configuration and guidance; test-setup inspection and release-QA confirmation take their upstream reworks.
+- Keep Independent Review on this edition's reviewer backend: upstream's new same-release `$use-dolgorae` delegation, global Codex Profiles, and delegated settlement are dropped by the re-derived override, while explicitly requested reviews and External Specialist Engagements route through fresh `Agent`-tool subagents — the guidance bullet, review-contract settlement sentence, and catalog sections all state that split, and Dolgorae remains an explicitly requested third-party CLI whose consumer contract ships as not-used-here documentation.
+- Extend the Ouroboros inspection surgery for upstream's new per-home interface: the replaced `inspect_ouroboros` accepts the `codex_home`/`cli_observation` signature, adds the `runtime_package` axis (`pinned`/`different`/`selected_cli` from the registration launcher), and the global inspector reports per-home requests as not applicable because this host has one integration surface; the supported range widens to `>=0.51.1,<0.54.0` including 0.53.
+- Correct the Lora and Deslop installation story against the installed `skills` CLI: a global `npx skills add --agent zcode` writes the canonical payload to the shared `~/.agents/skills` root with an entry under `~/.zcode/skills` pointing at the same copy, so the catalog drops the duplicate-creating `--copy` form and states the single-installation layout.
+
+### Fixed
+
+- Pin every `humanize-korean` resolution to the shared `~/.agents/skills` root, including v0.1.15's new `trusted_global_skills` presence map, which upstream still resolves through a Codex home in the released tag — the same correction upstream shipped post-tag; the pre-tuning guard now asserts the fixed line.
+
 ## v0.1.14 - 2026-09-05
 
 ### Added

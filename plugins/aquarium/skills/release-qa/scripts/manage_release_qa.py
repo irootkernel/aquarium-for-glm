@@ -16,14 +16,16 @@ from typing import Any, NoReturn
 ERROR_SCHEMA = "aquarium-release-qa-error/v1"
 CLUSTER_SCHEMA = "aquarium-release-qa-cluster-result/v1"
 FULL_INPUT_SCHEMA = "aquarium-release-qa-full-pass/v1"
-RECORD_SCHEMA = "aquarium-release-qa-confirmation-record/v1"
-PREPARE_SCHEMA = "aquarium-release-qa-confirmation-prepare/v1"
-MANIFEST_SCHEMA = "aquarium-release-qa-confirmation-manifest/v1"
-BEGIN_SCHEMA = "aquarium-release-qa-confirmation-begin/v1"
-CLAIM_SCHEMA = "aquarium-release-qa-confirmation-claim/v1"
-FINISH_SCHEMA = "aquarium-release-qa-confirmation-finish/v1"
-RESULT_SCHEMA = "aquarium-release-qa-confirmation-result/v1"
+RECORD_SCHEMA = "aquarium-release-qa-confirmation-record/v2"
+PREPARE_SCHEMA = "aquarium-release-qa-confirmation-prepare/v2"
+MANIFEST_SCHEMA = "aquarium-release-qa-confirmation-manifest/v2"
+BEGIN_SCHEMA = "aquarium-release-qa-confirmation-begin/v2"
+CLAIM_SCHEMA = "aquarium-release-qa-confirmation-claim/v2"
+FINISH_SCHEMA = "aquarium-release-qa-confirmation-finish/v2"
+ADMISSION_SCHEMA = "aquarium-release-qa-confirmation-settlement-admission/v1"
+RESULT_SCHEMA = "aquarium-release-qa-confirmation-result/v2"
 MAX_JSON_BYTES = 4 * 1024 * 1024
+MAX_OUTPUT_BASENAME_BYTES = 240
 OUTCOMES = {"pass", "finding", "gap"}
 
 
@@ -62,9 +64,24 @@ def digest(value: Any) -> str:
     return "sha256:" + hashlib.sha256(canonical_bytes(value)).hexdigest()
 
 
-def atomic_write(path_value: str | Path, value: Any) -> Path:
+def bytes_digest(value: bytes) -> str:
+    return "sha256:" + hashlib.sha256(value).hexdigest()
+
+
+def require_fields(value: dict[str, Any], field: str, expected: set[str]) -> None:
+    missing = expected - set(value)
+    additional = set(value) - expected
+    if missing or additional:
+        details = []
+        if missing:
+            details.append("missing " + ", ".join(sorted(missing)))
+        if additional:
+            details.append("additional " + ", ".join(sorted(additional)))
+        fail("schema_invalid", f"{field} has invalid fields: {'; '.join(details)}")
+
+
+def create_once_write(path_value: str | Path, value: Any) -> Path:
     path = Path(path_value)
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
         os.fchmod(descriptor, 0o600)
@@ -72,8 +89,15 @@ def atomic_write(path_value: str | Path, value: Any) -> Path:
             target.write(canonical_bytes(value))
             target.flush()
             os.fsync(target.fileno())
-        os.replace(temporary, path)
-        path.chmod(0o600)
+        try:
+            os.link(temporary, path, follow_symlinks=False)
+        except FileExistsError:
+            fail("output_exists", f"immutable output already exists: {path}")
+        directory = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
     finally:
         try:
             os.unlink(temporary)
@@ -213,11 +237,21 @@ def evidence_file(root: Path, value: Any, field: str) -> str:
 
 
 def output_under(root: Path, value: str, field: str) -> Path:
-    path = Path(value)
+    raw = text(value, field)
+    basename = os.path.basename(raw)
+    if basename in {"", ".", ".."}:
+        fail("output_invalid", f"{field} must name a file")
+    if len(os.fsencode(basename)) > MAX_OUTPUT_BASENAME_BYTES:
+        fail(
+            "output_invalid",
+            f"{field} basename exceeds {MAX_OUTPUT_BASENAME_BYTES} bytes",
+        )
+    path = Path(raw)
     if not path.is_absolute() or path.is_symlink():
         fail("output_invalid", f"{field} must be an absolute non-symlink path")
     try:
-        relative_parent = path.parent.resolve(strict=True).relative_to(root)
+        resolved_parent = path.parent.resolve(strict=True)
+        relative_parent = resolved_parent.relative_to(root)
     except (OSError, ValueError):
         fail(
             "output_outside_root", f"{field} must be beneath its physical evidence root"
@@ -227,7 +261,13 @@ def output_under(root: Path, value: str, field: str) -> Path:
         current = current / component
         if current.is_symlink():
             fail("output_invalid", f"{field} has symlink ancestry")
-    return path
+    return resolved_parent / basename
+
+
+def settlement_admission_path(confirmation_root: Path, claim_digest: str) -> Path:
+    return confirmation_root / (
+        "settlement-admission-" + claim_digest.removeprefix("sha256:") + ".json"
+    )
 
 
 def clean_exact_main(repo: Path, candidate: str) -> None:
@@ -443,7 +483,7 @@ def freeze_full(spec: dict[str, Any], output: str) -> dict[str, Any]:
         "verdict": verdict,
     }
     output_path = output_under(root, output, "output")
-    atomic_write(output_path, record)
+    create_once_write(output_path, record)
     return {
         "schema": RECORD_SCHEMA,
         "path": str(output_path.resolve()),
@@ -456,6 +496,26 @@ def load_record(path: str) -> tuple[dict[str, Any], str]:
     record = read_json(path)
     if record.get("schema") != RECORD_SCHEMA:
         fail("schema_invalid", f"record must use {RECORD_SCHEMA}")
+    require_fields(
+        record,
+        "record",
+        {
+            "schema",
+            "version",
+            "previous_release",
+            "baseline_sha",
+            "candidate_sha",
+            "candidate_tree",
+            "evidence_root",
+            "design_gate_state",
+            "clusters",
+            "commit_matrix",
+            "surface_matrix",
+            "verdict",
+        },
+    )
+    if Path(path).read_bytes() != canonical_bytes(record):
+        fail("record_tampered", "record bytes are not canonical")
     return record, digest(record)
 
 
@@ -553,6 +613,18 @@ def frozen_inventory(record: dict[str, Any]) -> list[dict[str, Any]]:
 def prepare_confirmation(spec: dict[str, Any], output: str) -> dict[str, Any]:
     if spec.get("schema") != PREPARE_SCHEMA:
         fail("schema_invalid", f"prepare input must use {PREPARE_SCHEMA}")
+    require_fields(
+        spec,
+        "prepare input",
+        {
+            "schema",
+            "repository",
+            "full_record",
+            "candidate_sha",
+            "changed_surface_mappings",
+            "finding_reproductions",
+        },
+    )
     repo = repository(spec.get("repository"))
     record, record_digest, root = validate_record(
         repo, text(spec.get("full_record"), "full_record")
@@ -599,17 +671,16 @@ def prepare_confirmation(spec: dict[str, Any], output: str) -> dict[str, Any]:
                 "scenario_id": text(item.get("scenario_id"), "scenario_id"),
             }
         )
-    expected_findings = {
-        finding["id"]
+    expected_reproductions = [
+        {"finding_id": finding["id"], "scenario_id": finding["scenario_id"]}
         for cluster in record["clusters"]
         for finding in cluster["verified_findings"]
-    }
-    if {item["finding_id"] for item in reproductions} != expected_findings or len(
-        reproductions
-    ) != len(expected_findings):
+    ]
+    expected_findings = {item["finding_id"] for item in expected_reproductions}
+    if reproductions != expected_reproductions:
         fail(
-            "finding_reproduction_incomplete",
-            "every verified finding must have exactly one reproduction",
+            "finding_reproduction_mismatch",
+            "finding reproductions must exactly match the frozen finding-to-scenario pairs",
         )
     if any(item["scenario_id"] not in known_scenarios for item in reproductions):
         fail(
@@ -646,7 +717,7 @@ def prepare_confirmation(spec: dict[str, Any], output: str) -> dict[str, Any]:
         "confirmation_attempt": 1,
     }
     output_path = output_under(root, output, "output")
-    atomic_write(output_path, manifest)
+    create_once_write(output_path, manifest)
     return {
         "schema": MANIFEST_SCHEMA,
         "path": str(output_path.resolve()),
@@ -664,6 +735,30 @@ def load_confirmation(
     manifest = read_json(text(spec.get("manifest"), "manifest"))
     if manifest.get("schema") != MANIFEST_SCHEMA:
         fail("schema_invalid", f"manifest must use {MANIFEST_SCHEMA}")
+    require_fields(
+        manifest,
+        "manifest",
+        {
+            "schema",
+            "version",
+            "previous_release",
+            "full_candidate_sha",
+            "candidate_sha",
+            "remediation_commits",
+            "remediation_range",
+            "full_record",
+            "full_record_digest",
+            "evidence_root",
+            "inventory",
+            "changed_surface_mappings",
+            "finding_reproductions",
+            "confirmation_attempt",
+        },
+    )
+    if Path(text(spec.get("manifest"), "manifest")).read_bytes() != canonical_bytes(
+        manifest
+    ):
+        fail("manifest_tampered", "manifest bytes are not canonical")
     if manifest.get("full_record_digest") != record_digest:
         fail("record_tampered", "manifest full-record digest does not match")
     if manifest.get("inventory") != frozen_inventory(record):
@@ -702,38 +797,35 @@ def load_confirmation(
         for cluster in record["clusters"]
         for scenario in cluster["scenarios"]
     }
-    known_findings = {
-        finding["id"]
+    expected_reproductions = [
+        {"finding_id": finding["id"], "scenario_id": finding["scenario_id"]}
         for cluster in record["clusters"]
         for finding in cluster["verified_findings"]
-    }
+    ]
+    known_findings = {item["finding_id"] for item in expected_reproductions}
     reproductions = manifest.get("finding_reproductions")
     if not isinstance(reproductions, list):
         fail(
             "finding_reproduction_invalid",
             "manifest finding reproductions are invalid",
         )
-    reproduction_findings: list[str] = []
     for item in reproductions:
         if not isinstance(item, dict):
             fail(
                 "finding_reproduction_invalid",
                 "manifest finding reproduction is invalid",
             )
-        finding_id = text(item.get("finding_id"), "manifest.finding_id")
+        text(item.get("finding_id"), "manifest.finding_id")
         scenario_id = text(item.get("scenario_id"), "manifest.scenario_id")
         if scenario_id not in known_scenarios:
             fail(
                 "finding_reproduction_invalid",
                 "manifest reproduction uses an unknown scenario",
             )
-        reproduction_findings.append(finding_id)
-    if set(reproduction_findings) != known_findings or len(
-        reproduction_findings
-    ) != len(known_findings):
+    if reproductions != expected_reproductions:
         fail(
-            "finding_reproduction_incomplete",
-            "manifest does not reproduce every finding exactly once",
+            "finding_reproduction_mismatch",
+            "manifest does not preserve the exact frozen finding-to-scenario pairs",
         )
     for item in mappings:
         if not set(item["scenarios"]).issubset(known_scenarios) or not set(
@@ -752,6 +844,11 @@ def load_confirmation(
 def begin_confirmation(spec: dict[str, Any]) -> dict[str, Any]:
     if spec.get("schema") != BEGIN_SCHEMA:
         fail("schema_invalid", f"begin input must use {BEGIN_SCHEMA}")
+    require_fields(
+        spec,
+        "begin input",
+        {"schema", "repository", "full_record", "manifest", "confirmation_root"},
+    )
     repo, _, record_digest, manifest, root = load_confirmation(spec)
     candidate = manifest["candidate_sha"]
     clean_exact_main(repo, candidate)
@@ -760,34 +857,68 @@ def begin_confirmation(spec: dict[str, Any]) -> dict[str, Any]:
         fail("evidence_root_invalid", "confirmation requires a fresh evidence root")
     claim = {
         "schema": CLAIM_SCHEMA,
+        "full_record": str(
+            Path(text(spec.get("full_record"), "full_record")).resolve()
+        ),
         "full_record_digest": record_digest,
+        "manifest": str(Path(text(spec.get("manifest"), "manifest")).resolve()),
         "manifest_digest": digest(manifest),
+        "full_candidate_sha": manifest["full_candidate_sha"],
         "candidate_sha": candidate,
+        "full_evidence_root": str(root),
         "confirmation_root": str(confirmation_root),
-        "status": "started",
+        "confirmation_attempt": 1,
     }
     claim_path = (
         root / f"confirmation-attempt-{record_digest.removeprefix('sha256:')}.json"
     )
     try:
-        descriptor = os.open(claim_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError:
-        fail(
-            "confirmation_already_started",
-            "the sole confirmation attempt was already claimed",
-        )
-    with os.fdopen(descriptor, "wb") as target:
-        target.write(canonical_bytes(claim))
-        target.flush()
-        os.fsync(target.fileno())
+        create_once_write(claim_path, claim)
+    except EvidenceError as error:
+        if error.code == "output_exists":
+            existing_claim = read_json(str(claim_path))
+            require_fields(existing_claim, "claim", set(claim))
+            if claim_path.read_bytes() != canonical_bytes(existing_claim):
+                fail(
+                    "claim_invalid",
+                    "existing confirmation claim bytes are not canonical",
+                )
+            if existing_claim != claim:
+                fail(
+                    "claim_invalid",
+                    "existing confirmation claim does not match this request",
+                )
+            existing_digest = digest(existing_claim)
+            admission_path = settlement_admission_path(
+                confirmation_root, existing_digest
+            )
+            if admission_path.is_symlink() or admission_path.exists():
+                fail(
+                    "confirmation_already_started",
+                    "the confirmation claim already has a settlement admission",
+                )
+            return {
+                "schema": CLAIM_SCHEMA,
+                "path": str(claim_path),
+                "digest": existing_digest,
+            }
+        raise
     return {"schema": CLAIM_SCHEMA, "path": str(claim_path), "digest": digest(claim)}
 
 
-def finish_confirmation(spec: dict[str, Any], output: str) -> dict[str, Any]:
-    if spec.get("schema") != FINISH_SCHEMA:
-        fail("schema_invalid", f"finish input must use {FINISH_SCHEMA}")
+def load_claim(
+    spec: dict[str, Any],
+) -> tuple[
+    Path,
+    dict[str, Any],
+    str,
+    dict[str, Any],
+    str,
+    Path,
+    Path,
+    dict[str, Any],
+]:
     repo, record, record_digest, manifest, full_root = load_confirmation(spec)
-    clean_exact_main(repo, manifest["candidate_sha"])
     confirmation_root = physical_evidence_root(spec.get("confirmation_root"))
     claim_path = Path(text(spec.get("claim"), "claim"))
     expected_claim_path = (
@@ -797,28 +928,343 @@ def finish_confirmation(spec: dict[str, Any], output: str) -> dict[str, Any]:
         resolved_claim_path = claim_path.resolve(strict=True)
     except OSError:
         fail("claim_invalid", "confirmation claim is unavailable")
-    if resolved_claim_path != expected_claim_path:
+    if resolved_claim_path != expected_claim_path or claim_path.is_symlink():
         fail("claim_invalid", "claim path is not the sole canonical attempt claim")
     claim = read_json(str(claim_path))
+    require_fields(
+        claim,
+        "claim",
+        {
+            "schema",
+            "full_record",
+            "full_record_digest",
+            "manifest",
+            "manifest_digest",
+            "full_candidate_sha",
+            "candidate_sha",
+            "full_evidence_root",
+            "confirmation_root",
+            "confirmation_attempt",
+        },
+    )
+    if claim_path.read_bytes() != canonical_bytes(claim):
+        fail("claim_invalid", "confirmation claim bytes are not canonical")
+    claim_digest = text(spec.get("claim_digest"), "claim_digest")
+    if claim_digest != digest(claim):
+        fail("claim_digest_mismatch", "claim digest does not match the exact claim")
     if (
         claim.get("schema") != CLAIM_SCHEMA
         or claim.get("full_record_digest") != record_digest
+        or claim.get("full_record")
+        != str(Path(text(spec.get("full_record"), "full_record")).resolve())
+        or claim.get("manifest")
+        != str(Path(text(spec.get("manifest"), "manifest")).resolve())
+        or claim.get("manifest_digest") != digest(manifest)
+        or claim.get("full_candidate_sha") != manifest["full_candidate_sha"]
+        or claim.get("candidate_sha") != manifest["candidate_sha"]
+        or claim.get("full_evidence_root") != str(full_root)
+        or claim.get("confirmation_root") != str(confirmation_root)
+        or claim.get("confirmation_attempt") != 1
     ):
-        fail("claim_invalid", "confirmation claim does not bind the full record")
-    if claim.get("manifest_digest") != digest(manifest) or claim.get(
-        "confirmation_root"
-    ) != str(confirmation_root):
         fail(
             "claim_invalid",
             "confirmation claim does not bind this manifest and evidence root",
         )
-    results = [
-        validate_cluster(
-            read_json(evidence_file(confirmation_root, path, "cluster_results[]")),
-            confirmation_root,
-            manifest["candidate_sha"],
+    return (
+        repo,
+        record,
+        record_digest,
+        manifest,
+        claim_digest,
+        full_root,
+        confirmation_root,
+        claim,
+    )
+
+
+def snapshot_bytes(root: Path, value: Any, field: str) -> tuple[str, bytes]:
+    path = evidence_file(root, value, field)
+    if Path(path).stat().st_size > MAX_JSON_BYTES:
+        fail("input_too_large", f"{field} exceeds {MAX_JSON_BYTES} bytes")
+    raw = Path(path).read_bytes()
+    if len(raw) > MAX_JSON_BYTES:
+        fail("input_too_large", f"{field} exceeds {MAX_JSON_BYTES} bytes")
+    return path, raw
+
+
+def snapshot_file(root: Path, value: Any, field: str) -> dict[str, str]:
+    path, raw = snapshot_bytes(root, value, field)
+    return {"path": path, "digest": bytes_digest(raw)}
+
+
+def json_object_from_bytes(raw: bytes, path: str) -> dict[str, Any]:
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError) as error:
+        fail("input_invalid", f"cannot read JSON input {path}: {type(error).__name__}")
+    if not isinstance(value, dict):
+        fail("input_invalid", f"JSON input must contain one object: {path}")
+    return value
+
+
+def snapshot_submission(
+    spec: dict[str, Any], confirmation_root: Path
+) -> tuple[list[dict[str, Any]], dict[str, str] | None]:
+    snapshots: list[dict[str, Any]] = []
+    try:
+        paths = string_list(spec.get("cluster_results"), "cluster_results")
+        for path_value in paths:
+            cluster_path, cluster_bytes = snapshot_bytes(
+                confirmation_root, path_value, "cluster_results[]"
+            )
+            cluster_snapshot = {
+                "path": cluster_path,
+                "digest": bytes_digest(cluster_bytes),
+            }
+            cluster_value = json_object_from_bytes(cluster_bytes, cluster_path)
+            evidence_snapshots: list[dict[str, str]] = []
+            scenarios = cluster_value.get("scenarios")
+            if not isinstance(scenarios, list):
+                fail("scenario_invalid", "cluster scenarios must be a list")
+            for scenario in scenarios:
+                if not isinstance(scenario, dict):
+                    fail("scenario_invalid", "each scenario must be an object")
+                for evidence_path in string_list(
+                    scenario.get("evidence"), "scenario.evidence"
+                ):
+                    evidence_snapshots.append(
+                        snapshot_file(
+                            confirmation_root,
+                            evidence_path,
+                            "scenario.evidence[]",
+                        )
+                    )
+            snapshots.append({**cluster_snapshot, "evidence": evidence_snapshots})
+    except EvidenceError as error:
+        return snapshots, {"code": error.code, "message": str(error)}
+    return snapshots, None
+
+
+def settlement_result(
+    admission: dict[str, Any],
+    clusters: list[dict[str, Any]],
+    verdict: str,
+    diagnostic: dict[str, str] | None,
+) -> dict[str, Any]:
+    return {
+        "schema": RESULT_SCHEMA,
+        "full_record_digest": admission["full_record_digest"],
+        "manifest_digest": admission["manifest_digest"],
+        "claim_digest": admission["claim_digest"],
+        "admission_digest": digest(admission),
+        "full_candidate_sha": admission["full_candidate_sha"],
+        "candidate_sha": admission["candidate_sha"],
+        "full_evidence_root": admission["full_evidence_root"],
+        "confirmation_root": admission["confirmation_root"],
+        "confirmation_attempt": 1,
+        "submission_digest": admission["submission_digest"],
+        "clusters": clusters,
+        "verdict": verdict,
+        "diagnostic": diagnostic,
+    }
+
+
+def load_terminal(
+    path: Path,
+    admission: dict[str, Any],
+    record: dict[str, Any],
+    manifest: dict[str, Any],
+    confirmation_root: Path,
+) -> dict[str, Any]:
+    result = read_json(str(path))
+    require_fields(
+        result,
+        "terminal result",
+        {
+            "schema",
+            "full_record_digest",
+            "manifest_digest",
+            "claim_digest",
+            "admission_digest",
+            "full_candidate_sha",
+            "candidate_sha",
+            "full_evidence_root",
+            "confirmation_root",
+            "confirmation_attempt",
+            "submission_digest",
+            "clusters",
+            "verdict",
+            "diagnostic",
+        },
+    )
+    if path.read_bytes() != canonical_bytes(result):
+        fail("result_invalid", "terminal result bytes are not canonical")
+    expected = settlement_result(
+        admission,
+        result.get("clusters") if isinstance(result.get("clusters"), list) else [],
+        result.get("verdict"),
+        result.get("diagnostic"),
+    )
+    diagnostic = result.get("diagnostic")
+    if diagnostic is not None:
+        if not isinstance(diagnostic, dict):
+            fail("result_invalid", "terminal diagnostic must be an object or null")
+        require_fields(diagnostic, "terminal diagnostic", {"code", "message"})
+        text(diagnostic.get("code"), "terminal diagnostic code")
+        text(diagnostic.get("message"), "terminal diagnostic message")
+    if (
+        result != expected
+        or result.get("verdict") not in {"PASS", "FINDINGS", "INCOMPLETE", "REJECTED"}
+        or (result.get("verdict") == "REJECTED" and diagnostic is None)
+        or (result.get("verdict") == "REJECTED" and result.get("clusters") != [])
+        or (result.get("verdict") in {"PASS", "FINDINGS"} and diagnostic is not None)
+        or (diagnostic is not None and result.get("clusters") != [])
+        or (
+            diagnostic is not None
+            and result.get("verdict") == "INCOMPLETE"
+            and diagnostic["code"] != "settlement_evidence_changed"
         )
-        for path in string_list(spec.get("cluster_results"), "cluster_results")
+    ):
+        fail("result_invalid", "terminal result does not match its admission")
+    if diagnostic is None:
+        try:
+            if admission["snapshot_error"] is not None:
+                fail(
+                    "result_invalid", "terminal result requires valid admitted evidence"
+                )
+            cluster_values = verify_submission_snapshot(admission, confirmation_root)
+            clusters, verdict = settlement_outcome(
+                record, manifest, confirmation_root, cluster_values
+            )
+        except EvidenceError as error:
+            fail(
+                "result_invalid", f"terminal evidence cannot be verified: {error.code}"
+            )
+        if result != settlement_result(admission, clusters, verdict, None):
+            fail("result_invalid", "terminal result differs from its admitted evidence")
+    return result
+
+
+def admission_binding(admission: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in admission.items()
+        if key not in {"cluster_results", "snapshot_error"}
+    }
+
+
+def terminal_receipt(path: Path, result: dict[str, Any]) -> dict[str, Any]:
+    if result["verdict"] == "REJECTED":
+        diagnostic = result["diagnostic"]
+        fail(diagnostic["code"], diagnostic["message"])
+    return {
+        "schema": RESULT_SCHEMA,
+        "path": str(path.resolve()),
+        "digest": digest(result),
+        "verdict": result["verdict"],
+    }
+
+
+def validate_admission_snapshot_shape(admission: dict[str, Any]) -> None:
+    clusters = admission.get("cluster_results")
+    snapshot_error = admission.get("snapshot_error")
+    if not isinstance(clusters, list):
+        fail("admission_invalid", "admission cluster_results must be a list")
+    for cluster in clusters:
+        if not isinstance(cluster, dict) or set(cluster) != {
+            "path",
+            "digest",
+            "evidence",
+        }:
+            fail("admission_invalid", "admission cluster snapshot has invalid fields")
+        if not isinstance(cluster.get("path"), str) or not isinstance(
+            cluster.get("digest"), str
+        ):
+            fail("admission_invalid", "admission cluster snapshot is malformed")
+        evidence_items = cluster.get("evidence")
+        if not isinstance(evidence_items, list):
+            fail("admission_invalid", "admission evidence snapshots must be a list")
+        for evidence in evidence_items:
+            if (
+                not isinstance(evidence, dict)
+                or set(evidence) != {"path", "digest"}
+                or not isinstance(evidence.get("path"), str)
+                or not isinstance(evidence.get("digest"), str)
+            ):
+                fail("admission_invalid", "admission evidence snapshot is malformed")
+    if snapshot_error is not None and (
+        not isinstance(snapshot_error, dict)
+        or set(snapshot_error) != {"code", "message"}
+        or not isinstance(snapshot_error.get("code"), str)
+        or not isinstance(snapshot_error.get("message"), str)
+    ):
+        fail("admission_invalid", "admission snapshot_error is malformed")
+
+
+def verify_submission_snapshot(
+    admission: dict[str, Any], confirmation_root: Path
+) -> list[dict[str, Any]]:
+    validate_admission_snapshot_shape(admission)
+    cluster_values: list[dict[str, Any]] = []
+    for cluster in admission["cluster_results"]:
+        try:
+            cluster_path, cluster_bytes = snapshot_bytes(
+                confirmation_root, cluster["path"], "cluster_results[]"
+            )
+        except EvidenceError as error:
+            fail(
+                "settlement_evidence_changed",
+                f"admitted cluster evidence is unavailable: {error.code}",
+            )
+        if (
+            cluster_path != cluster["path"]
+            or bytes_digest(cluster_bytes) != cluster["digest"]
+        ):
+            fail("settlement_evidence_changed", "admitted cluster evidence changed")
+        try:
+            cluster_values.append(json_object_from_bytes(cluster_bytes, cluster_path))
+        except EvidenceError as error:
+            fail(
+                "admission_invalid",
+                f"admitted cluster snapshot is invalid: {error.code}",
+            )
+        for evidence in cluster["evidence"]:
+            try:
+                current = snapshot_file(
+                    confirmation_root, evidence["path"], "scenario.evidence[]"
+                )
+            except EvidenceError as error:
+                fail(
+                    "settlement_evidence_changed",
+                    f"admitted scenario evidence is unavailable: {error.code}",
+                )
+            if current != evidence:
+                fail(
+                    "settlement_evidence_changed", "admitted scenario evidence changed"
+                )
+    return cluster_values
+
+
+def validate_settlement(
+    repo: Path,
+    record: dict[str, Any],
+    manifest: dict[str, Any],
+    confirmation_root: Path,
+    cluster_values: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], str]:
+    clean_exact_main(repo, manifest["candidate_sha"])
+    return settlement_outcome(record, manifest, confirmation_root, cluster_values)
+
+
+def settlement_outcome(
+    record: dict[str, Any],
+    manifest: dict[str, Any],
+    confirmation_root: Path,
+    cluster_values: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], str]:
+    results = [
+        validate_cluster(value, confirmation_root, manifest["candidate_sha"])
+        for value in cluster_values
     ]
     expected_clusters = {cluster["id"]: cluster for cluster in record["clusters"]}
     actual_clusters = {cluster["id"]: cluster for cluster in results}
@@ -832,15 +1278,17 @@ def finish_confirmation(spec: dict[str, Any], output: str) -> dict[str, Any]:
     outcomes: list[str] = []
     for cluster_id, expected in expected_clusters.items():
         expected_ids = [item["id"] for item in expected["scenarios"]]
-        actual_ids = [item["id"] for item in actual_clusters[cluster_id]["scenarios"]]
-        if actual_ids != expected_ids or len(actual_ids) != len(set(actual_ids)):
+        fresh_scenarios = actual_clusters[cluster_id]["scenarios"]
+        actual_by_id = {item["id"]: item for item in fresh_scenarios}
+        if len(actual_by_id) != len(fresh_scenarios) or set(actual_by_id) != set(
+            expected_ids
+        ):
             fail(
                 "confirmation_inventory_mismatch",
-                "confirmation scenario inventory or order differs from the frozen record",
+                "confirmation scenario inventory differs from the frozen record",
             )
-        for frozen, fresh in zip(
-            expected["scenarios"], actual_clusters[cluster_id]["scenarios"], strict=True
-        ):
+        for frozen in expected["scenarios"]:
+            fresh = actual_by_id[frozen["id"]]
             for field in (
                 "sources",
                 "procedure",
@@ -876,23 +1324,145 @@ def finish_confirmation(spec: dict[str, Any], output: str) -> dict[str, Any]:
         if finding_ids or "finding" in outcomes
         else "PASS"
     )
-    result = {
-        "schema": RESULT_SCHEMA,
-        "full_record_digest": record_digest,
-        "manifest_digest": digest(manifest),
-        "candidate_sha": manifest["candidate_sha"],
-        "confirmation_root": str(confirmation_root),
-        "clusters": results,
-        "verdict": verdict,
-    }
+    return results, verdict
+
+
+def finish_confirmation(spec: dict[str, Any], output: str) -> dict[str, Any]:
+    if spec.get("schema") != FINISH_SCHEMA:
+        fail("schema_invalid", f"finish input must use {FINISH_SCHEMA}")
+    require_fields(
+        spec,
+        "finish input",
+        {
+            "schema",
+            "repository",
+            "full_record",
+            "manifest",
+            "claim",
+            "claim_digest",
+            "confirmation_root",
+            "cluster_results",
+        },
+    )
+    (
+        repo,
+        record,
+        record_digest,
+        manifest,
+        claim_digest,
+        full_root,
+        confirmation_root,
+        _,
+    ) = load_claim(spec)
     output_path = output_under(confirmation_root, output, "output")
-    atomic_write(output_path, result)
-    return {
-        "schema": RESULT_SCHEMA,
-        "path": str(output_path.resolve()),
-        "digest": digest(result),
-        "verdict": verdict,
+    admission_path = settlement_admission_path(confirmation_root, claim_digest)
+    if (
+        output_path.parent == admission_path.parent
+        and output_path.name.casefold() == admission_path.name.casefold()
+    ):
+        fail("output_invalid", "terminal output must differ from its admission path")
+    submission_digest = digest(spec)
+    snapshots, snapshot_error = snapshot_submission(spec, confirmation_root)
+    admission = {
+        "schema": ADMISSION_SCHEMA,
+        "full_record": str(
+            Path(text(spec.get("full_record"), "full_record")).resolve()
+        ),
+        "full_record_digest": record_digest,
+        "manifest": str(Path(text(spec.get("manifest"), "manifest")).resolve()),
+        "manifest_digest": digest(manifest),
+        "claim": str(Path(text(spec.get("claim"), "claim")).resolve()),
+        "claim_digest": claim_digest,
+        "full_candidate_sha": manifest["full_candidate_sha"],
+        "candidate_sha": manifest["candidate_sha"],
+        "full_evidence_root": str(full_root),
+        "confirmation_root": str(confirmation_root),
+        "confirmation_attempt": 1,
+        "submission_digest": submission_digest,
+        "output": str(output_path),
+        "cluster_results": snapshots,
+        "snapshot_error": snapshot_error,
     }
+
+    def reject_replay(existing_admission: dict[str, Any]) -> NoReturn:
+        admitted_output = Path(
+            text(existing_admission.get("output"), "admission.output")
+        )
+        if not admitted_output.exists():
+            fail(
+                "settlement_pending",
+                "claim has an admitted finish submission without a terminal record at "
+                f"{admitted_output}",
+            )
+        fail("settlement_replay", "claim already admitted another finish submission")
+
+    def load_existing_admission() -> dict[str, Any]:
+        existing_admission = read_json(str(admission_path))
+        if admission_path.read_bytes() != canonical_bytes(existing_admission):
+            fail("admission_invalid", "settlement admission bytes are not canonical")
+        require_fields(existing_admission, "settlement admission", set(admission))
+        if admission_binding(existing_admission) != admission_binding(admission):
+            reject_replay(existing_admission)
+        return existing_admission
+
+    if admission_path.exists():
+        admission = load_existing_admission()
+    else:
+        if output_path.exists():
+            fail("output_exists", f"immutable output already exists: {output_path}")
+        try:
+            create_once_write(admission_path, admission)
+        except EvidenceError as error:
+            if error.code != "output_exists":
+                raise
+            admission = load_existing_admission()
+    if output_path.exists():
+        return terminal_receipt(
+            output_path,
+            load_terminal(output_path, admission, record, manifest, confirmation_root),
+        )
+
+    result: dict[str, Any]
+    try:
+        validate_admission_snapshot_shape(admission)
+        cluster_values: list[dict[str, Any]] = []
+        if admission["snapshot_error"] is None:
+            cluster_values = verify_submission_snapshot(admission, confirmation_root)
+        if (
+            admission["cluster_results"] != snapshots
+            or admission["snapshot_error"] != snapshot_error
+        ):
+            fail(
+                "admission_invalid",
+                "settlement admission evidence does not match the exact request",
+            )
+        if admission["snapshot_error"] is not None:
+            diagnostic = admission["snapshot_error"]
+            result = settlement_result(admission, [], "REJECTED", diagnostic)
+        else:
+            clusters, verdict = validate_settlement(
+                repo, record, manifest, confirmation_root, cluster_values
+            )
+            result = settlement_result(admission, clusters, verdict, None)
+    except EvidenceError as error:
+        verdict = (
+            "INCOMPLETE" if error.code == "settlement_evidence_changed" else "REJECTED"
+        )
+        result = settlement_result(
+            admission,
+            [],
+            verdict,
+            {"code": error.code, "message": str(error)},
+        )
+    try:
+        create_once_write(output_path, result)
+    except EvidenceError as error:
+        if error.code != "output_exists":
+            raise
+        result = load_terminal(
+            output_path, admission, record, manifest, confirmation_root
+        )
+    return terminal_receipt(output_path, result)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -925,6 +1495,20 @@ def main() -> int:
                 {
                     "schema": ERROR_SCHEMA,
                     "error": {"code": error.code, "message": str(error)},
+                },
+                sort_keys=True,
+            )
+        )
+        return 2
+    except Exception as error:  # noqa: BLE001 -- keep the CLI failure contract stable
+        print(
+            json.dumps(
+                {
+                    "schema": ERROR_SCHEMA,
+                    "error": {
+                        "code": "internal_error",
+                        "message": f"release-QA helper failed: {type(error).__name__}",
+                    },
                 },
                 sort_keys=True,
             )

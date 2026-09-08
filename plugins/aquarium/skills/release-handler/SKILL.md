@@ -20,7 +20,9 @@ Explicit invocation authorizes read-only release discovery against the configure
 
 ## Settle the Candidate Before QA
 
-Compare every commit and material changed surface after the previous stable release with the open changelog section. For a confirmed first release, use the complete reachable history and current public surface with no regression baseline. Present one exact diff that merges duplicates and adds, edits, or removes only entries needed to describe shipped outcomes.
+Compare every commit and material changed surface after the previous stable release with the open changelog section. For a confirmed first release, use the complete reachable history and current public surface with no regression baseline.
+
+Apply the shared release-notes settlement criteria to the intended version's open section: combine related final outcomes, remove superseded intermediate claims, and group entries without following commit order. Preserve completed release sections byte-for-byte and retain all material remaining impacts and required user actions. Present one exact diff that merges duplicates and adds, edits, or removes only entries needed to describe shipped outcomes, with evidence for omissions in the review.
 
 Obtain approval before applying it. When this creates a change, validate it and commit the exact approved preparation through `/aquarium:task-commit` with `intentional no-note`; the settlement commit must not add an entry about itself.
 
@@ -34,7 +36,7 @@ When remediation changes a shipped outcome, update the open changelog entry in t
 
 Build the confirmation manifest only through the release-QA skill's deterministic helper: `scripts/manage_release_qa.py prepare-confirmation --input <prepare.json> --output <full-evidence-root>/confirmation-manifest.json`. The input names the canonical frozen record, current exact candidate, changed-surface mappings, and finding reproductions.
 
-The helper copies its complete cluster and scenario inventory and entry facts without re-deriving, regrouping, or sampling them, then appends only the current candidate, exact non-empty remediation range, those mappings and reproductions, and the one-attempt fact.
+The helper copies its complete cluster and scenario inventory and entry facts without re-deriving, regrouping, or sampling them, then appends only the current candidate, exact non-empty remediation range, those mappings, each exact frozen finding-to-scenario pair, and the one-attempt fact.
 
 If the helper rejects the retained record, evidence, ancestry, changed-surface coverage, finding reproduction coverage, or output boundary, stop as `INCOMPLETE` before invoking confirmation. Never manually repair or bypass its manifest. Stop when QA is incomplete, findings remain, or the permitted confirmation does not pass.
 

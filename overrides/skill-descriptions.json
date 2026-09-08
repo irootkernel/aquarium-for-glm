@@ -1,15 +1,11 @@
 {
-  "aquarium-dev": {
-    "source_digest": "698a29011810ec8a4b03dc32d2c4d6062c4f8326b1fa247ef3151dd638bc9cac",
-    "description": "Diagnose, enroll, repair, rebuild, and expose the explicit Aquarium development channel for one supported canonical checkout, keeping production installations untouched. Use when the user explicitly invokes /aquarium:aquarium-dev; never invoke it implicitly."
-  },
   "dev-setup-bundle": {
-    "source_digest": "745e29fcfa21e89c899fc0298e27d78864af947706b78c0f91326bf08b0f5735",
-    "description": "Apply Aquarium development-tool setup across multiple Git repositories from one external YAML manifest. Use when the user explicitly invokes /aquarium:dev-setup-bundle with a manifest path; single-repository setup belongs to /aquarium:dev-setup."
+    "source_digest": "547202d97015e9bbcbe9539d4a0a0a453d293ee8241c8bbd0441141decb3b9e5",
+    "description": "Apply Aquarium development-tool setup across multiple explicit Git repositories from one external YAML manifest. Use when the user explicitly invokes /aquarium:dev-setup-bundle with an aquarium.dev-setup-bundle/v1 manifest path; single-repository setup belongs to /aquarium:dev-setup."
   },
   "dev-setup": {
-    "source_digest": "df94bed01ce5e50a01bc0778c9a5616523397c82ba440b0727c4e0c26ceb6fb9",
-    "description": "Diagnose and configure Aquarium repository tooling, paired skills, MCP registrations, and the evidence-based AGENTS.md operating contract. Use when the user invokes /aquarium:dev-setup or asks to install, initialize, repair, or audit supported tools; routine Procedure v2 session lifecycle belongs to /use-podway."
+    "source_digest": "2bcc408083abbcd9a0535cf811ef6215d7b90428447f0395d062c55a54e339ee",
+    "description": "Diagnose and configure Aquarium repository-local tooling and root agent guidance. Use when the user invokes /aquarium:dev-setup or asks to initialize, repair, or audit project configuration such as .podway, .mulgae, .gaori, Sorage binding, project MCP, AGENTS.md, or CLAUDE.md. Use /aquarium:dev-setup-global for user-global installation or updates."
   },
   "docs-setup": {
     "source_digest": "454934abf72181a79e7402b7a7bb714ed857765584ccc73d1e103b9c6ed22fa0",
@@ -98,5 +94,9 @@
   "upgrade": {
     "source_digest": "7b67c921075da1dbe0c5f4cd7665bb32703f1340deef49dc1de6ccc70df140ed",
     "description": "Upgrade this edition to a newly released upstream Aquarium version: pin the submodule, resolve every sync abort, re-derive overrides and description tunings, validate, and prepare the reviewed release and the local installation. Use when the user explicitly invokes /aquarium:upgrade with one released upstream version; do not use for unreleased upstream commits or unrelated repository work."
+  },
+  "dev-setup-global": {
+    "source_digest": "f42c71a7ca5dc20b01dea0818cbe2fa05c8fbf0e783a83669e77582a9a630bae",
+    "description": "Diagnose, install, and update Aquarium user-global development tools, including global CLIs, paired skills, MCP registrations, services, Lore, Deslop, Humanizer, im-not-ai, and Ouroboros. Use when the user invokes /aquarium:dev-setup-global or a workflow reports a missing global component. Repository-local configuration belongs to /aquarium:dev-setup."
   }
 }
