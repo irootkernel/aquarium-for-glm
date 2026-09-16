@@ -14,8 +14,16 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
+
+try:
+    import yaml
+except ModuleNotFoundError as error:
+    if error.name != "yaml":
+        raise
+    yaml = None  # type: ignore[assignment]
 
 GLOBAL_SCRIPT_DIRECTORY = str(
     Path(__file__).resolve().parents[2] / "dev-setup-global/scripts"
@@ -30,11 +38,11 @@ except ModuleNotFoundError as error:
         raise
     dolgorae_release = None
 
-SCHEMA_VERSION = "aquarium-dev-setup-inspection.v18"
+SCHEMA_VERSION = "aquarium-dev-setup-inspection.v21"
 DOLGORAE_INVOCATION_ID_RE = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 )
-MULGAE_COMMAND_RESULT_SCHEMA = "mulgae-command-result.v6"
+MULGAE_COMMAND_RESULT_SCHEMA = "mulgae-command-result.v8"
 MULGAE_DOCTOR_RESULT_SCHEMA = "mulgae-doctor-result.v2"
 MULGAE_MCP_TOOL_TIMEOUT_SEC = 7501
 GAORI_MCP_TOOL_TIMEOUT_SEC = 3601
@@ -57,15 +65,19 @@ DOLGORAE_SKILL_FILES = (
 )
 SANHO_SKILL_FILES = (
     "SKILL.md",
-    "references/lifecycle.md",
     "references/authoring.md",
+    "references/inspection.md",
+    "references/lifecycle.md",
     "references/recovery.md",
 )
 GAORI_SKILL_FILES = (
     "SKILL.md",
-    "references/lifecycle.md",
     "references/authoring.md",
+    "references/existing-logs.md",
+    "references/fallbacks.md",
+    "references/lifecycle.md",
     "references/recovery.md",
+    "references/retention.md",
 )
 GAORI_STATUS_SKILL_FILES = ("SKILL.md",)
 MULGAE_SKILL_FILES = (
@@ -136,29 +148,422 @@ PODWAY_PROCEDURES = (
 )
 PODWAY_PRIOR_CANONICAL_SHA256 = {
     "aquarium-task-v2.yaml": {
+        "aa916a0e0dfa49384da1bb1affede4af58dd4dbc43e17f248d69537db6aeda52",
+        "76fbe6842b178524d8c19ce17a58d1eb1fffa13dac07e9a9ae57fe98474194a6",
         "ff32214898ddb5a737e7a4c55447a16976d42da34b70cacc11c3b286d695cc77",
         "6bb336f321a83bba429c4173942eb977000014c627245839b3434da7d1055602",
         "c666f17cf41e8a9403f610f89b0b7397352d8ac6e2e5e05e1c268fc0e6ece3d9",
         "0ae730df9ca5854ff61b02679e3ac58aa4508ee35c5a09ba76c35e7d0ef3d45d",
         "b703da6c798801a396d144be1c9c71e0fdb05c95e9e293386bf83c0d238ef927",
+        "35adb91998294f3c271e4ca7cba5ee1c8b94ce1265a828ff92cd206bc68d6e9c",
+        "fb3d9a05dca7b09e34164b7a3022f0ab3fc2c742d1a3771064ac9174d0de43e7",
     },
     "aquarium-goal-v2.yaml": {
+        "2921280e4a57e02896efb126abbd56829b6a2c99867d357ecc98413aadd15b7b",
+        "5150a2ad3b33823a8935bd445155054bb0de037436c2d4121ae0892bd94e08c4",
         "f6d456438ba69a06fb322e4c2220bb824233c2ab239df1f68157c139ebb3a8c5",
         "7bf4460688335c1d1985fc1171313ac42ba7f82a64d8bc8733826a4fdd116e38",
         "90411e16758cb79a01294e008d9a091a52b341fc1e9bb968ce9521fed2910ec3",
         "8ca12a8ba36e9dd035bc70c903b8a5a0a9e4fd6db00cf75e2448f66082ab6ac6",
+        "42eee85a406f46c3c7c40a467bfa1764d1e0b3042247b0604564ea20547f8d96",
+        "97e73a08bb10167dc93da803ba899f19388affec000b4b3014a4e032ca57569b",
+        "9ee8fb5c63ca3129e1a104c54c2e0dde0beb7939b70ab7da66431cde4ba490c7",
     },
     "aquarium-validation-v2.yaml": {
+        "2d1e9995216ac4fcdf3b08baba80a31662485fc4daa3f0bfd42e4f1ff2f4c788",
         "423655c9d8b14c97820f36738c1ef32905bc26452113c69d886058f2bb54f8b3",
         "bc454955ef56d9607a9128a085177eb8557f8b24774cba59ddca3c0db88428e8",
         "45192a644087b811eb34952576798ae4f3e85ebdf87c77fc8dc097d3c8bb2f50",
+        "9f3c0a0628f6ea820dbffee2355b949a2d2459e595ea3044d9aa53d81482eb5c",
+        "53a20b71169bb206237474342f9c33f205e347f82686a7729b1c6447312523df",
+        "aa89b01cd7007563861789304f11853e969fa0312676b8a256013dee808b7904",
     },
     "aquarium-design-v2.yaml": {
-        "4ec653b2b4d740d77bcd4826f40288d9fadd7d696a3939c197b9789dbba824b6"
+        "4ec653b2b4d740d77bcd4826f40288d9fadd7d696a3939c197b9789dbba824b6",
+        "7582829afbb5c188c349e8f57c486a8de5eae2327e331680d7ccc09e1c6ecda8",
     },
     "aquarium-war-room-v2.yaml": {
-        "ca9f2363107b315e829ba9f0357d35cbc242d07fbbf5a4702868bbb781dee1cb"
+        "ca9f2363107b315e829ba9f0357d35cbc242d07fbbf5a4702868bbb781dee1cb",
+        "c8ce6585a735eb3a159a6f14f40d3dd413cc33812b254e10703c76b3d49dddd9",
     },
+}
+
+PODWAY_HANDLER_CONTRACTS = {
+    "aquarium-task-v2.yaml": {
+        "nodes": {
+            "prepare-implementation",
+            "implement",
+            "document",
+            "confirm-review-findings",
+            "decide-review-ci",
+            "confirm-review-completion",
+            "decide-review",
+            "decide-task-rework-authority",
+            "decide-implementation-owner",
+            "decide-verification-owner",
+            "decide-documentation-owner",
+            "await-user-direction",
+            "choose-user-direction",
+            "record-low-disposition",
+            "decide-low-result",
+            "decide-low-completion",
+        },
+        "definition_items": {
+            "implementation-entry-record": {"implementation-entry-summary"},
+            "review-record": {
+                "finding-count-consistency",
+                "completion-assessment-summary",
+                "completion-unmet-criteria",
+                "completion-unverified-criteria",
+                "unresolved-implementation-findings",
+                "unresolved-documentation-findings",
+                "implementation-rework-obligations",
+                "verification-rework-obligations",
+                "documentation-rework-obligations",
+            },
+            "low-disposition-record": {
+                "source-review-basis",
+                "low-disposition-summary",
+                "completion-assessment-summary",
+                "completion-unmet-criteria",
+                "completion-unverified-criteria",
+                "pending-low-dispositions",
+                "current-blocking-findings",
+                "before-target",
+                "after-target",
+                "coverage-relationship",
+                "low-disposition-verification",
+            },
+        },
+        "definition_choices": {
+            ("review-record", "finding-count-consistency"): {
+                "consistent",
+                "inconsistent",
+            },
+            ("review-record", "review-mode"): {
+                "remediation-eligible",
+                "confirmation-only",
+            },
+        },
+        "routes": {
+            "decide-verification": {"failed": "verify"},
+            "decide-review-ci": {
+                "passed": "confirm-review-completion",
+                "failed": "decide-task-rework-authority",
+            },
+            "confirm-review-completion": {
+                "complete": "decide-review",
+                "unmet": "decide-task-rework-authority",
+                "unverified": "review",
+            },
+            "decide-review": {
+                "clean": "assess-goal",
+                "blocking": "decide-task-rework-authority",
+                "low-disposition": "record-low-disposition",
+                "inconsistent": "review",
+            },
+            "decide-task-rework-authority": {
+                "remediation": "decide-implementation-owner",
+                "user-direction": "await-user-direction",
+            },
+            "decide-implementation-owner": {
+                "required": "implement",
+                "clear": "decide-verification-owner",
+            },
+            "decide-verification-owner": {
+                "required": "verify",
+                "clear": "decide-documentation-owner",
+            },
+            "decide-documentation-owner": {
+                "required": "document",
+                "clear": "review",
+            },
+            "decide-low-result": {"passed": "decide-low-completion"},
+            "decide-low-completion": {"completed": "assess-goal"},
+            "choose-user-direction": {
+                "fix-and-review": "decide-implementation-owner",
+                "stop": "assess-goal",
+            },
+        },
+        "evidence": {
+            "implement": {
+                ("record-plan", "plan-summary"),
+                ("prepare-implementation", "implementation-entry-summary"),
+            },
+            "document": {
+                ("implement", "implementation-summary"),
+                ("implement", "source-revision"),
+                ("refine", "refinement-summary"),
+                ("verify", "verification-result"),
+                ("verify", "verification-observations"),
+                ("decide-verification", None),
+            },
+            "await-user-direction": {
+                ("review", "completion-assessment-summary"),
+                ("review", "completion-unmet-criteria"),
+                ("review", "completion-unverified-criteria"),
+            },
+            "assess-goal": {
+                ("review", "completion-assessment-summary"),
+                ("review", "completion-unmet-criteria"),
+                ("review", "completion-unverified-criteria"),
+                ("review", "finding-count-consistency"),
+                ("await-user-direction", "direction-classification"),
+                ("await-user-direction", "direction-summary"),
+            },
+        },
+    },
+    "aquarium-goal-v2.yaml": {
+        "nodes": {
+            "decide-review-basis",
+            "decide-operational-evidence",
+            "confirm-finding-validity",
+            "confirm-completion-assessment",
+            "decide-evidence",
+            "decide-goal-rework-authority",
+            "record-hardening-deferral",
+            "decide-low-handling",
+            "await-user-direction",
+            "choose-user-direction",
+            "record-low-disposition",
+            "decide-low-result",
+            "decide-low-completion",
+        },
+        "definition_items": {
+            "evidence-record": {
+                "finding-count-consistency",
+                "goal-kind",
+                "review-evidence-kind",
+                "goal-verification-result",
+                "goal-review-readiness-result",
+                "confirmation-needed-findings",
+                "completion-assessment-summary",
+                "completion-unmet-criteria",
+                "completion-unverified-criteria",
+            },
+            "low-disposition-record": {
+                "source-review-basis",
+                "completion-assessment-summary",
+                "completion-unmet-criteria",
+                "completion-unverified-criteria",
+                "pending-low-dispositions",
+                "current-blocking-findings",
+                "before-target",
+                "after-target",
+                "coverage-relationship",
+                "low-disposition-verification",
+            },
+        },
+        "definition_choices": {
+            ("evidence-record", "finding-count-consistency"): {
+                "consistent",
+                "inconsistent",
+            },
+            ("evidence-record", "goal-kind"): {
+                "member-task",
+                "pre-validation-remediation",
+                "epic-closeout",
+            },
+            ("evidence-record", "review-evidence-kind"): {
+                "native-review",
+                "validated-closeout",
+            },
+            ("evidence-record", "review-mode"): {
+                "remediation-eligible",
+                "hardening-deferral-eligible",
+                "closeout-not-required",
+            },
+        },
+        "routes": {
+            "decide-review-basis": {
+                "native-review": "decide-operational-evidence",
+                "final-closeout": "record-closeout-substitute",
+                "invalid-substitute": "record-evidence",
+            },
+            "decide-operational-evidence": {
+                "passed": "confirm-finding-validity",
+                "verification-incomplete": "complete-work",
+                "review-incomplete": "record-evidence",
+            },
+            "confirm-finding-validity": {
+                "resolved": "confirm-completion-assessment",
+                "unresolved": "record-evidence",
+            },
+            "confirm-completion-assessment": {
+                "complete": "decide-evidence",
+                "unmet": "decide-goal-rework-authority",
+                "unverified": "record-evidence",
+            },
+            "decide-evidence": {
+                "clean": "assess-goal",
+                "blocking": "decide-goal-rework-authority",
+                "low-only": "record-hardening-deferral",
+                "inconsistent": "record-evidence",
+            },
+            "decide-goal-rework-authority": {
+                "remediation": "complete-work",
+                "user-direction": "await-user-direction",
+            },
+            "decide-low-handling": {
+                "settle": "record-low-disposition",
+                "defer": "record-hardening-handoff",
+            },
+            "decide-low-result": {"passed": "decide-low-completion"},
+            "decide-low-completion": {"completed": "assess-goal"},
+            "choose-user-direction": {
+                "fix-and-review": "complete-work",
+                "stop": "assess-goal",
+            },
+        },
+        "evidence": {
+            "await-user-direction": {
+                ("record-evidence", "completion-assessment-summary"),
+                ("record-evidence", "completion-unmet-criteria"),
+                ("record-evidence", "completion-unverified-criteria"),
+                ("record-low-disposition", "source-review-basis"),
+                ("record-low-disposition", "low-disposition-summary"),
+                ("record-low-disposition", "current-blocking-findings"),
+                ("record-low-disposition", "after-target"),
+            },
+            "assess-goal": {
+                ("record-evidence", "completion-assessment-summary"),
+                ("record-evidence", "completion-unmet-criteria"),
+                ("record-evidence", "completion-unverified-criteria"),
+                ("record-evidence", "finding-count-consistency"),
+                ("await-user-direction", "direction-classification"),
+                ("await-user-direction", "direction-summary"),
+            },
+        },
+    },
+    "aquarium-validation-v2.yaml": {
+        "nodes": {
+            "record-audit-low-basis",
+            "remediate",
+            "re-audit",
+            "decide-final-review-operation",
+            "confirm-final-review-findings",
+            "confirm-completion-assessment",
+            "decide-required-evidence",
+            "decide-current-blockers",
+            "decide-validation-rework-authority",
+            "decide-final-review",
+            "await-user-direction",
+            "choose-user-direction",
+            "record-stopped",
+            "record-low-disposition",
+            "decide-low-result",
+            "decide-low-completion",
+        },
+        "definition_items": {
+            "audit-record": {
+                "blocking-gap-count",
+                "eligible-low-gap-count",
+                "confirmation-needed-gap-count",
+                "blocking-rework-authority",
+            },
+            "audit-low-basis-record": {
+                "audit-basis-target",
+                "audit-basis-status",
+                "audit-low-finding-count",
+                "audit-low-finding-identities",
+                "audit-low-basis-summary",
+            },
+            "final-review-record": {
+                "applicable-obligation-summary",
+                "completion-assessment-summary",
+                "completion-unmet-criteria",
+                "completion-unverified-criteria",
+                "pending-applicable-low-dispositions",
+                "current-applicable-blockers",
+                "required-evidence-gaps",
+            },
+            "low-disposition-record": {
+                "source-review-basis",
+                "completion-assessment-summary",
+                "completion-unmet-criteria",
+                "completion-unverified-criteria",
+                "pending-low-dispositions",
+                "current-blocking-findings",
+                "before-target",
+                "after-target",
+                "coverage-relationship",
+                "low-disposition-verification",
+            },
+        },
+        "definition_choices": {
+            ("final-review-record", "review-mode"): {
+                "remediation-eligible",
+                "confirmation-only",
+            },
+        },
+        "routes": {
+            "decide-gaps": {
+                "blocking-gaps": "remediate",
+                "low-only": "record-audit-low-basis",
+                "user-direction": "await-user-direction",
+            },
+            "decide-re-audit": {
+                "blocking-gaps": "remediate",
+                "low-only": "record-audit-low-basis",
+                "user-direction": "await-user-direction",
+            },
+            "decide-final-review-operation": {
+                "passed": "confirm-final-review-findings",
+                "incomplete": "record-review-operation-incomplete",
+            },
+            "confirm-final-review-findings": {
+                "resolved": "confirm-completion-assessment",
+                "unresolved": "record-incomplete",
+            },
+            "confirm-completion-assessment": {
+                "complete": "decide-required-evidence",
+                "unmet": "decide-validation-rework-authority",
+                "unverified": "record-incomplete",
+            },
+            "decide-required-evidence": {
+                "complete": "decide-current-blockers",
+                "incomplete": "record-incomplete",
+            },
+            "decide-current-blockers": {
+                "clear": "decide-final-review",
+                "blocking": "decide-validation-rework-authority",
+            },
+            "decide-validation-rework-authority": {
+                "remediation": "audit",
+                "user-direction": "await-user-direction",
+            },
+            "choose-user-direction": {
+                "fix-and-review": "audit",
+                "stop": "record-stopped",
+            },
+            "decide-final-review": {
+                "low-disposition": "record-low-disposition",
+                "validated": "assess-goal",
+            },
+            "decide-low-result": {"passed": "decide-low-completion"},
+            "decide-low-completion": {"completed": "assess-goal"},
+        },
+        "evidence": {
+            "await-user-direction": {
+                ("final-review", "completion-assessment-summary"),
+                ("final-review", "completion-unmet-criteria"),
+                ("final-review", "completion-unverified-criteria"),
+                ("record-low-disposition", "source-review-basis"),
+                ("record-low-disposition", "low-disposition-summary"),
+                ("record-low-disposition", "current-blocking-findings"),
+                ("record-low-disposition", "after-target"),
+            },
+            "assess-goal": {
+                ("final-review", "completion-assessment-summary"),
+                ("final-review", "completion-unmet-criteria"),
+                ("final-review", "completion-unverified-criteria"),
+                ("await-user-direction", "direction-classification"),
+                ("await-user-direction", "direction-summary"),
+            },
+        },
+    },
+    "aquarium-design-v2.yaml": {},
+    "aquarium-war-room-v2.yaml": {},
 }
 LEGACY_PODWAY_PROCEDURES = (
     "root-kernel-task-v2.yaml",
@@ -249,6 +654,7 @@ def run_command(
     cwd: Path,
     timeout_seconds: float,
     environment_overrides: dict[str, str] | None = None,
+    input_text: str | None = None,
 ) -> dict[str, Any]:
     environment = os.environ.copy()
     for name in tuple(environment):
@@ -268,6 +674,7 @@ def run_command(
             text=True,
             errors="replace",
             timeout=timeout_seconds,
+            input=input_text,
         )
     except subprocess.TimeoutExpired:
         return {
@@ -381,11 +788,238 @@ def podway_v025_workaround_bytes(name: str, source: bytes) -> bytes | None:
     return None
 
 
+def podway_handler_structure(value: Any) -> Any:
+    prose_keys = {
+        "criteria",
+        "description",
+        "evidence_guidance",
+        "help",
+        "instructions",
+        "intent",
+        "label",
+        "name",
+        "objective",
+        "prompt",
+        "purpose",
+        "title",
+    }
+    if isinstance(value, dict):
+        return {
+            key: podway_handler_structure(item)
+            for key, item in value.items()
+            if key not in prose_keys
+        }
+    if isinstance(value, list):
+        return [podway_handler_structure(item) for item in value]
+    return value
+
+
+def podway_handler_shape_reasons(
+    definitions: dict[Any, Any], raw_nodes: list[Any]
+) -> list[str]:
+    """Return bounded diagnostics for nested containers consumed below."""
+    reasons: list[str] = []
+    for definition_id, definition in definitions.items():
+        if not isinstance(definition_id, str) or not isinstance(definition, dict):
+            reasons.append(f"malformed_definition:{definition_id}")
+            continue
+        if "items" in definition:
+            items = definition["items"]
+            if not isinstance(items, list):
+                reasons.append(f"malformed_items:{definition_id}")
+                continue
+            for index, item in enumerate(items):
+                if not isinstance(item, dict):
+                    reasons.append(f"malformed_item:{definition_id}:{index}")
+                    continue
+                if "choices" in item:
+                    choices = item["choices"]
+                    if not (
+                        isinstance(choices, list)
+                        and choices
+                        and all(
+                            isinstance(choice, str) and choice.strip()
+                            for choice in choices
+                        )
+                    ):
+                        item_id = item.get("id")
+                        reasons.append(
+                            f"malformed_choices:{definition_id}:{item_id or index}"
+                        )
+
+    for index, node in enumerate(raw_nodes):
+        if not isinstance(node, dict):
+            reasons.append(f"malformed_graph_node:{index}")
+            continue
+        node_id = node.get("id")
+        node_label = node_id if isinstance(node_id, str) else str(index)
+        if "evidence_from" not in node:
+            continue
+        evidence_from = node["evidence_from"]
+        if not isinstance(evidence_from, list):
+            reasons.append(f"malformed_evidence_from:{node_label}")
+            continue
+        for evidence_index, entry in enumerate(evidence_from):
+            if not isinstance(entry, dict) or not isinstance(entry.get("node"), str):
+                reasons.append(
+                    f"malformed_evidence_source:{node_label}:{evidence_index}"
+                )
+                continue
+            if "items" not in entry:
+                continue
+            selected_items = entry["items"]
+            if not (
+                isinstance(selected_items, list)
+                and selected_items
+                and all(
+                    isinstance(item_id, str) and item_id.strip()
+                    for item_id in selected_items
+                )
+            ):
+                reasons.append(
+                    f"malformed_evidence_items:{node_label}:{evidence_index}"
+                )
+    return reasons
+
+
+def inspect_podway_handler_contract(
+    name: str, content: bytes | None, canonical_content: bytes | None
+) -> tuple[str, list[str]]:
+    """Check only the structural Procedure surface consumed by Aquarium handlers."""
+    if content is None:
+        return "not_checked", ["procedure_bytes_unavailable"]
+    if yaml is None:
+        return "not_checked", ["pyyaml_unavailable"]
+    try:
+        document = yaml.safe_load(content)
+    except (UnicodeDecodeError, yaml.YAMLError):
+        return "not_checked", ["procedure_yaml_unreadable"]
+    if not isinstance(document, dict):
+        return "incompatible", ["procedure_document_invalid"]
+
+    definitions = document.get("node_definitions")
+    graph = document.get("graph")
+    raw_nodes = graph.get("nodes") if isinstance(graph, dict) else None
+    if not isinstance(definitions, dict) or not isinstance(raw_nodes, list):
+        return "incompatible", ["procedure_structure_missing"]
+
+    shape_reasons = podway_handler_shape_reasons(definitions, raw_nodes)
+    if shape_reasons:
+        return "incompatible", sorted(set(shape_reasons))
+
+    nodes = {
+        node.get("id"): node
+        for node in raw_nodes
+        if isinstance(node, dict) and isinstance(node.get("id"), str)
+    }
+    contract = PODWAY_HANDLER_CONTRACTS[name]
+    reasons: list[str] = []
+    missing_nodes = sorted(contract.get("nodes", set()) - nodes.keys())
+    if missing_nodes:
+        reasons.append("missing_required_nodes:" + ",".join(missing_nodes))
+
+    for definition_id, required_items in contract.get("definition_items", {}).items():
+        definition = definitions.get(definition_id)
+        items = definition.get("items") if isinstance(definition, dict) else None
+        present_items = {
+            item.get("id")
+            for item in items or []
+            if isinstance(item, dict) and isinstance(item.get("id"), str)
+        }
+        missing_items = sorted(required_items - present_items)
+        if missing_items:
+            reasons.append(
+                f"missing_required_items:{definition_id}:" + ",".join(missing_items)
+            )
+
+    for (definition_id, item_id), required_choices in contract.get(
+        "definition_choices", {}
+    ).items():
+        definition = definitions.get(definition_id)
+        items = definition.get("items") if isinstance(definition, dict) else None
+        item = next(
+            (
+                candidate
+                for candidate in items or []
+                if isinstance(candidate, dict) and candidate.get("id") == item_id
+            ),
+            None,
+        )
+        observed_choices = (
+            set(item.get("choices", [])) if isinstance(item, dict) else set()
+        )
+        if not required_choices.issubset(observed_choices):
+            reasons.append(f"missing_required_choices:{definition_id}:{item_id}")
+
+    for node_id, required_routes in contract.get("routes", {}).items():
+        node = nodes.get(node_id)
+        routes = node.get("routes") if isinstance(node, dict) else None
+        for option, destination in required_routes.items():
+            route = routes.get(option) if isinstance(routes, dict) else None
+            if not isinstance(route, dict) or route.get("to") != destination:
+                reasons.append(f"incompatible_route:{node_id}:{option}")
+
+    for node_id, required_evidence in contract.get("evidence", {}).items():
+        node = nodes.get(node_id)
+        evidence_from = node.get("evidence_from") if isinstance(node, dict) else None
+        observed_evidence = {
+            (entry.get("node"), item)
+            for entry in evidence_from or []
+            if isinstance(entry, dict) and isinstance(entry.get("node"), str)
+            for item in (entry.get("items") or [None])
+        }
+        missing_evidence = sorted(
+            required_evidence - observed_evidence,
+            key=lambda item: (item[0], item[1] or ""),
+        )
+        if missing_evidence:
+            reasons.append(
+                f"missing_required_evidence:{node_id}:"
+                + ",".join(
+                    f"{source}:{item or '*'}" for source, item in missing_evidence
+                )
+            )
+
+    used_definitions = {
+        node.get("use")
+        for node in raw_nodes
+        if isinstance(node, dict) and isinstance(node.get("use"), str)
+    }
+    missing_instructions = sorted(
+        definition_id
+        for definition_id in used_definitions
+        if isinstance(definitions.get(definition_id), dict)
+        and definitions[definition_id].get("type") == "action"
+        and not (
+            isinstance(definitions[definition_id].get("instructions"), list)
+            and definitions[definition_id]["instructions"]
+            and all(
+                isinstance(instruction, str) and instruction.strip()
+                for instruction in definitions[definition_id]["instructions"]
+            )
+        )
+    )
+    if missing_instructions:
+        reasons.append("missing_action_instructions:" + ",".join(missing_instructions))
+
+    if reasons:
+        return "incompatible", reasons
+    if canonical_content is None:
+        return "not_checked", ["canonical_procedure_unavailable"]
+    try:
+        canonical = yaml.safe_load(canonical_content)
+    except (UnicodeDecodeError, yaml.YAMLError):
+        return "not_checked", ["canonical_procedure_unreadable"]
+    if podway_handler_structure(document) != podway_handler_structure(canonical):
+        return "unqualified", ["unrecognized_semantic_customization"]
+    return "compatible", []
+
+
 def supported_sanho_version(version: str | None) -> bool:
     if not version:
         return False
     match = re.fullmatch(rf"v?0\.2\.({CANONICAL_NUMERIC_COMPONENT})", version)
-    return bool(match and int(match.group(1)) >= 7)
+    return bool(match and int(match.group(1)) >= 8)
 
 
 def supported_dolgorae_version(version: str | None) -> bool:
@@ -399,20 +1033,21 @@ def supported_gaori_version(version: str | None) -> bool:
     if not version:
         return False
     match = re.fullmatch(rf"v?0\.1\.({CANONICAL_NUMERIC_COMPONENT})", version)
-    return bool(match and int(match.group(1)) >= 16)
+    return bool(match and int(match.group(1)) >= 17)
 
 
 def supported_mulgae_version(version: str | None) -> bool:
     if not version:
         return False
     match = re.fullmatch(rf"v?0\.1\.({CANONICAL_NUMERIC_COMPONENT})", version)
-    return bool(match and int(match.group(1)) >= 19)
+    return bool(match and int(match.group(1)) >= 21)
 
 
 def supported_sorage_version(version: str | None) -> bool:
     if not version:
         return False
-    return bool(re.fullmatch(rf"v?0\.1\.{CANONICAL_NUMERIC_COMPONENT}", version))
+    match = re.fullmatch(rf"v?0\.1\.({CANONICAL_NUMERIC_COMPONENT})", version)
+    return bool(match and int(match.group(1)) >= 1)
 
 
 def supported_mulgae_go_version(version: str | None) -> bool:
@@ -542,6 +1177,29 @@ def ignored_by_git(
     return probe["exit_code"] == 0
 
 
+def ignored_by_root_gitignore(
+    repository: Path, relative_path: str, timeout_seconds: float
+) -> bool:
+    probe = run_command(
+        ["git", "check-ignore", "--verbose", "--no-index", "-z", "--stdin"],
+        repository,
+        timeout_seconds,
+        input_text=f"{relative_path}\0",
+    )
+    if not probe["ok"]:
+        return False
+    fields = probe["stdout"].split("\0")
+    if len(fields) != 5 or fields[-1] or not fields[1].isdigit():
+        return False
+    source_text, _, pattern, pathname, _ = fields
+    if pathname != relative_path or pattern.startswith("!"):
+        return False
+    source = Path(source_text)
+    if not source.is_absolute():
+        source = repository / source
+    return os.path.normpath(source) == os.path.normpath(repository / ".gitignore")
+
+
 def tracked_by_git(
     repository: Path, relative_path: str, timeout_seconds: float
 ) -> bool:
@@ -578,6 +1236,7 @@ def configuration_entry(
     relative_path: str,
     timeout_seconds: float,
     ignore_probe_path: str | None = None,
+    ignored: bool | None = None,
 ) -> dict[str, Any]:
     path = repository.joinpath(relative_path)
     present, symlinked = safe_managed_file_state(path, repository)
@@ -587,8 +1246,12 @@ def configuration_entry(
         "path": relative_path,
         "present": present,
         "symlinked": symlinked,
-        "ignored": ignored_by_git(
-            repository, ignore_probe_path or relative_path, timeout_seconds
+        "ignored": (
+            ignored
+            if ignored is not None
+            else ignored_by_git(
+                repository, ignore_probe_path or relative_path, timeout_seconds
+            )
         ),
     }
 
@@ -2506,6 +3169,7 @@ def inspect_sorage(
         repository,
         ".sorage/",
         timeout_seconds,
+        ignored=ignored_by_root_gitignore(repository, ".sorage/", timeout_seconds),
     )
     configuration["tracked"] = tracked_under_git(repository, ".sorage", timeout_seconds)
     configuration["unignored"] = untracked_under_git(
@@ -2641,6 +3305,29 @@ def inspect_sorage(
     tool["status"] = "configured" if ready else "installed"
     tool["readiness_status"] = "ready" if ready else "degraded"
     return tool
+
+
+def inspect_global_mcp_scope(
+    name: str,
+    executable: str | None,
+    root: Path,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    # ZCode has no `mcp` CLI to probe; the user-global registration is the
+    # `mcp.servers` entry of `~/.zcode/cli/config.json`, which the project
+    # inspector reads directly. Reading from the filesystem-root cwd keeps
+    # any repository `.zcode/config.json` out of the global view, mirroring
+    # the neutral-cwd probe upstream runs through its host CLI. Both named
+    # components resolve through the same config shape here, so the
+    # per-component classifiers upstream selects between have no equivalent
+    # divergence to carry.
+    reading = zcode_mcp_entries(name, Path(root.anchor))
+    if reading["invalid_config"]:
+        return {
+            "status": "degraded",
+            "reason": f"{reading['invalid_config']}_config_invalid_json",
+        }
+    return zcode_mcp_scope_status(reading["scopes"]["user"], executable)
 
 
 def inspect_gaori_mcp(
@@ -2881,21 +3568,21 @@ def inspect_humanizer() -> dict[str, Any]:
     )
 
 
-def effective_writing_skill_root() -> Path:
-    # The Humanizer pair installs user-scoped, and the shared
-    # `~/.agents/skills` root is the cross-agent root ZCode reads natively,
-    # so it is the canonical writing-skill target on this host.
-    return Path.home() / ".agents" / "skills"
-
-
 def inspect_im_not_ai() -> dict[str, Any]:
-    return inspect_writing_skill(
+    try:
+        target = Path.home() / ".agents/skills/humanize-korean"
+    except (OSError, ValueError, RuntimeError):
+        target = None
+    result = inspect_writing_skill(
         skill_name="humanize-korean",
         expected_files=HUMANIZE_KOREAN_SKILL_FILES,
-        expected_target=effective_writing_skill_root() / "humanize-korean",
+        expected_target=target,
         supported_release=IM_NOT_AI_SUPPORTED_RELEASE,
         require_version=False,
     )
+    if target is None:
+        result["reason"] = "home_resolution_failed"
+    return result
 
 
 def inspect_lora() -> dict[str, Any]:
@@ -3338,6 +4025,9 @@ def inspect_podway(
             source_state = "pending_validation"
             update_explanation = "local_customization"
         tracked = present and tracked_by_git(repository, relative_path, timeout_seconds)
+        handler_contract_status, handler_contract_reasons = (
+            inspect_podway_handler_contract(name, target_bytes, source_bytes)
+        )
         present_count += int(present or symlinked)
         tracked_count += int(tracked)
         managed.append(
@@ -3352,6 +4042,8 @@ def inspect_podway(
                 "source_state": source_state,
                 "update_explanation": update_explanation,
                 "expected_procedure_id": Path(name).stem,
+                "handler_contract_status": handler_contract_status,
+                "handler_contract_reasons": handler_contract_reasons,
             }
         )
     for name in LEGACY_PODWAY_PROCEDURES:
@@ -3589,7 +4281,8 @@ def inspect_podway(
             entry["source_state"] = (
                 "canonical" if entry["matches_source"] else "valid_customization"
             )
-            valid_managed_count += 1
+            if entry["handler_contract_status"] == "compatible":
+                valid_managed_count += 1
         elif check_rejected or preview_rejected:
             entry["source_state"] = "invalid"
         else:

@@ -1,11 +1,15 @@
 {
+  "dev-setup": {
+    "source_digest": "551b6cda0c32f591cfaa06752bc6b0e44cab7bcc20e43c94452bb36a7327a093",
+    "description": "Diagnose and configure Aquarium repository-local tooling and root agent guidance. Use when the user invokes /aquarium:dev-setup or asks to initialize, repair, or audit project configuration such as .podway, .mulgae, .gaori, Sorage binding, project MCP, AGENTS.md, or CLAUDE.md. Use /aquarium:dev-setup-global for user-global tool installation or updates; Aquarium plugin installation and updates belong to the host plugin-management flow."
+  },
   "dev-setup-bundle": {
     "source_digest": "547202d97015e9bbcbe9539d4a0a0a453d293ee8241c8bbd0441141decb3b9e5",
     "description": "Apply Aquarium development-tool setup across multiple explicit Git repositories from one external YAML manifest. Use when the user explicitly invokes /aquarium:dev-setup-bundle with an aquarium.dev-setup-bundle/v1 manifest path; single-repository setup belongs to /aquarium:dev-setup."
   },
-  "dev-setup": {
-    "source_digest": "2bcc408083abbcd9a0535cf811ef6215d7b90428447f0395d062c55a54e339ee",
-    "description": "Diagnose and configure Aquarium repository-local tooling and root agent guidance. Use when the user invokes /aquarium:dev-setup or asks to initialize, repair, or audit project configuration such as .podway, .mulgae, .gaori, Sorage binding, project MCP, AGENTS.md, or CLAUDE.md. Use /aquarium:dev-setup-global for user-global installation or updates."
+  "dev-setup-global": {
+    "source_digest": "ca2cbf86beebe2b99d0e82f3444ebdeb8ec044a67043862bbd91f327ac2f1feb",
+    "description": "Diagnose, install, and update supported user-global development tools and integrations, excluding the Aquarium plugin itself. Use when the user invokes /aquarium:dev-setup-global or a workflow reports a missing global CLI, paired skill, MCP registration, service, or Ouroboros component. Repository-local configuration belongs to /aquarium:dev-setup."
   },
   "docs-setup": {
     "source_digest": "454934abf72181a79e7402b7a7bb714ed857765584ccc73d1e103b9c6ed22fa0",
@@ -20,8 +24,8 @@
     "description": "Cold-validate one completed roadmap epic through a bounded audit and one remediation-and-confirmation cycle. Use when the user explicitly invokes /aquarium:epic-validator with a roadmap path and exactly one completed epic ID; never invoke it implicitly."
   },
   "independent-review": {
-    "source_digest": "7f291b13c78dfa2b9146e5778bb6f9450d00d29ffec8c6a5958558db7b7215e1",
-    "description": "Run one supervised static review with fresh reviewer subagents against staged changes, `HEAD`, a commit or range, one task or epic, or an investigation. Use when the user explicitly invokes /aquarium:independent-review and asks for an independent verdict without remediation."
+    "source_digest": "a721baea2c2214395c58cea8773342c91a128430682b29154bd2b768f679f8ce",
+    "description": "Run one supervised static review with fresh reviewer subagents against staged changes, `HEAD`, a commit or range, one task or epic, or an investigation, assessing either the change or the named work unit's completion. Use when the user explicitly invokes /aquarium:independent-review and asks for an independent verdict without remediation."
   },
   "new-feature": {
     "source_digest": "31bfce6aca3cc33e62825671c9fbff3d090d4b2668ec393c22b3635a50b9cae5",
@@ -87,16 +91,16 @@
     "source_digest": "8b2a79bf175c744f0c1574ebcaf982bde5e92793bffe58284b1bb26d4e95de68",
     "description": "Audit and configure the common Make or Bun testing contract for one repository, with evidence-backed legacy waivers. Use when the user explicitly invokes /aquarium:test-setup for test infrastructure or TESTING.md setup."
   },
-  "war-room": {
-    "source_digest": "ab6073685466b4486e96fc19a0e7e017dbfee4e302c3cd0de3b8bd4262422ef8",
-    "description": "Diagnose one difficult bug and shape the next work unit with Ouroboros, without implementing a fix. Use when the user explicitly invokes /aquarium:war-room."
-  },
   "upgrade": {
     "source_digest": "7b67c921075da1dbe0c5f4cd7665bb32703f1340deef49dc1de6ccc70df140ed",
     "description": "Upgrade this edition to a newly released upstream Aquarium version: pin the submodule, resolve every sync abort, re-derive overrides and description tunings, validate, and prepare the reviewed release and the local installation. Use when the user explicitly invokes /aquarium:upgrade with one released upstream version; do not use for unreleased upstream commits or unrelated repository work."
   },
-  "dev-setup-global": {
-    "source_digest": "f42c71a7ca5dc20b01dea0818cbe2fa05c8fbf0e783a83669e77582a9a630bae",
-    "description": "Diagnose, install, and update Aquarium user-global development tools, including global CLIs, paired skills, MCP registrations, services, Lore, Deslop, Humanizer, im-not-ai, and Ouroboros. Use when the user invokes /aquarium:dev-setup-global or a workflow reports a missing global component. Repository-local configuration belongs to /aquarium:dev-setup."
+  "war-room": {
+    "source_digest": "ab6073685466b4486e96fc19a0e7e017dbfee4e302c3cd0de3b8bd4262422ef8",
+    "description": "Diagnose one difficult bug and shape the next work unit with Ouroboros, without implementing a fix. Use when the user explicitly invokes /aquarium:war-room."
+  },
+  "mulgae-review": {
+    "source_digest": "c80a20fdbe2ab46ecfd67b5ba12c891899181c83f521644450dba8104059a51b",
+    "description": "Run one report-only standalone Mulgae review of an exact supported change target or named Task or Epic completion candidate. Use when the user explicitly invokes /aquarium:mulgae-review outside an active handler."
   }
 }

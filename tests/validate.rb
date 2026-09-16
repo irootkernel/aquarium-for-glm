@@ -142,8 +142,15 @@ if inspection.file?
   assert(script.include?('"host_integration"'), "inspection must report the host integration component")
   assert(script.include?('"runtime_package"'), "inspection must report the Ouroboros runtime-package axis")
   assert(script.include?("zcode_mcp_scopes"), "inspection must classify Mulgae and Gaori registrations from ZCode config")
-  assert(script.include?("effective_writing_skill_root"), "inspection must resolve the writing-skill target through the ZCode helper")
+  # v0.1.16 routes the user-global MCP view through `inspect_global_mcp_scope`
+  # and adopts the shared `~/.agents/skills` root for `humanize-korean`
+  # upstream; both markers guard arrival — the ZCode restatement of the former
+  # is enforced by the surgery's dangling-reference check on the deleted
+  # Codex-CLI probes, and the latter is upstream-converged bytes.
+  assert(script.include?("inspect_global_mcp_scope"), "inspection must restate the user-global MCP view on the ZCode config scopes")
   assert(script.include?('"humanize-korean": Path.home() / ".agents/skills/humanize-korean"'), "the trusted global-skill map must pin humanize-korean to the shared agents root")
+  assert(script.include?('"handler_contract_status"'), "inspection must report the Podway handler-contract axis")
+  assert(script.include?("aquarium-dev-setup-inspection.v21"), "inspection must keep its schema marker")
   assert(!script.include?("effective_codex_skill_root"), "inspection must not resolve skill targets through a Codex home")
 end
 
@@ -173,6 +180,18 @@ if independent_review.file?
   assert(review_skill.include?("`Agent` tool"), "independent-review must dispatch through the host Agent tool")
   assert(!review_skill.include?("dolgorae specialist review"), "independent-review must not run the Dolgorae operation")
   assert(review_skill.include?("[finding-disposition.md](../../references/finding-disposition.md)"), "independent-review must load the shared disposition contract")
+end
+
+# v0.1.16 rewrote orca-review's unsupported-scope sentence around upstream's
+# disabled entrypoint; no forbidden needle covers that claim, so the restated
+# boundary is pinned here — the disabled framing must not ship while this
+# edition's entrypoint is the enabled native route.
+orca_review_path = PLUGIN.join("skills/orca-review/SKILL.md")
+if orca_review_path.file?
+  orca_review = orca_review_path.read
+  assert(!orca_review.include?("Independent Review is disabled"), "orca-review must not carry upstream's disabled-entrypoint framing")
+  assert(orca_review.include?("/aquarium:independent-review"), "orca-review must name the subagent review route")
+  assert(orca_review.include?("no route is an automatic fallback"), "orca-review must keep the explicit-selection boundary")
 end
 
 # --- v0.1.15 bundled aquarium-dev package and global inspector ----------------
@@ -208,7 +227,10 @@ global_inspection = PLUGIN.join("skills/dev-setup-global/scripts/inspect_global_
 if global_inspection.file?
   global_script = global_inspection.read
   assert(global_script.include?("aquarium-dev-setup-global-inspection.v3"), "the global inspector must keep its schema marker")
-  assert(global_script.include?("zcode_mcp_entries"), "the global MCP view must read the ZCode config scopes")
+  # v0.1.16 reduces the global MCP wrapper to a host-neutral delegation; the
+  # ZCode restatement lives in the project inspector's replacement, so assert
+  # the delegation target rather than a local implementation.
+  assert(global_script.include?("inspector.inspect_global_mcp_scope"), "the global MCP view must delegate to the restated inspector helper")
 end
 ouroboros_inspection = PLUGIN.join("skills/dev-setup-global/scripts/inspect_ouroboros.py")
 if ouroboros_inspection.file?
@@ -231,6 +253,33 @@ if testing.file?
     testing.read.include?("aquarium-test-setup-inspection.v1"),
     "the test-setup inspector must keep its schema marker"
   )
+end
+
+# --- v0.1.16 review intent restatement --------------------------------------
+
+# Upstream v0.1.16 disables its Dolgorae-backed Independent Review entrypoint
+# and frames the new shared intent contract around that refusal and a native
+# Codex subagent route. This edition's entrypoint is enabled and IS the native
+# ZCode subagent route, so the restated surfaces must carry that stance; no
+# forbidden needle covers these phrases, so a substitution that stopped
+# matching would ship the disabled framing silently.
+intent_contract = PLUGIN.join("references/review-intent-contract.md")
+if intent_contract.file?
+  contract = intent_contract.read
+  assert(contract.include?("## Route an Independent Review request"), "the intent contract must route through the enabled entrypoint")
+  assert(contract.include?("## Use a native ZCode review subagent"), "the intent contract must name the native ZCode subagent route")
+  assert(!contract.include?("disabled `/aquarium:independent-review`"), "the intent contract must not carry the disabled-entrypoint framing")
+  assert(!contract.include?("native Codex"), "the intent contract must not name the Codex host's route")
+end
+finding_disposition = PLUGIN.join("references/finding-disposition.md")
+if finding_disposition.file?
+  disposition = finding_disposition.read
+  assert(
+    disposition.include?("dispatched by `/aquarium:independent-review`"),
+    "the disposition contract must name the enabled reviewer-subagent backend"
+  )
+  assert(!disposition.include?("dormant Independent Review"), "the disposition contract must not carry the dormant-route framing")
+  assert(!disposition.include?("native Codex"), "the disposition contract must not name the Codex host's route")
 end
 
 # --- manifests agree with upstream -----------------------------------------

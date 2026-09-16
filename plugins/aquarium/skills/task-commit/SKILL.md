@@ -5,7 +5,7 @@ description: "Prepare and create one authorized Git commit while reconciling roa
 
 # Task Commit
 
-Create one authorized commit through a shared roadmap-aware boundary. Read [evidence-residency.md](../../references/evidence-residency.md) and [release-notes.md](../../references/release-notes.md). This skill owns commit preparation and execution, including one explicitly approved release-note hunk when needed, not implementation evidence, task completion judgment, Podway mutation, publication, or release.
+Create one authorized commit through a shared roadmap-aware boundary. Read [evidence-residency.md](../../references/evidence-residency.md), [finding-disposition.md](../../references/finding-disposition.md), and [release-notes.md](../../references/release-notes.md). This skill owns commit preparation and execution, including one explicitly approved release-note hunk when needed, not implementation evidence, task completion judgment, Podway mutation, publication, or release.
 
 ## Establish the Commit Boundary
 
@@ -35,6 +35,7 @@ A handler commit handoff must include:
 - the lifecycle decision as either an exact approved edit or an explicit statement that no lifecycle edit applies;
 - the record decision as either an exact approved edit or an explicit statement that no record edit applies;
 - verification and review evidence identifying command, actor, exit status, reviewed snapshot, verdict, and review run when applicable, with inapplicable fields marked explicitly.
+- the complete Low-settlement composition defined by the shared finding-disposition contract, or an explicit statement that no accepted Low-only delta applies;
 - the release-note decision as exact `entry` text already present in the approved diff, `intentional no-note`, or `not-enrolled`;
 - zero or more staged promoted-evidence manifest paths paired with exact `sha256:<64-hex>` manifest digests and the owning workflow's current native-evidence, native-target-digest, and copied-projection validation result, or an explicit statement that no promoted evidence applies;
 - for an epic member task with a hardening deferral, the exact current Mulgae run and finding IDs used only for pre-commit verification, or an explicit statement that no hardening deferral applies.
@@ -61,8 +62,14 @@ Stage only the authorized paths or hunks. Preserve unrelated staged and unstaged
 - the selected task relationship and approved terminal or unchanged-checkpoint status still match the user's answer;
 - the handler handoff's lifecycle or record edit, including an explicit absence, still matches the staged snapshot;
 - a declared unrelated commit contains no unintended task lifecycle transition;
-- the reviewed implementation, approved lifecycle or record decision, and any approved post-review promoted-evidence packages equal the staged diff;
+- the reviewed implementation plus any exact accepted and locally verified Low-only delta, approved lifecycle or record decision, and approved post-review promoted-evidence packages equal the staged diff;
 - unrelated pre-existing staged content is absent from the intended commit.
+
+An accepted Low-only composition may differ from the provider-reviewed target only
+by its enumerated verified delta. Do not require or launch another provider review
+for that difference. Reject an unknown source basis, nonzero pending disposition or
+current blocker count, failed or stale local check, mismatched final target, or any
+extra path or hunk. This commit skill never owns review dispatch.
 
 Before a non-trivial commit, reference `/lore-commits` and follow it when available. Repository-required IDs and prefixes override Lore, which never grants commit authority. If Lore is required but unavailable, stop and return an exact `/aquarium:dev-setup-global` continuation request. Otherwise report its absence once, inspect `git log -5 --format=fuller`, and match the recurring subject, body, and trailer structure; inspect all commits when fewer than five exist and use a concise imperative subject when none exist.
 

@@ -1,11 +1,11 @@
 ---
 name: dev-setup
-description: "Diagnose and configure Aquarium repository-local tooling and root agent guidance. Use when the user invokes /aquarium:dev-setup or asks to initialize, repair, or audit project configuration such as .podway, .mulgae, .gaori, Sorage binding, project MCP, AGENTS.md, or CLAUDE.md. Use /aquarium:dev-setup-global for user-global installation or updates."
+description: "Diagnose and configure Aquarium repository-local tooling and root agent guidance. Use when the user invokes /aquarium:dev-setup or asks to initialize, repair, or audit project configuration such as .podway, .mulgae, .gaori, Sorage binding, project MCP, AGENTS.md, or CLAUDE.md. Use /aquarium:dev-setup-global for supported user-global development tool installation or updates. Aquarium plugin installation and updates belong to the host plugin-management flow."
 ---
 
 # Repository Development Setup
 
-Diagnose the repository first, propose only changes supported by repository evidence, and leave user-global installation and updates to `/aquarium:dev-setup-global`.
+Diagnose the repository first, propose only changes supported by repository evidence, and leave supported user-global development tool installation and updates to `/aquarium:dev-setup-global`. Route requests to install or update only the Aquarium plugin directly to the host's plugin-management flow without repository or global setup diagnosis.
 
 This skill owns root AGENTS.md and CLAUDE.md guidance. A general setup always reviews the complete guidance against the standard structure and behavior, then proposes a full reorganization where needed. `/aquarium:docs-setup` owns documentation structure and roadmap identity.
 
@@ -50,7 +50,7 @@ An explicit diagnosis-only request suppresses mutation proposals. A scoped conti
 - Preserve the existing Sanho workspace, Mulgae, Gaori, Sorage, and Podway version, validity, approval, backup, and verification rules in the shared catalog, but apply only their repository-local portions.
 - Prefer global Mulgae and Gaori MCP registrations as prerequisites. Create, change, or remove a project-local registration in the repository's `.zcode/config.json` only when the user explicitly requested local scope or repository authority already requires it. Preserve unrelated ZCode configuration.
 - For Sorage, do not run doctor or Project resolution in Plan Mode because native open-and-migrate paths may write local database or journal state. Outside Plan Mode, disclose those bounded diagnostic side effects before the automatic selected-component diagnosis. Initialization remains global; Project add, bind, unarchive, and repository ignore changes remain local and separately approved.
-- For Podway, preserve custom same-ID Procedures that Podway validates, show exact canonical replacement diffs, and keep session lifecycle and runtime-mode changes outside setup. Managed-Procedure removal and legacy reset retain their destructive-action approvals.
+- For Podway, keep source provenance and handler-contract compatibility separate. Preserve every same-ID customization, but report readiness only when native validation and the required structural handler contract both pass. Show exact canonical replacement diffs for an incompatible customization; never overwrite it or reinterpret an admitted session. Keep session lifecycle and runtime-mode changes outside setup. Managed-Procedure removal and legacy reset retain their destructive-action approvals.
 - Never stage, commit, push, authenticate a provider, transmit source, start a review or test, or invoke a workflow as part of setup.
 
 ## Reconcile Repository Guidance

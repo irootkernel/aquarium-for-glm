@@ -1,11 +1,17 @@
 ---
 name: dev-setup-global
-description: "Diagnose, install, and update Aquarium user-global development tools, including global CLIs, paired skills, MCP registrations, services, Lore, Deslop, Humanizer, im-not-ai, and Ouroboros. Use when the user invokes /aquarium:dev-setup-global or a workflow reports a missing global component. Repository-local configuration belongs to /aquarium:dev-setup."
+description: "Diagnose, install, and update supported user-global development tools and integrations, excluding the Aquarium plugin itself. Use when the user invokes /aquarium:dev-setup-global or a workflow reports a missing global CLI, paired skill, MCP registration, service, or Ouroboros component. Repository-local configuration belongs to /aquarium:dev-setup."
 ---
 
 # Global Development Setup
 
-Own user-global installation, exact-upstream freshness, upgrades, services, and global ZCode integration without inspecting or changing repository configuration.
+Own installation, exact-upstream freshness, upgrades, services, and global ZCode integration for the supported components listed below without inspecting or changing repository configuration.
+
+## Check Request Scope Before Loading References
+
+Aquarium plugin installation and updates belong to the host's plugin-management flow. A request to install or update only the Aquarium plugin, including a specific version, does not select this skill. If this skill was selected for that request, return to the host's plugin-management flow before reading the tool catalog or running any diagnostic. Do not infer a global tool setup request from plugin installation.
+
+Use this skill for an explicit global development setup request or a workflow continuation naming a global component that needs attention. An explicit request to install or update the optional `aquarium-dev` runtime remains in scope; installing or updating the Aquarium plugin alone does not request that runtime.
 
 Read the selected sections of [the shared tool catalog](../../references/tool-catalog.md). Do not read repository-local `.podway`, `.mulgae`, `.gaori`, `.sorage`, `.zcode`, AGENTS.md, or CLAUDE.md as global setup evidence.
 
@@ -33,7 +39,7 @@ If a freshness lookup, download, validation, or comparison fails, report `freshn
 - Lora's `lore-commits` and `lore-query`, upstream Deslop, Humanizer, and im-not-ai's `humanize-korean` skill.
 - Ouroboros package version, user-scoped skills under the ZCode skill root, MCP runtime, effective user-global registration, and live exposure when safely observable.
 - The optional `aquarium-dev` CLI and MCP runtime bundled with Aquarium. Install and update it only on an explicit request; it is not part of production-binary readiness. Its MCP registration ships in the plugin's own root `.mcp.json`, which ZCode auto-loads, not in the user-global `mcp.servers` table, and it has no paired skill.
-- Aquarium production-binary readiness requires supported global Podway, Mulgae, Gaori, and Dolgorae executables and fails closed when any is missing. Sanho remains optional and is excluded from this baseline.
+- Aquarium production-binary readiness requires supported global Podway, Mulgae, and Gaori executables and fails closed when any is missing. Dolgorae and Sanho remain optional and are excluded from this baseline.
 
 Do not install provider CLIs, authenticate, read credentials, contact providers, transmit repository source, initialize repository workspaces, change project MCP, edit repository guidance, start tests or reviews, or invoke Ouroboros workflows.
 

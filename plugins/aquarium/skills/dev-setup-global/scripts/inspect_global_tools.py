@@ -157,19 +157,7 @@ def inspect_global_mcp(
     root: Path,
     timeout_seconds: float,
 ) -> dict[str, Any]:
-    # ZCode has no `mcp` CLI to probe; the user-global registration is the
-    # `mcp.servers` entry of `~/.zcode/cli/config.json`, which the project
-    # inspector reads directly. Reading from the filesystem-root cwd keeps
-    # any repository `.zcode/config.json` out of the global view, mirroring
-    # the neutral-cwd probe upstream runs through its host CLI.
-    neutral_cwd = Path(root.anchor)
-    reading = inspector.zcode_mcp_entries(name, neutral_cwd)
-    if reading["invalid_config"]:
-        return {
-            "status": "degraded",
-            "reason": f"{reading['invalid_config']}_config_invalid_json",
-        }
-    return inspector.zcode_mcp_scope_status(reading["scopes"]["user"], executable)
+    return inspector.inspect_global_mcp_scope(name, executable, root, timeout_seconds)
 
 
 def inspect_global_podway(

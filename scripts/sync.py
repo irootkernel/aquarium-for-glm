@@ -107,30 +107,28 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         "one CLI upgrade and one single-surface ZCode integration update, not "
         "one installation per repository",
     ),
-    ("a fresh Codex reviewer", "a fresh independent reviewer"),
-    ("one fresh Codex reviewer", "one fresh independent reviewer"),
-    ("supervised Codex reviewer", "supervised independent reviewer"),
-    ("a fresh Codex in the current", "a fresh independent reviewer in the current"),
     ("fresh Codex audit", "fresh from-scratch audit"),
-    ("direct Codex audit", "direct from-scratch audit"),
-    # v0.1.11 moves review supervision into shared references. independent-review
-    # runs on the host's own Agent tool here, so the Orca supervision reference
-    # serves orca-review alone and its Codex dispatch clause does not apply.
+    # v0.1.16 rewrote orca-review's unsupported-scope sentence around the
+    # disabled upstream entrypoint (the v0.1.15 form this used to restate
+    # pointed users at `/aquarium:independent-review` instead). The entrypoint
+    # is enabled here, so the restatement keeps the explicit-selection
+    # boundary and the no-capture scope limit without the disabled claim.
     (
-        "the current execution backend for Aquarium's independent review contracts",
-        "the current execution backend for Aquarium's `/aquarium:orca-review` provider layer",
-    ),
-    (
-        "For `/aquarium:independent-review`, start one fresh Codex with the live guide's "
-        "supervised `worker-start --worktree current --agent codex` path. Do not reuse a "
-        "terminal or create another Git worktree.",
-        "Do not reuse a terminal or create another Git worktree.",
+        "Report the unsupported Orca scope and ask for an explicitly selected "
+        "supported target or review route; Independent Review is disabled and "
+        "is not a fallback.",
+        "Report the unsupported Orca scope and ask for an explicitly selected "
+        "supported target or review route; Independent Review is available "
+        "through `/aquarium:independent-review` on explicit selection, "
+        "`workspace` and `dirty` require an immutable capture no backend here "
+        "provides, and no route is an automatic fallback.",
     ),
     # v0.1.14 rewrites the shared review contract around Dolgorae captures and
-    # six source scopes. independent-review keeps running on the host's own
-    # Agent tool here, so its half of the contract is restated for that
-    # backend: four inspector-backed scopes, blob-bound targets, and no
-    # capture machinery. The Orca half of the contract stays accurate as
+    # six source scopes; v0.1.16 disables upstream's Dolgorae-backed route and
+    # prefixes its sentences accordingly. independent-review keeps running on
+    # the host's own Agent tool here, so its half of the contract is restated
+    # for that backend: four inspector-backed scopes, blob-bound targets, and
+    # no capture machinery. The Orca half of the contract stays accurate as
     # written. `workspace` and `dirty` need an immutable capture that neither
     # backend provides on this host, so they are unsupported for both.
     (
@@ -146,8 +144,25 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         "| Resolved commit blobs | Current registered worktree Git reads |",
     ),
     (
-        "Independent Review uses Dolgorae's checked immutable capture as target authority. "
-        "Its complete candidate, capture, manifest, path-safety, lifecycle, settlement, and "
+        "Use this contract for one static, read-only review through `/aquarium:orca-review`. "
+        "Read [review-intent-contract.md](review-intent-contract.md) for the Review Brief "
+        "and change-versus-completion semantics, then read "
+        "[finding-disposition.md](finding-disposition.md) for adjudication and remediation. "
+        "The Dolgorae-backed `/aquarium:independent-review` route is temporarily disabled "
+        "and stops before setup or source transmission; its historical target meanings "
+        "remain documented here for compatibility and possible future re-enablement.",
+        "Use this contract for one static, read-only review through "
+        "`/aquarium:independent-review` or `/aquarium:orca-review`. Read "
+        "[review-intent-contract.md](review-intent-contract.md) for the Review Brief and "
+        "change-versus-completion semantics, then read "
+        "[finding-disposition.md](finding-disposition.md) for adjudication and remediation. "
+        "On this edition `/aquarium:independent-review` dispatches fresh reviewer "
+        "subagents through the host's own `Agent` tool; the Dolgorae machinery "
+        "documented in this contract's Independent Review half is not used here.",
+    ),
+    (
+        "When re-enabled, Independent Review uses Dolgorae's checked immutable capture as target authority. "
+        "Its dormant candidate, capture, manifest, path-safety, lifecycle, settlement, and "
         "recovery rules are defined by [dolgorae-review-contract.md](dolgorae-review-contract.md).",
         "Independent Review binds each reviewer to the target inspector's dispatch-time "
         "digest and, for committed scopes, to resolved commit blobs rather than later "
@@ -157,7 +172,12 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         "documents the upstream backend this edition does not use.",
     ),
     (
-        "`independent-review` uses one guarded Dolgorae `specialist.review` v2 operation "
+        "When re-enabled, Independent Review also reports ignored state under its "
+        "capture contract.",
+        "Independent Review also reports ignored state through its target inspector.",
+    ),
+    (
+        "When re-enabled, `independent-review` uses one guarded Dolgorae `specialist.review` v2 operation "
         "to capture the target and run one fresh Codex Reviewer. It creates and accepts no "
         "Orca Run, Task, Dispatch, worker, terminal, context, or worktree. Missing or "
         "invalid Dolgorae state fails closed without Orca fallback.",
@@ -167,12 +187,12 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         "otherwise unusable subagent dispatch fails closed without provider fallback.",
     ),
     # v0.1.15 rewords settlement around same-release `$use-dolgorae`
-    # delegation. The Agent-tool backend here has no provider lifecycle to
+    # delegation, and v0.1.16 replaces that sentence with a disabled-route
+    # statement. The Agent-tool backend here has no provider lifecycle to
     # delegate to, so the restated half keeps dispatch/review separation
     # and the explicit-user-request boundary for waiting or re-dispatch.
     (
-        "Independent Review delegates settlement and recovery to the "
-        "same-release `/use-dolgorae` skill and Dolgorae's checked contract. "
+        "The disabled Independent Review route performs no settlement or recovery. "
         "Orca Review follows its live Orca guides and "
         "[orca-supervision.md](orca-supervision.md), including authoritative "
         "observation on deadline exhaustion.",
@@ -184,18 +204,12 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         "observation on deadline exhaustion.",
     ),
     (
-        "Independent Review additionally returns its target digest, capture, manifest, "
-        "source-mutation observation, target-integrity result, and Dolgorae settlement "
-        "evidence.",
-        "Independent Review additionally returns its target digest, the dispatch-time index "
-        "observation for a `staged` target, any later source-mutation observation, and "
+        "Independent Review additionally returns its target digest, capture, manifest,\n"
+        "source-mutation observation, target-integrity result, and Dolgorae settlement\n"
+        "evidence when that route is enabled.",
+        "Independent Review additionally returns its target digest, the dispatch-time index\n"
+        "observation for a `staged` target, any later source-mutation observation, and\n"
         "separate dispatch and reviewer status.",
-    ),
-    (
-        "`workspace` and `dirty` remain outside this workflow. Use "
-        "`/aquarium:independent-review` when one of those scopes is required.",
-        "`workspace` and `dirty` remain outside this workflow; they require an immutable "
-        "capture no backend here provides.",
     ),
     # The aquarium-dev channel is upstream-ecosystem tooling, but its setup
     # prohibitions name the host, and the host here is ZCode. Its plugin
@@ -203,10 +217,6 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     # so that boundary broadens past the upstream Codex home.
     ("configure Codex", "configure ZCode"),
     ("Codex configuration", "ZCode configuration"),
-    (
-        "are never installed into a Codex home by this workflow",
-        "are never installed into any host's plugin home by this workflow",
-    ),
     # v0.1.15 moves the aquarium-dev channel into `tools/aquarium-dev` and a
     # shared development contract reference. Its restart sentence and its
     # launcher/manager boundary clauses name the host, and the host here is
@@ -224,25 +234,143 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         "The launcher does not read or mutate the host's authentication, "
         "plugins, skills, or MCP configuration.",
     ),
+    # v0.1.16 adds the shared review intent contract and routes completion
+    # reviews through it. Upstream frames both its routing matrix and its
+    # native subagent section around the disabled Dolgorae-backed entrypoint
+    # and the Codex host; this edition's `/aquarium:independent-review` is the
+    # enabled native subagent route itself, so those surfaces are restated in
+    # those terms while everything else ships as written.
+    (
+        "Use this contract whenever an enabled Aquarium route asks a reviewer to "
+        "assess a change or completion, and for the disabled "
+        "`/aquarium:independent-review` entrypoint's refusal and routing decision.",
+        "Use this contract whenever an enabled Aquarium route asks a reviewer to "
+        "assess a change or completion, including the "
+        "`/aquarium:independent-review` entrypoint's native reviewer-subagent "
+        "route.",
+    ),
+    (
+        "## Route a disabled Independent Review request\n"
+        "\n"
+        "The disabled `/aquarium:independent-review` entrypoint owns only its refusal "
+        "and routing decision. Apply this matrix before any discovery, setup, source "
+        "handling, provider contact, or review launch:\n"
+        "\n"
+        "| Explicitly preselected supported alternative | Result |\n"
+        "| --- | --- |\n"
+        "| None | Explain the refusal and available alternatives; launch nothing. |\n"
+        "| Exactly one Orca route | Preserve the original target and review question, "
+        "validate the requested reviewer and supported target, then invoke "
+        "`/aquarium:orca-review` under its own contract. |\n"
+        "| Exactly one native Codex route | Preserve the original target and review "
+        "question. Use a fresh host-native review subagent only when the host exposes "
+        "native delegation; otherwise report the unavailable route and stop without "
+        "fallback. |\n"
+        "| More than one alternative | Ask the user to choose exactly one route; "
+        "launch nothing. |\n"
+        "\n"
+        "The selected route owns execution, source handling, lifecycle, evidence, and "
+        "result. The disabled entrypoint adds no fallback, translation, or backend "
+        "guarantee.",
+        "## Route an Independent Review request\n"
+        "\n"
+        "The `/aquarium:independent-review` entrypoint owns the native "
+        "reviewer-subagent route below and runs only that route. Apply this matrix "
+        "before any discovery, setup, source handling, provider contact, or review "
+        "launch:\n"
+        "\n"
+        "| Explicitly preselected supported alternative | Result |\n"
+        "| --- | --- |\n"
+        "| None | Dispatch fresh read-only host-native reviewer subagents under the "
+        "contract below. |\n"
+        "| Exactly one Orca route | Preserve the original target and review question, "
+        "validate the requested reviewer and supported target, then invoke "
+        "`/aquarium:orca-review` under its own contract. |\n"
+        "| More than one alternative | Ask the user to choose exactly one route; "
+        "launch nothing. |\n"
+        "\n"
+        "The selected route owns execution, source handling, lifecycle, evidence, and "
+        "result. The entrypoint adds no fallback, translation, or backend guarantee.",
+    ),
+    (
+        "## Use a native Codex review subagent\n"
+        "\n"
+        "Use a fresh host-native Codex subagent only after the user explicitly selects\n"
+        "that review route and the current host exposes native delegation. Give it the\n"
+        "same Review Brief, exact target, and approved context that another enabled\n"
+        "static route would receive. Do not invent a delegation tool or silently choose\n"
+        "Orca, Mulgae, or another backend when native delegation is unavailable.",
+        "## Use a native ZCode review subagent\n"
+        "\n"
+        "The host's own `Agent` tool provides the fresh native delegation this route\n"
+        "requires, and `/aquarium:independent-review` invokes it on an explicit request.\n"
+        "Give a dispatched subagent the same Review Brief, exact target, and approved\n"
+        "context that another enabled static route would receive. Do not invent a\n"
+        "delegation tool or silently choose Orca, Mulgae, or another backend when that\n"
+        "dispatch is unavailable.",
+    ),
+    (
+        "Use only the lifecycle and evidence the host actually provides. Do not describe\n"
+        "this route as Independent Review, Dolgorae, Orca, or Mulgae, and do not claim an\n"
+        "immutable capture, publication, settlement, or recovery guarantee that was not\n"
+        "observed.",
+        "Use only the lifecycle and evidence the host actually provides. Do not describe\n"
+        "this route as Dolgorae, Orca, or Mulgae, and do not claim an immutable capture,\n"
+        "publication, settlement, or recovery guarantee that was not observed. On this\n"
+        "host the route is `/aquarium:independent-review`, and its freshness guarantee\n"
+        "is only the reviewer's unshared context.",
+    ),
+    # v0.1.16 names the review backends this edition runs in the shared
+    # disposition contract's opening and its routing paragraph; the dormant
+    # upstream framing is restated around the enabled entrypoint.
+    (
+        "from Mulgae Review, Orca Review, an explicitly selected native Codex review "
+        "subagent, or the dormant Independent Review contract if that route is "
+        "re-enabled.",
+        "from Mulgae Review, Orca Review, or the fresh reviewer subagents dispatched "
+        "by `/aquarium:independent-review`.",
+    ),
+    (
+        "The disabled `/aquarium:independent-review` route itself only reports its "
+        "refusal and alternative guidance; that refusal launches nothing. Exactly one "
+        "explicitly preselected supported Orca or native Codex alternative may run only "
+        "under its own contract, and native Codex additionally requires host fresh "
+        "delegation. Multiple preselected alternatives require the user to choose one "
+        "before anything launches. A direct `/aquarium:task-review`, standalone "
+        "`/aquarium:mulgae-review`, or standalone `/aquarium:orca-review` is report-only.",
+        "`/aquarium:independent-review` runs its native reviewer-subagent route under "
+        "the intent contract, and a request preselecting another review backend runs "
+        "only under that backend's own contract. Multiple preselected backends require "
+        "the user to choose one before anything launches. A direct "
+        "`/aquarium:task-review`, standalone `/aquarium:independent-review`, "
+        "`/aquarium:mulgae-review`, or `/aquarium:orca-review` is report-only.",
+    ),
     # The shared disposition contract's re-review sentence describes both
     # capture-owning backends; Independent Review here rebinds a fresh
     # dispatch instead, so the sentence must not claim a native capture.
     (
-        "Independent Review and Mulgae create fresh native captures.",
-        "Independent Review rebinds a fresh reviewer dispatch to the "
-        "corrected target; Mulgae creates a fresh native capture.",
+        "Independent Review would require a fresh capture if separately re-enabled.",
+        "Independent Review rebinds a fresh reviewer dispatch to the corrected target.",
     ),
     # The upstream Dolgorae consumer contract ships as documentation of the
     # backend this edition does not use; its opening must say so instead of
-    # asserting a binding every shipped workflow here denies. v0.1.15 raises
-    # the documented floor to v0.1.2, so the needle tracks it.
+    # asserting a binding every shipped workflow here denies. v0.1.16
+    # restates that opening around the disabled upstream route, so the
+    # needle tracks it.
     (
-        "This contract binds Aquarium review workflows to official stable "
-        "Dolgorae releases from v0.1.2 through v0.1.x on Apple Silicon.",
-        "This contract documents the upstream backend this edition does not "
-        "use: no review workflow shipped here runs Dolgorae. Upstream binds "
-        "its Aquarium review workflows to official stable Dolgorae releases "
-        "from v0.1.2 through v0.1.x on Apple Silicon.",
+        "This dormant contract records the Dolgorae consumer boundary for possible "
+        "future Independent Review re-enablement. `/aquarium:independent-review` is "
+        "currently disabled and must stop before Dolgorae discovery, setup, capture, "
+        "or source transmission. Explicit Dolgorae setup and operations remain "
+        "available through their owning workflows. When this route is re-enabled, it "
+        "binds Aquarium review workflows to official stable Dolgorae releases from "
+        "v0.1.2 through v0.1.x on Apple Silicon.",
+        "This contract documents the Dolgorae consumer boundary of the upstream "
+        "backend this edition does not use: no review workflow shipped here runs "
+        "Dolgorae. Explicit Dolgorae setup and operations remain available through "
+        "their owning workflows. Upstream binds its Aquarium review workflows to "
+        "official stable Dolgorae releases from v0.1.2 through v0.1.x on Apple "
+        "Silicon when its Independent Review route is enabled.",
     ),
     # v0.1.15 routes explicitly requested reviews and External Specialist
     # Engagements through the paired `$use-dolgorae` skill. This edition
@@ -279,23 +407,12 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
         "location, so copies there count toward readiness.",
     ),
     # orca-review routes to external provider CLIs; the default review backend
-    # here is the host's own reviewer subagent, so "non-Codex" names the wrong
-    # default.
-    ("a non-Codex independent review", "an external-provider independent review"),
-    ("a removable non-Codex provider layer", "a removable external provider layer"),
-    (" for Codex.", " for ZCode."),
-    # Ouroboros registers its skills with the host agent, so the component whose
-    # health `dev-setup` establishes is the ZCode one here. The bundle skill
-    # names the same component in a list of Ouroboros setup mutations.
+    # here is the host's own reviewer subagent, so a generic "for Codex" tail
+    # names the wrong host.
     ("Codex skill health", "ZCode skill health"),
-    (
-        "Ouroboros package, Codex and runtime components",
-        "Ouroboros package, host integration, and runtime components",
-    ),
     # Lora installs per host, so the catalog's scope wording moves. The
     # instruction-file text it could collide with is handled by overrides.
     ("Configure it for Codex user-global scope.", "Configure it for the ZCode user-global scope."),
-    ("the Codex user-global skill directory", "the ZCode user-global skill directory"),
     # Singular form covers the plural; upstream has both "another Codex skill
     # root" and "Codex skill roots".
     ("Codex skill root", "ZCode skill root"),
@@ -344,17 +461,10 @@ SCRIPT_SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     )
 ''',
     ),
-    # v0.1.15 adds a `trusted_global_skills` presence map inside `inspect()`
-    # that still resolves `humanize-korean` through the Codex home — the same
-    # upstream bug the `inspect_im_not_ai` surgery already corrects (upstream
-    # fixed its own copy after v0.1.15, unreleased). The map entry is pinned
-    # to the shared `~/.agents/skills` root, and the deletion of
-    # `effective_codex_skill_root` below would otherwise leave a dangling
-    # reference here.
-    (
-        '            "humanize-korean": effective_codex_skill_root() / "humanize-korean",',
-        '            "humanize-korean": Path.home() / ".agents/skills/humanize-korean",',
-    ),
+    # v0.1.15 briefly resolved `humanize-korean` through the Codex home in
+    # both `inspect_im_not_ai` and the `trusted_global_skills` map; v0.1.16
+    # adopts the shared `~/.agents/skills` root upstream, so the pin rule
+    # and the `inspect_im_not_ai` surgery below are retired with it.
     # The aquarium-dev MCP runtime reads the plugin's own manifest to bind
     # its source identity. In the generated tree that manifest is the ZCode
     # one, so the literal path moves with it.
@@ -869,51 +979,13 @@ def inspect_ouroboros(
     tool["status"] = "configured" if components_ready else "degraded"
     return tool
 ''',
-            # v0.1.14 adds im-not-ai inspection against upstream's
-            # `effective_codex_skill_root()`, which resolves the writing-skill
-            # target through the Codex home. ZCode reads the shared
-            # `~/.agents/skills` root natively and knows no equivalent config
-            # environment, so the target is that shared root and the deleted
-            # Codex-home resolver is replaced by a ZCode-named helper bundled
-            # ahead of the inspector that uses it.
-            "inspect_im_not_ai": r'''def effective_writing_skill_root() -> Path:
-    # The Humanizer pair installs user-scoped, and the shared
-    # `~/.agents/skills` root is the cross-agent root ZCode reads natively,
-    # so it is the canonical writing-skill target on this host.
-    return Path.home() / ".agents" / "skills"
-
-
-def inspect_im_not_ai() -> dict[str, Any]:
-    return inspect_writing_skill(
-        skill_name="humanize-korean",
-        expected_files=HUMANIZE_KOREAN_SKILL_FILES,
-        expected_target=effective_writing_skill_root() / "humanize-korean",
-        supported_release=IM_NOT_AI_SUPPORTED_RELEASE,
-        require_version=False,
-    )
-''',
-        },
-        "delete": [
-            "mcp_registration_probe",
-            "classify_mulgae_mcp_scope",
-            "classify_gaori_mcp_scope",
-            "classify_ouroboros_registration",
-            "effective_mcp_registration",
-            "named_mcp_server_missing",
-            "missing_mcp_scope",
-            "failed_mcp_scope",
-            "codex_version_from_output",
-            "effective_codex_skill_root",
-        ],
-    },
-    # v0.1.15 adds a user-global diagnosis skill that reuses the project
-    # inspector across file boundaries. Its global MCP view calls the
-    # codex-CLI probe functions the plan above deletes from that inspector,
-    # so it is restated on the config-file scopes the inspector exposes.
-    "skills/dev-setup-global/scripts/inspect_global_tools.py": {
-        "replace": {
-            "inspect_global_mcp": r'''def inspect_global_mcp(
-    inspector: Any,
+            # v0.1.16 routes the user-global MCP view through this new
+            # inspector helper, which upstream implements as a codex-CLI probe
+            # classified per component. ZCode has no such CLI, so the view is
+            # restated on the config-file user scope the readers above
+            # expose; the global script's wrapper is a host-neutral
+            # delegation and needs no surgery of its own.
+            "inspect_global_mcp_scope": r'''def inspect_global_mcp_scope(
     name: str,
     executable: str | None,
     root: Path,
@@ -923,18 +995,36 @@ def inspect_im_not_ai() -> dict[str, Any]:
     # `mcp.servers` entry of `~/.zcode/cli/config.json`, which the project
     # inspector reads directly. Reading from the filesystem-root cwd keeps
     # any repository `.zcode/config.json` out of the global view, mirroring
-    # the neutral-cwd probe upstream runs through its host CLI.
-    neutral_cwd = Path(root.anchor)
-    reading = inspector.zcode_mcp_entries(name, neutral_cwd)
+    # the neutral-cwd probe upstream runs through its host CLI. Both named
+    # components resolve through the same config shape here, so the
+    # per-component classifiers upstream selects between have no equivalent
+    # divergence to carry.
+    reading = zcode_mcp_entries(name, Path(root.anchor))
     if reading["invalid_config"]:
         return {
             "status": "degraded",
             "reason": f"{reading['invalid_config']}_config_invalid_json",
         }
-    return inspector.zcode_mcp_scope_status(reading["scopes"]["user"], executable)
+    return zcode_mcp_scope_status(reading["scopes"]["user"], executable)
 ''',
         },
+        "delete": [
+            "mcp_registration_probe",
+            "classify_mulgae_mcp_scope",
+            "classify_gaori_mcp_scope",
+            "classify_ouroboros_registration",
+            "effective_mcp_registration",
+            "missing_mcp_scope",
+            "failed_mcp_scope",
+            "codex_version_from_output",
+            "effective_codex_skill_root",
+        ],
     },
+    # v0.1.15 added a user-global diagnosis skill whose global MCP view called
+    # the codex-CLI probe functions the plan above deletes; v0.1.16 reduces
+    # that wrapper to a host-neutral delegation through
+    # `inspect_global_mcp_scope`, which the plan above already restates, so
+    # this script carries no surgery of its own anymore.
     # v0.1.15 inspects Ouroboros per Codex home: discover `~/.codex*` homes,
     # probe each through the codex CLI, and bind registrations to a home.
     # This host has one integration surface — the user-global config
@@ -1115,7 +1205,13 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
     ("skills/dev-setup/scripts/inspect_tools.py", "isolated_launcher_contract"),
     ("skills/dev-setup/scripts/inspect_tools.py", '"host_integration"'),
     ("skills/dev-setup/scripts/inspect_tools.py", "doctor_checks_failed"),
-    ("skills/dev-setup/scripts/inspect_tools.py", "effective_writing_skill_root"),
+    # v0.1.16 adopts the shared `~/.agents/skills` root for `humanize-korean`
+    # upstream, in both the writing-skill inspector and the presence map;
+    # this marker guards that the converged target arrives whole.
+    ("skills/dev-setup/scripts/inspect_tools.py", '".agents/skills/humanize-korean"'),
+    # v0.1.16 routes the global MCP view through `inspect_global_mcp_scope`;
+    # the surgery above restates it on the config-file user scope.
+    ("skills/dev-setup/scripts/inspect_tools.py", "inspect_global_mcp_scope"),
     ("skills/dev-setup/scripts/inspect_tools.py", '"runtime_package"'),
     ("skills/dev-setup/scripts/inspect_tools.py", '"pinned_version"'),
     # The test-setup inspector ships host-neutral from upstream; this marker
@@ -1196,14 +1292,12 @@ REQUIRED_TEXT: tuple[tuple[str, str], ...] = (
         "Manage the Aquarium development channel",
     ),
     # v0.1.15's user-global inspector ships one host-neutral entrypoint and
-    # the two restated ZCode views the surgery plans above produce.
+    # the restated ZCode Ouroboros view the surgery plan above produces; the
+    # global MCP view is a host-neutral delegation restated on the project
+    # inspector's side, so this file's own marker is the schema guard.
     (
         "skills/dev-setup-global/scripts/inspect_global_tools.py",
         "aquarium-dev-setup-global-inspection.v3",
-    ),
-    (
-        "skills/dev-setup-global/scripts/inspect_global_tools.py",
-        "zcode_mcp_entries",
     ),
     (
         "skills/dev-setup-global/scripts/inspect_ouroboros.py",

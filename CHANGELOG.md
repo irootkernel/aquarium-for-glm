@@ -4,6 +4,24 @@ This file records concise shipped outcomes of the Aquarium for GLM edition. Rele
 
 ## v0.1.16 - Unreleased
 
+### Added
+
+- Ship the new `/aquarium:mulgae-review` skill — the explicitly invoked, report-only standalone Mulgae review of an exact change target or named Task/Epic completion candidate — with a tuned trigger description and its arrival covered by the skills-match invariant.
+- Carry the new shared review intent contract (`review-intent-contract.md`) restated for this edition: the routing matrix dispatches this host's native reviewer-subagent route instead of refusing, and the native-route section names the ZCode host's `Agent` tool; `procedure-node-contracts.md`, the intent-aware completion machinery in the managed Podway procedures, and the Mulgae recovery and rate-limit contract extensions arrive byte-carried from upstream.
+
+### Changed
+
+- Regenerate from upstream Aquarium v0.1.16 (`63cfa07`): intent-aware Task/Goal/Epic completion reviews classify every requirement `met`/`unmet`/`unverified`/`not-applicable` from accepted role reports and block approval on inconsistent criteria or finding totals; Orca change reviews become proportional with operational deviations separated from technical verdicts; the dev-setup inspection schema moves to v21 with the Podway `handler_contract_status` gate and the Mulgae `mulgae-command-result.v8` envelope; tool floors rise to Mulgae v0.1.21, Gaori v0.1.17 (seven-file `use-gaori` tree), Sanho v0.2.8 (five-file `use-sanho` tree), and Sorage v0.1.1 with the root `.gitignore` rule and paired-skill broker routing; plugin install or update requests leave both setup skills to the host's plugin-management flow; the deprecated Kimi edition link becomes Grok in this README's edition list.
+- Keep `/aquarium:independent-review` enabled as the native ZCode reviewer route: upstream disabled its Dolgorae-backed entrypoint and restated the shared contracts around that refusal, and the re-derived override plus the new intent-contract substitution family carry this edition's stance — purpose selection under the shared contract, the Review Brief in every dispatch, criterion responsibility across reviewer lenses, and the aggregation rules — while `workspace` and `dirty` stay unsupported.
+- Restate the user-global MCP view for upstream's new delegation: the global inspector's wrapper is host-neutral now, so the surgery replaces the project inspector's `inspect_global_mcp_scope` with a config-file user-scope reading instead, and the arrival markers move with it.
+- Update the tool-catalog override for the v0.1.16 floors and contracts, including Mulgae's automatic provider selection assigning authenticated ZCode (0.16.5 or newer — verified against the installed CLI) to every enabled role with AGY, Kimi, and Codex as explicit opt-ins, and the Dolgorae release identity from structured GitHub asset metadata plus the release-note `Contained executable SHA-256` declaration.
+
+### Fixed
+
+- Restate orca-review's unsupported-scope sentence for the enabled entrypoint: upstream v0.1.16 rewrote it as "Independent Review is disabled and is not a fallback", which is false on this edition and contradicted the same skill's own trigger description — the new rule keeps the explicit-selection boundary and the no-capture `workspace`/`dirty` limit instead, and `tests/validate.rb` now pins the restated sentence against regression.
+- Retire the `humanize-korean` pin and the `inspect_im_not_ai` surgery: upstream v0.1.16 adopted the shared `~/.agents/skills` root for both the writing-skill inspector and the `trusted_global_skills` map, converging with the correction this edition had carried since v0.1.14.
+- Remove thirteen vestigial substitution rules whose upstream wording had already vanished in earlier releases, so every remaining rule fires against the pinned tree; an unmatched `Codex` needle still stops generation for any future wording.
+
 ## v0.1.15 - 2026-09-09
 
 ### Added
