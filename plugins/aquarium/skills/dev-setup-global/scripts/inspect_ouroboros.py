@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 PYPI_URL = "https://pypi.org/pypi/ouroboros-ai/json"
-SUPPORTED_RANGE = ">=0.51.1,<0.54.0"
+SUPPORTED_RANGE = ">=0.51.1"
 
 # Use the selected CLI's native asset resolver, not an Aquarium-owned skill list.
 ASSET_PROBE = """
@@ -67,14 +67,13 @@ def release_freshness(
         key = lambda version: tuple(map(int, version.split(".")))
         latest = max(releases, key=key)
         supported = max(
-            filter(inspector.supported_ouroboros_version, releases), key=key
+            filter(inspector.supported_ouroboros_version, releases),
+            key=key,
+            default=None,
         )
         result.update(
             latest_stable=latest,
             latest_supported=supported,
-            compatibility_review_required=not inspector.supported_ouroboros_version(
-                latest
-            ),
             checked_at=datetime.now(timezone.utc).isoformat(),
         )
         installed = cli["version"]
@@ -84,7 +83,7 @@ def release_freshness(
             result["reason"] = "cli_version_unverifiable"
         elif not inspector.supported_ouroboros_version(installed):
             result["status"] = "incompatible"
-        elif key(installed) < key(supported):
+        elif supported is not None and key(installed) < key(supported):
             result["status"] = "update_available"
         else:
             result["status"] = "current" if installed in releases else "different"
@@ -144,12 +143,15 @@ def packaged_assets(
 
 def legacy_skills(expected: dict[str, str] | None) -> list[str]:
     root = Path.home() / ".agents" / "skills"
-    candidates = set(root.glob("ouroboros-*"))
+    candidates: set[Path] = set()
     if expected:
-        # Recognize unprefixed legacy copies only by exact upstream bytes.
         for relative, digest in expected.items():
             parts = Path(relative).parts
             if len(parts) == 3 and parts[0] == "skills" and parts[2] == "SKILL.md":
+                prefixed = root / parts[1]
+                if prefixed.exists() or prefixed.is_symlink():
+                    candidates.add(prefixed)
+                # Recognize unprefixed legacy copies only by exact upstream bytes.
                 candidate = root / parts[1].removeprefix("ouroboros-")
                 try:
                     if (
@@ -162,6 +164,34 @@ def legacy_skills(expected: dict[str, str] | None) -> list[str]:
                 except OSError:
                     pass
     return sorted(str(path) for path in candidates)
+
+
+def shared_skill_conflicts(
+    inspector: Any, expected: dict[str, str] | None, legacy: list[str]
+) -> list[str]:
+    if expected is None:
+        return []
+    root = Path.home() / ".agents" / "skills"
+    conflicts: set[str] = set()
+    for relative in expected:
+        parts = Path(relative).parts
+        if len(parts) != 3 or parts[0] != "skills" or parts[2] != "SKILL.md":
+            continue
+        name = parts[1].removeprefix("ouroboros-")
+        candidate = root / name
+        if str(candidate) in legacy:
+            continue
+        try:
+            skill = candidate / "SKILL.md"
+            if (
+                candidate.is_symlink()
+                or skill.is_symlink()
+                or (skill.is_file() and inspector.frontmatter_name(skill) == name)
+            ):
+                conflicts.add(str(candidate))
+        except OSError:
+            conflicts.add(str(candidate))
+    return sorted(conflicts)
 
 
 def inspect_ouroboros(
@@ -178,17 +208,25 @@ def inspect_ouroboros(
     # equivalent, so the discovered-home rows collapse into the single
     # registration the project inspector resolves. Explicitly supplied
     # extra homes name that other host's layout; they are reported as not
-    # applicable rather than silently filtered.
+    # applicable rather than silently filtered. Upstream v0.1.17 adds
+    # `shared_skill_conflicts` — a shared-root directory whose frontmatter
+    # names a packaged skill without matching its bytes. Upstream treats
+    # every shared-root copy as legacy because Codex homes own the
+    # integration there; on this host the shared root is the canonical
+    # skill target, so byte-matching copies stay readiness evidence and
+    # only the non-matching name conflicts degrade.
     cli = inspector.inspect_ouroboros_cli(cwd, timeout)
     integration = inspector.inspect_ouroboros(cwd, timeout)
     assets = packaged_assets(inspector, cli, cwd, timeout)
-    freshness = (
-        release_freshness(inspector, cli, timeout)
-        if verify_release
-        else {"status": "not_checked", "source": PYPI_URL}
-    )
-    return {
-        "status": "missing" if not cli["installed"] else integration["status"],
+    shared_skills = legacy_skills(assets)
+    shared_conflicts = shared_skill_conflicts(inspector, assets, shared_skills)
+    status = "missing" if not cli["installed"] else integration["status"]
+    reason = None
+    if shared_conflicts and status == "configured":
+        status = "degraded"
+        reason = "shared_skill_conflict"
+    result = {
+        "status": status,
         "supported_range": SUPPORTED_RANGE,
         "cli": {
             **{
@@ -216,6 +254,14 @@ def inspect_ouroboros(
             "reason": "no_per_home_integration_on_zcode",
             "requested": list(explicit_homes),
         },
-        "freshness": freshness,
-        "shared_root_skills": legacy_skills(assets),
+        "freshness": (
+            release_freshness(inspector, cli, timeout)
+            if verify_release
+            else {"status": "not_checked", "source": PYPI_URL}
+        ),
+        "shared_root_skills": shared_skills,
+        "shared_skill_conflicts": shared_conflicts,
     }
+    if reason is not None:
+        result["reason"] = reason
+    return result

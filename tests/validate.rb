@@ -70,14 +70,31 @@ skill_paths.each do |path|
 end
 
 if UPSTREAM_PLUGIN.directory?
-  # The generated skill set is the upstream set plus every edition skill
-  # carried in by the generation; a drift on either side fails here.
-  upstream_skills = Pathname.glob(UPSTREAM_PLUGIN.join("skills/*/SKILL.md")).map { |p| p.dirname.basename.to_s }.sort
+  # The generated skill set is the upstream set minus the deliberate skill
+  # exclusions plus every edition skill carried in by the generation; a drift
+  # on any side fails here. v0.1.17 excludes `status`: it is the entrypoint
+  # over the aquarium-status runtime this edition does not bundle.
+  EXCLUDED_SKILLS = %w[status].freeze
+  upstream_skills = Pathname.glob(UPSTREAM_PLUGIN.join("skills/*/SKILL.md")).map { |p| p.dirname.basename.to_s }.sort - EXCLUDED_SKILLS
   edition_skills = Pathname.glob(ROOT.join("edition-skills/*/SKILL.md")).map { |p| p.dirname.basename.to_s }.sort
   expected = (upstream_skills + edition_skills).sort
   generated = skill_paths.map { |p| p.dirname.basename.to_s }.sort
-  assert(generated == expected, "generated skills do not match upstream plus edition skills: #{(generated - expected) | (expected - generated)}")
+  assert(generated == expected, "generated skills do not match upstream minus exclusions plus edition skills: #{(generated - expected) | (expected - generated)}")
 end
+
+# --- bundled runtimes are excluded -------------------------------------------
+
+# v0.1.17 excludes the upstream-bundled runtimes: `tools/` carries the
+# aquarium-dev channel manager and the aquarium-status reporter, each owning
+# machine-global singleton state (~/.aquarium-dev/, ~/.aquarium) that has one
+# owner per machine — the upstream Codex edition. No plugin MCP server is
+# registered, the status skill and the development-channel contract leave
+# with their runtimes, and these assertions pin that decision from the other
+# side: nothing may reappear silently.
+assert(!PLUGIN.join("tools").directory?, "tools/ must stay excluded; this edition bundles no runtimes")
+assert(!PLUGIN.join(".mcp.json").file?, ".mcp.json must stay absent; this edition registers no plugin MCP server")
+assert(!PLUGIN.join("skills/status").directory?, "the status skill must stay excluded with its runtime")
+assert(!PLUGIN.join("references/development-contract.md").file?, "the development-channel contract must stay excluded with its runtime")
 
 # --- host-neutral generated text -------------------------------------------
 
@@ -142,16 +159,25 @@ if inspection.file?
   assert(script.include?('"host_integration"'), "inspection must report the host integration component")
   assert(script.include?('"runtime_package"'), "inspection must report the Ouroboros runtime-package axis")
   assert(script.include?("zcode_mcp_scopes"), "inspection must classify Mulgae and Gaori registrations from ZCode config")
-  # v0.1.16 routes the user-global MCP view through `inspect_global_mcp_scope`
-  # and adopts the shared `~/.agents/skills` root for `humanize-korean`
-  # upstream; both markers guard arrival — the ZCode restatement of the former
-  # is enforced by the surgery's dangling-reference check on the deleted
-  # Codex-CLI probes, and the latter is upstream-converged bytes.
+  # v0.1.16 routes the user-global MCP view through `inspect_global_mcp_scope`;
+  # the ZCode restatement lives in the project inspector's replacement, so assert
+  # the delegation target rather than a local implementation.
   assert(script.include?("inspect_global_mcp_scope"), "inspection must restate the user-global MCP view on the ZCode config scopes")
-  assert(script.include?('"humanize-korean": Path.home() / ".agents/skills/humanize-korean"'), "the trusted global-skill map must pin humanize-korean to the shared agents root")
   assert(script.include?('"handler_contract_status"'), "inspection must report the Podway handler-contract axis")
   assert(script.include?("aquarium-dev-setup-inspection.v21"), "inspection must keep its schema marker")
-  assert(!script.include?("effective_codex_skill_root"), "inspection must not resolve skill targets through a Codex home")
+  # v0.1.17 moves the writing skills back to the running host's default skill
+  # root. The surgery restates `effective_codex_skill_root` to the one ZCode
+  # root — the name stays for upstream callers, the body is this host's — and
+  # every caller resolves through it, so the restatement and its use in the
+  # trusted-skill map are pinned while the Codex-home env read stays gone.
+  assert(script.include?('def effective_codex_skill_root() -> Path:'), "inspection must keep the restated skill-root helper")
+  assert(script.include?('return Path.home() / ".zcode/skills"'), "the skill-root helper must resolve to the ZCode root")
+  assert(script.include?('"humanize-korean": effective_codex_skill_root() / "humanize-korean"'), "the trusted global-skill map must route humanize-korean through the host skill root")
+  assert(!script.include?('os.environ.get("CODEX_HOME")'), "inspection must not resolve skill targets through a Codex home")
+  # v0.1.17 lifts Ouroboros' upper bound — this host already runs a stable
+  # release past the old ceiling — so the unbounded range must arrive.
+  assert(script.include?('tool["supported_range"] = ">=0.51.1"'), "the Ouroboros supported range must be unbounded above the floor")
+  assert(!script.include?("<0.54.0"), "the Ouroboros supported range must not keep the old ceiling")
 end
 
 # --- reviewer backend restatement ---------------------------------------------
@@ -196,41 +222,27 @@ end
 
 # --- v0.1.15 bundled aquarium-dev package and global inspector ----------------
 
-# v0.1.15 replaces the aquarium-dev skill with a bundled CLI + MCP package
-# under `tools/aquarium-dev`. The channel scripts ship host-neutral from
-# upstream — sync.py guards each schema marker — and this asserts the
-# complete script set arrives at all, including the new runtime entry that
-# must bind to the ZCode plugin manifest.
-%w[aquarium_dev.py aquarium_dev_launcher.py build_aquarium_artifact.py
-   dev_contract.py dev_manager.py install.py mcp_server.py
-   runtime_entry.py mcp-launcher].each do |name|
-  assert(PLUGIN.join("tools/aquarium-dev/#{name}").file?, "aquarium-dev package file missing: #{name}")
-end
-runtime_entry = PLUGIN.join("tools/aquarium-dev/runtime_entry.py").read
+# v0.1.17 excludes the bundled runtimes with `tools/`; the v0.1.15 arrival
+# guards for the aquarium-dev package leave with it, and the v0.1.14 Dolgorae
+# release verifier is gone upstream as well. The global inspector stays, on
+# the v0.1.17 v5 schema with the two bundled-runtime members absent: the
+# component-vocabulary substitution removed them, and the absence is pinned
+# here so neither can reappear as a broken probe against a missing runtime.
 assert(
-  runtime_entry.include?('.zcode-plugin/plugin.json'),
-  "the aquarium-dev runtime entry must bind to the ZCode plugin manifest"
-)
-assert(
-  PLUGIN.join("tools/aquarium-dev/mcp-launcher").executable?,
-  "the aquarium-dev MCP launcher must keep its executable bit"
-)
-
-# v0.1.15 moves the Dolgorae release verifier beside the new user-global
-# inspector, whose MCP view and Ouroboros section are restated for the
-# ZCode config surface by the sync surgery.
-assert(
-  PLUGIN.join("skills/dev-setup-global/scripts/verify_dolgorae_release.py").file?,
-  "the Dolgorae release verifier was not generated"
+  !PLUGIN.join("skills/dev-setup-global/scripts/verify_dolgorae_release.py").file?,
+  "the Dolgorae release verifier left with upstream v0.1.17"
 )
 global_inspection = PLUGIN.join("skills/dev-setup-global/scripts/inspect_global_tools.py")
 if global_inspection.file?
   global_script = global_inspection.read
-  assert(global_script.include?("aquarium-dev-setup-global-inspection.v3"), "the global inspector must keep its schema marker")
+  assert(global_script.include?("aquarium-dev-setup-global-inspection.v5"), "the global inspector must keep its schema marker")
   # v0.1.16 reduces the global MCP wrapper to a host-neutral delegation; the
   # ZCode restatement lives in the project inspector's replacement, so assert
   # the delegation target rather than a local implementation.
   assert(global_script.include?("inspector.inspect_global_mcp_scope"), "the global MCP view must delegate to the restated inspector helper")
+  assert(!global_script.include?('"aquarium-dev"'), "the global inspector must not carry the excluded aquarium-dev component")
+  assert(!global_script.include?('"aquarium-status"'), "the global inspector must not carry the excluded aquarium-status component")
+  assert(!global_script.include?("inspect_aquarium_status"), "the excluded aquarium-status inspector must be gone with its import")
 end
 ouroboros_inspection = PLUGIN.join("skills/dev-setup-global/scripts/inspect_ouroboros.py")
 if ouroboros_inspection.file?
@@ -242,6 +254,13 @@ if ouroboros_inspection.file?
   assert(
     ouroboros_script.include?("shared_root_skills"),
     "the Ouroboros inspection must report the shared-root skill inventory"
+  )
+  # v0.1.17 adds shared-root conflict detection; on this host byte-matching
+  # shared-root copies are the canonical installation and only non-matching
+  # name conflicts degrade, so both keys must arrive from the surgery.
+  assert(
+    ouroboros_script.include?('"shared_skill_conflicts"'),
+    "the Ouroboros inspection must report shared-root conflicts"
   )
 end
 
@@ -282,6 +301,59 @@ if finding_disposition.file?
   assert(!disposition.include?("native Codex"), "the disposition contract must not name the Codex host's route")
 end
 
+# --- v0.1.17 review-routing restatement --------------------------------------
+
+# Upstream v0.1.17 adds the selectable review-routing contract: workflows
+# choose one of `mulgae`, `orca`, `native-codex`, or `waived`. The route
+# token is a machine identifier carried by the byte-identical Procedure
+# mirrors and the route-neutral evidence fields, so it ships verbatim while
+# the prose names this host: the native route dispatches through the host's
+# own `Agent` tool. No forbidden needle covers the lowercase token or the
+# lowercase "native codex" spelling, so the restated surfaces are pinned.
+routing_contract = PLUGIN.join("references/review-routing-contract.md")
+if routing_contract.file?
+  routing = routing_contract.read
+  assert(routing.include?("`native-codex`"), "the routing contract must keep the native route token as a machine identifier")
+  assert(routing.include?("native ZCode"), "the routing contract must name the native ZCode route")
+  assert(!routing.include?("native Codex"), "the routing contract must not name the Codex host's route")
+  assert(
+    routing.include?("a fresh subagent dispatched through the host's own `Agent` tool"),
+    "the routing contract must name the Agent-tool dispatch for the native route"
+  )
+end
+%w[
+  skills/task-review/SKILL.md
+  skills/task-handler/SKILL.md
+  skills/epic-handler/SKILL.md
+  skills/epic-validator/SKILL.md
+  skills/task-close/SKILL.md
+  skills/task-commit/SKILL.md
+  references/evidence-residency.md
+  references/finding-disposition.md
+  references/procedure-node-contracts.md
+].each do |relative|
+  path = PLUGIN.join(relative)
+  next unless path.file?
+
+  text = path.read
+  assert(!text.include?("native Codex"), "the native route must be named for this host: #{relative}")
+  assert(text.include?("native ZCode") || text.include?("`native-codex`"), "the native route must stay addressable: #{relative}")
+end
+# The Mulgae default portfolio routes every role to ZCode, which runs the
+# user's configured GLM model on this host; the catalog restatement names
+# that positioning and the v0.1.23 machine contracts it rides on.
+catalog_path = PLUGIN.join("references/tool-catalog.md")
+if catalog_path.file?
+  catalog = catalog_path.read
+  assert(catalog.include?("GLM-native host"), "the tool catalog must keep the GLM-native positioning")
+  assert(catalog.include?("v0.1.23"), "the tool catalog must carry the Mulgae v0.1.23 floor")
+  assert(catalog.include?("grok-4.7"), "the tool catalog must carry the Grok model pin as a third-party fact")
+  assert(catalog.include?("gpt-5.6-sol"), "the tool catalog must carry the Codex model pin as a third-party fact")
+  assert(catalog.include?("5b88e99bfaed0643b4bfb1c035f9c4acdc476d05"), "the tool catalog must carry the v0.2.11 use-podway pin")
+  assert(!catalog.include?("9014225982e4c316237e0d6e35052414d2dbc770"), "the superseded use-podway hotfix pin must be gone")
+  assert(catalog.include?("`>=0.51.1` without an upper bound"), "the tool catalog must carry the unbounded Ouroboros range")
+end
+
 # --- manifests agree with upstream -----------------------------------------
 
 manifest = JSON.parse(MANIFEST.read)
@@ -302,35 +374,10 @@ end
 
 # --- plugin MCP manifest ----------------------------------------------------
 
-# v0.1.15 registers the bundled aquarium-dev MCP server in a root `.mcp.json`.
-# ZCode auto-loads that file but reads its own schema — `mcpServers` with
-# stdio `command`/`args`/`cwd`/`timeoutMs` — and silently drops a server
-# carrying an unknown key, so the conversion must be total and the launcher
-# must be rooted at the one template scope ZCode expands for plugin servers.
-mcp_path = PLUGIN.join(".mcp.json")
-assert(mcp_path.file?, ".mcp.json was not generated; run scripts/sync.py")
-mcp_text = mcp_path.read
-FORBIDDEN_TEXT.each do |needle|
-  assert(!mcp_text.include?(needle), ".mcp.json contains `#{needle}`")
-end
-mcp_servers = JSON.parse(mcp_text).fetch("mcpServers")
-if UPSTREAM_PLUGIN.directory? && (upstream_mcp = UPSTREAM_PLUGIN.join(".mcp.json")).file?
-  upstream_servers = JSON.parse(upstream_mcp.read).fetch("mcp_servers")
-  assert(mcp_servers.keys.sort == upstream_servers.keys.sort, ".mcp.json must carry exactly the upstream server set")
-  upstream_servers.each do |name, entry|
-    converted = mcp_servers.fetch(name)
-    assert(converted.fetch("type") == "stdio", ".mcp.json server `#{name}` must declare stdio")
-    assert(
-      converted.fetch("command") == "${ZCODE_PLUGIN_ROOT}/#{entry.fetch('command').sub(%r{\A\./}, '')}",
-      ".mcp.json server `#{name}` must root the launcher at ZCODE_PLUGIN_ROOT"
-    )
-    assert(converted.fetch("args") == entry.fetch("args", []), ".mcp.json server `#{name}` args diverge from upstream")
-    assert(
-      converted.fetch("timeoutMs") == entry.fetch("tool_timeout_sec") * 1000,
-      ".mcp.json server `#{name}` must convert tool_timeout_sec to timeoutMs"
-    )
-  end
-end
+# v0.1.15 registered the bundled aquarium-dev MCP server in a root
+# `.mcp.json`; v0.1.17 excludes the runtime with `tools/`, so no plugin MCP
+# manifest is generated at all. The absence is asserted above with the other
+# bundled-runtime exclusions; nothing here derives a server manifest.
 
 # --- marketplace shape ------------------------------------------------------
 
@@ -348,9 +395,11 @@ assert(entry.fetch("source") == "./plugins/aquarium", "the marketplace entry mus
 # --- generated tree covers upstream ----------------------------------------
 
 # `COPIED_DIRECTORIES` is an allowlist with no counterpart check, so a new
-# upstream directory would otherwise be dropped in silence.
+# upstream directory would otherwise be dropped in silence. `tools/` is the
+# recorded v0.1.17 exclusion — this edition bundles no runtimes — so it is
+# subtracted here alongside the manifest directory that never copies.
 if UPSTREAM_PLUGIN.directory?
-  upstream_directories = UPSTREAM_PLUGIN.children.select(&:directory?).map { |p| p.basename.to_s } - [".codex-plugin"]
+  upstream_directories = UPSTREAM_PLUGIN.children.select(&:directory?).map { |p| p.basename.to_s } - [".codex-plugin", "tools"]
   upstream_directories.sort.each do |name|
     assert(PLUGIN.join(name).directory?, "generated plugin is missing upstream directory `#{name}/`")
   end

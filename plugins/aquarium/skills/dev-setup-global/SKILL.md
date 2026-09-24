@@ -11,7 +11,7 @@ Own installation, exact-upstream freshness, upgrades, services, and global ZCode
 
 Aquarium plugin installation and updates belong to the host's plugin-management flow. A request to install or update only the Aquarium plugin, including a specific version, does not select this skill. If this skill was selected for that request, return to the host's plugin-management flow before reading the tool catalog or running any diagnostic. Do not infer a global tool setup request from plugin installation.
 
-Use this skill for an explicit global development setup request or a workflow continuation naming a global component that needs attention. An explicit request to install or update the optional `aquarium-dev` runtime remains in scope; installing or updating the Aquarium plugin alone does not request that runtime.
+Use this skill for an explicit global development setup request or a workflow continuation naming a global component that needs attention. The upstream-bundled `aquarium-dev` development channel and `aquarium-status` production-status reporter are not shipped in this edition, and their machine-global state has exactly one owner — the upstream Codex edition — so an install, update, or repair request for either runtime belongs there, not here; installing or updating the Aquarium plugin alone does not request either runtime either.
 
 Read the selected sections of [the shared tool catalog](../../references/tool-catalog.md). Do not read repository-local `.podway`, `.mulgae`, `.gaori`, `.sorage`, `.zcode`, AGENTS.md, or CLAUDE.md as global setup evidence.
 
@@ -19,7 +19,7 @@ Read the selected sections of [the shared tool catalog](../../references/tool-ca
 
 1. On a direct invocation without a component list, select every supported global component. On a scoped continuation, select only the named components and their direct prerequisites.
 2. A direct invocation authorizes bounded read-only official metadata and raw-file freshness requests for all selected components. A scoped continuation authorizes only its selected sources. Disclose the official endpoints before contact.
-3. Resolve this skill's directory and run `python3 <skill-directory>/scripts/inspect_global_tools.py --verify-dolgorae-release` on a direct unscoped invocation. For a scoped continuation, add one `--component <name>` argument for each selected component in catalog order, add `--verify-dolgorae-release` only when Dolgorae is selected, and run no unselected component probe.
+3. Resolve this skill's directory and run `python3 <skill-directory>/scripts/inspect_global_tools.py` on a direct unscoped invocation. For a scoped continuation, add one `--component <name>` argument for each selected component in catalog order and run no unselected component probe.
 
    When Ouroboros is selected, also add `--verify-ouroboros-release`. This host has one Ouroboros integration surface, so the inspector reports it as a single `integration` result; any explicitly supplied extra home through `--codex-home <path>` names another host's layout and is reported as not applicable.
 
@@ -38,7 +38,7 @@ If a freshness lookup, download, validation, or comparison fails, report `freshn
 - Podway's per-user production daemon and Sorage's minimal user-global initialization.
 - Lora's `lore-commits` and `lore-query`, upstream Deslop, Humanizer, and im-not-ai's `humanize-korean` skill.
 - Ouroboros package version, user-scoped skills under the ZCode skill root, MCP runtime, effective user-global registration, and live exposure when safely observable.
-- The optional `aquarium-dev` CLI and MCP runtime bundled with Aquarium. Install and update it only on an explicit request; it is not part of production-binary readiness. Its MCP registration ships in the plugin's own root `.mcp.json`, which ZCode auto-loads, not in the user-global `mcp.servers` table, and it has no paired skill.
+- The upstream `aquarium-dev` and `aquarium-status` runtimes are not bundled with this edition. Their machine-global state — `~/.aquarium-dev/`, the `~/.aquarium` ledger and its reporter — has one owner, the upstream Codex edition, so this skill neither diagnoses nor installs either runtime and redirects requests for them there.
 - Aquarium production-binary readiness requires supported global Podway, Mulgae, and Gaori executables and fails closed when any is missing. Dolgorae and Sanho remain optional and are excluded from this baseline.
 
 Do not install provider CLIs, authenticate, read credentials, contact providers, transmit repository source, initialize repository workspaces, change project MCP, edit repository guidance, start tests or reviews, or invoke Ouroboros workflows.
@@ -49,11 +49,13 @@ Use one exact supported release tag or disclosed full commit SHA according to th
 
 For each selected paired or third-party skill, compare the verified source with its canonical target. Treat missing or extra files, different bytes, invalid frontmatter, symlinks, and duplicate installations as independent gaps.
 
-Apply this duplicate rule to shared-location skills. Ouroboros uses the single-surface contract in the catalog: its skills install under the ZCode skill root and its registration is the user-global `mcp.servers` entry. Other agent skill roots remain diagnostic evidence only. When another copy exists, report the duplicate risk and never create a known duplicate. Do not propose installation at the canonical target until the user separately approves removal or migration of the alternate copy so that one canonical target remains.
+Apply this duplicate rule to shared-location skills. Resolve the target from the selected upstream release's default installation guidance: use `~/.zcode/skills`, this host's native root, when it names `$CODEX_HOME`, and `~/.agents/skills` when it names no default. Ouroboros uses the single-surface contract in the catalog: its skills install under the shared `~/.agents/skills` root, a native ZCode root this host loads directly, and its registration is the user-global `mcp.servers` entry. Other agent skill roots remain diagnostic evidence only. When another copy would be loaded beside the selected target, report the duplicate risk and never create a known duplicate. Do not propose installation at the canonical target until the user separately approves removal or migration of the conflicting copy.
 
 `dev-setup` trusting an existing canonical path is not freshness evidence.
 
-Ouroboros update diagnosis reports installed, latest stable, and latest supported versions. Its CLI is user-global; on this host its skills install under the ZCode skill root and its MCP registration is the user-global `mcp.servers` entry in `~/.zcode/cli/config.json`. Keep integration readiness, package freshness, and live runtime evidence separate. Never cross the supported release range automatically.
+Ouroboros update diagnosis reports installed, latest stable, and latest supported versions. Its CLI is user-global; on this host its skills install under the shared `~/.agents/skills` root and its MCP registration is the user-global `mcp.servers` entry in `~/.zcode/cli/config.json`. Upstream's per-home rows and shared-root prohibition target the Codex home model — here the shared root is native, stays canonical, and one installation must never be duplicated under both roots; a shared-root directory whose bytes match no selected package payload is a conflict to report and inspect, never a removal order. Keep integration readiness, package freshness, and live runtime evidence separate. Never install below the minimum supported version.
+
+im-not-ai's `humanize-korean` skill also belongs to the running host's default root. Use `~/.zcode/skills/humanize-korean`. Do not install it in `~/.agents/skills`; a shared-root copy is a duplicate to report and resolve separately.
 
 ## Respect Host Mode and Approval Boundaries
 
@@ -77,7 +79,7 @@ Never use `sudo`, `--force`, unapproved removal, provider invocation, source tra
 
 ## Bundle Intake
 
-Accept a bounded `dev-setup-bundle` handoff containing the manifest digest and union of selected global components. Prepare each global component at most once. For Ouroboros, prepare the CLI once and its single ZCode integration once. Preserve all per-action approvals and return independent results for the bundle's target processing. Never read the manifest or infer repositories.
+Accept a bounded `dev-setup-bundle` handoff containing the manifest digest and union of selected global components. This edition adds no bundle infrastructure runtime: prepare each selected global component at most once. For Ouroboros, prepare the CLI once and its single ZCode integration once. Preserve all per-action approvals and return independent results for the bundle's target processing. Never read the manifest or infer repositories.
 
 ## Report
 

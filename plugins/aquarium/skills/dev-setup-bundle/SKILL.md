@@ -21,7 +21,11 @@ Confirmation authorizes only the global skill's documented bounded official meta
 
 ## Prepare Global Components Once
 
-Pass the normalized `shared_tools` union, manifest digest, and requesting skill to `/aquarium:dev-setup-global`. The global skill maps each union member to one `--component <name>` inspector argument and runs no component outside that union. This preserves `aquarium.dev-setup-bundle/v1`: existing tool names continue to select both their global and repository portions where applicable.
+Pass the normalized `shared_tools` union, manifest digest, and requesting skill
+to `/aquarium:dev-setup-global`. The global skill maps each selected name to
+one `--component <name>` inspector argument and runs no other component. This
+edition bundles no infrastructure runtime, so the pass-through adds nothing and
+preserves `aquarium.dev-setup-bundle/v1` and its existing vocabulary.
 
 Prepare each selected global CLI, paired skill, global MCP registration, daemon, Sorage initialization, third-party writing or Lore skill, and Ouroboros component at most once. For Ouroboros, this means one CLI upgrade and one single-surface ZCode integration update, not one installation per repository. Preserve every exact proposal, backup, approval, stale-target, verification, and cleanup boundary from `dev-setup-global`.
 
@@ -29,13 +33,24 @@ If a shared action fails or is declined, record the dependent targets as partial
 
 ## Configure Targets in Order
 
-For each ready target, pass `/aquarium:dev-setup` the requesting skill, manifest digest, target index, canonical Git root, complete effective tool list, explicit local MCP overrides, and guidance policy. The repository skill interprets the list as target intent and never repeats global installation or freshness work.
+For each ready target, after manifest revalidation and canonical identity freeze,
+pass the requesting skill, manifest digest, target index, canonical Git root,
+complete effective tool list, explicit local MCP overrides, and guidance policy
+to `/aquarium:dev-setup`. This edition creates no production-status attempt —
+the recording runtime is not bundled here — and the repository skill interprets
+the list as target intent and never repeats global installation or freshness
+work.
 
 - Process only repository portions: workspace/configuration readiness, project MCP, Sorage Project binding and ignore state, Podway managed Procedures, and AGENTS.md/CLAUDE.md guidance.
 - `agents_guidance: propose` requests the complete repository guidance proposal. `skip` suppresses that proposal. Effective Humanizer and im-not-ai selections still determine target-specific writing rules without repeating their global setup.
 - Ask only for identifiers or conflicts that repository evidence and the manifest cannot decide. Do not ask each target to select install, diagnose, or skip.
 - In Plan Mode, defer Sorage doctor and Project resolution because their native migration path may write local state. Outside Plan Mode, disclose the bounded side effect before running the selected target diagnosis.
 - Do not roll back successful actions, retry unchanged failures, stage, commit, push, invoke providers, start reviews or tests, or activate a Podway workflow.
+
+Once a target enters `dev-setup`, it exclusively owns that target's completion
+and reporting. This edition records no production-status attempt — the
+recording runtime is not bundled here — so no recording receipt, retry request,
+or recording-result validation applies. Continue independent targets.
 
 ## Report
 

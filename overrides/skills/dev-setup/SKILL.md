@@ -17,7 +17,7 @@ Do not use this skill for routine supported Procedure v2 observation, cancellati
 
 1. Resolve the requested working directory to one Git root and inspect applicable instructions, branch, upstream, staged, unstaged, untracked, and conflict state.
 2. Resolve this skill's directory and run `python3 <skill-directory>/scripts/inspect_tools.py --repository <git-root>`, adding only the flags required for repository components selected by explicit request, repository files or guidance, or an Aquarium readiness contract. Add `--include-podway` for Podway readiness, `--include-sorage` for the disclosed Sorage readiness diagnostic, and `--require-mulgae-mcp` when repository authority requires Mulgae MCP readiness to affect status.
-3. Select only evidenced repository components: Sanho workspace state; Mulgae Config v3, local configuration, bootstrap or refresh, and project MCP; Gaori repository config, active rules, ignore policy, and project MCP; Sorage Project binding and `.sorage/` ignore or tracking safety; Podway workspace, managed Procedures, migrations, and legacy recovery; and root AGENTS.md and CLAUDE.md operating guidance.
+3. Select only evidenced repository components: Sanho workspace state; the selected Mulgae release's supported configuration, local configuration, bootstrap or refresh, and project MCP; Gaori repository config, active rules, ignore policy, and project MCP; Sorage Project binding and `.sorage/` ignore or tracking safety; Podway workspace, managed Procedures, migrations, and legacy recovery; and root AGENTS.md and CLAUDE.md operating guidance.
 4. Treat an absent optional tool component with no repository evidence as out of scope, not missing. An explicit component request adds that component to scope. General setup includes root guidance even when the files are absent. A request limited to a tool or a scoped continuation stays within that component and its direct prerequisites; it does not add a full guidance review. Honor explicit guidance exclusions, including bundle `agents_guidance: skip`.
 5. Never ask the user to choose `Install and configure`, `Diagnose only`, or `Skip`, and never ask whether to `Show proposal`, `Diagnose only`, or `Skip`. Diagnosis is automatic. For tool configuration, report no change when ready and otherwise prepare the smallest exact proposal. For guidance, follow the whole-file review below.
 
@@ -27,7 +27,7 @@ Never read credential values or open `.env*`, authentication, key, token, secret
 
 ## Trust Canonical Global Installations
 
-This skill may inspect an owning global executable only through the bounded version, compatibility, and readiness probes required to diagnose a selected repository component. For a canonical user-global skill path under `~/.agents/skills`, check only whether the path exists. Do not read its files, validate frontmatter, follow or reject symlinks, hash content, enumerate duplicates, contact upstream, or ask about installation or freshness.
+This skill may inspect an owning global executable only through the bounded version, compatibility, and readiness probes required to diagnose a selected repository component. For a canonical user-global skill path under `~/.agents/skills`, or `~/.zcode/skills` where an upstream contract requires the running host's default root, check only whether the path exists. Do not read its files, validate frontmatter, follow or reject symlinks, hash content, enumerate duplicates, contact upstream, or ask about installation or freshness.
 
 Existence here means the repository workflow may use the global skill. Exact tree safety, provenance, duplicate detection, exact-upstream compatibility, and freshness belong exclusively to `/aquarium:dev-setup-global`.
 
@@ -42,6 +42,8 @@ Do not offer to install, upgrade, replace, or compare global state from this ski
 In Plan Mode, run every non-mutating repository diagnostic available and return exact proposed repository diffs or actions only for verified gaps. Never mutate files or native state. A diagnostic such as Sorage Project resolution that may open and migrate local state is deferred as an execution-phase prerequisite and must not become a question merely because it cannot run in Plan Mode.
 
 Outside Plan Mode, use the same automatic discovery. Before each persistent action, show the exact command or complete diff, target paths, side effects, preserved state, verification, and backup policy when replacement or removal is involved. Establish `Choose a Backup Policy for Existing State` from the shared catalog before the first action-specific approval for an overwrite or removal, then obtain the action-specific approval required by the host. Re-read every target immediately before an approved mutation and invalidate stale approval.
+
+This edition records no production-status ledger row: the `aquarium-status` reporter is not bundled here, terminal setup settles without recording, and the machine-global ledger belongs to the upstream Codex edition that owns the runtime.
 
 An explicit diagnosis-only request suppresses mutation proposals. A scoped continuation inspects only the named repository component and its direct prerequisites.
 

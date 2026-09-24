@@ -14,7 +14,7 @@ from typing import Any
 
 from inspect_ouroboros import InvalidCodexHome, inspect_ouroboros
 
-SCHEMA_VERSION = "aquarium-dev-setup-global-inspection.v3"
+SCHEMA_VERSION = "aquarium-dev-setup-global-inspection.v5"
 GLOBAL_COMPONENTS = (
     "sanho",
     "dolgorae",
@@ -27,7 +27,6 @@ GLOBAL_COMPONENTS = (
     "im-not-ai",
     "podway",
     "ouroboros",
-    "aquarium-dev",
 )
 PROJECT_INSPECTOR = (
     Path(__file__).resolve().parents[2] / "dev-setup/scripts/inspect_tools.py"
@@ -296,7 +295,6 @@ def resolve_working_directory(requested_path: str | None) -> Path:
 def inspect_global(
     repository: str | None,
     timeout_seconds: float,
-    verify_dolgorae_release: bool,
     include_sorage_initialization: bool = False,
     components: tuple[str, ...] | None = None,
     codex_homes: tuple[str, ...] = (),
@@ -320,11 +318,7 @@ def inspect_global(
             inspector.supported_sanho_version,
         )
     if "dolgorae" in requested_components:
-        raw_tools["dolgorae"] = inspector.inspect_dolgorae(
-            neutral_cwd,
-            timeout_seconds,
-            verify_official_release=verify_dolgorae_release,
-        )
+        raw_tools["dolgorae"] = inspector.inspect_dolgorae(neutral_cwd, timeout_seconds)
     if "mulgae" in requested_components:
         raw_tools["mulgae"] = inspect_versioned_cli(
             inspector,
@@ -408,9 +402,7 @@ def inspect_global(
                 "executable_sha256",
                 "file_identity",
                 "identity_stable",
-                "official_executable",
                 "regular_file",
-                "release_verification",
                 "safe_location",
                 "symlinked",
             ):
@@ -444,46 +436,6 @@ def inspect_global(
         tools["humanizer"] = inspector.inspect_humanizer()
     if "im-not-ai" in requested_components:
         tools["im-not-ai"] = inspector.inspect_im_not_ai()
-    if "aquarium-dev" in requested_components:
-        script = Path(__file__).resolve().parents[3] / "tools/aquarium-dev/install.py"
-        try:
-            probe = subprocess.run(
-                [sys.executable, "-B", str(script), "diagnose"],
-                cwd=neutral_cwd,
-                capture_output=True,
-                text=True,
-                timeout=timeout_seconds,
-                check=False,
-            )
-            if probe.returncode:
-                failure = {
-                    "status": "unverifiable",
-                    "reason": "probe_failed",
-                    "exit_code": probe.returncode,
-                    "problem": probe.stderr.strip(),
-                }
-                try:
-                    failure["diagnostic"] = json.loads(probe.stderr)
-                except ValueError:
-                    pass
-                tools["aquarium-dev"] = failure
-            else:
-                tools["aquarium-dev"] = json.loads(probe.stdout)
-        except subprocess.TimeoutExpired as error:
-            tools["aquarium-dev"] = {
-                "status": "unverifiable",
-                "reason": "probe_timeout",
-                "timeout_seconds": timeout_seconds,
-                "problem": str(error),
-            }
-        except (OSError, ValueError, subprocess.SubprocessError) as error:
-            tools["aquarium-dev"] = {
-                "status": "unverifiable",
-                "reason": "invalid_json"
-                if isinstance(error, ValueError)
-                else "probe_failed",
-                "problem": str(error),
-            }
     tools = {name: tools[name] for name in selected_components}
     return {
         "schema_version": SCHEMA_VERSION,
@@ -510,11 +462,6 @@ def parse_arguments() -> argparse.Namespace:
         action="append",
         choices=GLOBAL_COMPONENTS,
         help="Inspect only this user-global component; repeat to select more",
-    )
-    parser.add_argument(
-        "--verify-dolgorae-release",
-        action="store_true",
-        help="Verify Dolgorae against bounded official GitHub Release metadata",
     )
     parser.add_argument(
         "--include-sorage-initialization",
@@ -545,11 +492,6 @@ def parse_arguments() -> argparse.Namespace:
     if any(not value.strip() for value in arguments.codex_home):
         raise InspectionError("invalid_arguments", "--codex-home must not be blank")
     selected_components = set(arguments.component or GLOBAL_COMPONENTS)
-    if arguments.verify_dolgorae_release and "dolgorae" not in selected_components:
-        raise InspectionError(
-            "invalid_arguments",
-            "--verify-dolgorae-release requires the dolgorae component",
-        )
     if arguments.include_sorage_initialization and "sorage" not in selected_components:
         raise InspectionError(
             "invalid_arguments",
@@ -579,7 +521,6 @@ def main() -> int:
             inspect_global(
                 arguments.repository,
                 arguments.timeout_seconds,
-                arguments.verify_dolgorae_release,
                 arguments.include_sorage_initialization,
                 arguments.component,
                 tuple(arguments.codex_home),

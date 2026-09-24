@@ -20,8 +20,8 @@
     "description": "Deliver or resume one named roadmap epic through sequential task goals, evidence-gated commits, and epic-wide remediation. Use when the user explicitly invokes /aquarium:epic-handler with a roadmap path and exactly one epic ID; never invoke it implicitly."
   },
   "epic-validator": {
-    "source_digest": "5cba7707a474a06cbb4292bf904c62f10869793bd5c867cc5213557a3bd69a29",
-    "description": "Cold-validate one completed roadmap epic through a bounded audit and one remediation-and-confirmation cycle. Use when the user explicitly invokes /aquarium:epic-validator with a roadmap path and exactly one completed epic ID; never invoke it implicitly."
+    "source_digest": "6eab93d6144a91cb38921ad2c7e7ea84682a7986ea9557318a1fb391d62ba358",
+    "description": "Cold-validate one completed roadmap epic through three bounded work-unit assessments and one remediation confirmation. Use when the user explicitly invokes /aquarium:epic-validator with a roadmap path and exactly one completed epic ID; never invoke it implicitly."
   },
   "independent-review": {
     "source_digest": "a721baea2c2214395c58cea8773342c91a128430682b29154bd2b768f679f8ce",
@@ -36,8 +36,8 @@
     "description": "Shape a greenfield project into an approved PRD and initial roadmap with Ouroboros, without implementing it. Use when the user explicitly invokes /aquarium:new-project."
   },
   "orca-review": {
-    "source_digest": "d42a6ba77ff816aa7f1ba63c60af2e5242c254c40fdf77574d0674dca8759a15",
-    "description": "Run the canonical review contract with one fresh requested native reviewer, such as Claude, owned and supervised by the local Orca runtime for a staged, `HEAD`, commit, or range target. Use when the user explicitly invokes /aquarium:orca-review or names a review target and reviewer; subagent-based review belongs to /aquarium:independent-review."
+    "source_digest": "5d318f849c69f87f635ee09fe5debbd3dca7933bc7f53e1f26c4a2567ca77c8e",
+    "description": "Run one supervised static review of a staged, `HEAD`, commit, or range target with a fresh requested reviewer through the local Orca runtime. Use when the user explicitly invokes /aquarium:orca-review, names a review target and reviewer, or an approved Aquarium handler delegates its selected Orca route; subagent-based review belongs to /aquarium:independent-review."
   },
   "refactor": {
     "source_digest": "462dc0b177fa8f0b596fe2ca2987c3b2bf8190768110f590ecef8132473d9e7f",
@@ -64,8 +64,8 @@
     "description": "Update durable documentation and review status for one refined roadmap task. Use when /aquarium:task-handler delegates documentation or the user explicitly invokes /aquarium:task-document to resume that phase."
   },
   "task-handler": {
-    "source_digest": "fafa9af8902e73e37f65b5fbf1de1938e9a8459e3f46f547d500994f2a118ad3",
-    "description": "Strengthen or resume the procedure around one named roadmap task goal through planning, implementation, verification, refinement, documentation, review, and closeout. Use when the user explicitly invokes /aquarium:task-handler with a roadmap path and exactly one task ID; never invoke it implicitly."
+    "source_digest": "7db8a35676eb245c24c3a9d06c565d658807b4c2727e7ab126311abca8d82259",
+    "description": "Strengthen or resume the procedure around one named roadmap task goal through planning, implementation, verification, refinement, documentation, a selected completion review, and closeout. Use when the user explicitly invokes /aquarium:task-handler with a roadmap path and exactly one task ID; never invoke it implicitly."
   },
   "task-implement": {
     "source_digest": "a5e123370cc09111acc702aa60ea90ba12fb98635e30e27a2b01ae255d7a0018",
@@ -80,8 +80,8 @@
     "description": "Deslop and optimize the implementation-checked diff for one roadmap task before final verification. Use when /aquarium:task-handler delegates refinement or the user explicitly invokes /aquarium:task-refine for that phase."
   },
   "task-review": {
-    "source_digest": "3c0862d10dc1f9200cdfd30fd92c9ca9bcf19a5e0e301b47c9913bb4b9d3cd74",
-    "description": "Run and resolve Mulgae review for one complete roadmap task diff. Use when /aquarium:task-handler delegates review or the user explicitly invokes /aquarium:task-review with exact task identity."
+    "source_digest": "35aaa9cdb0b38b72b5fd06ae15a45702a23f82a1779aa91eac7b5cb460bbd76c",
+    "description": "Run and resolve one selected completion-review route for a complete roadmap task diff. Use when /aquarium:task-handler delegates review or the user explicitly invokes /aquarium:task-review with exact task identity, verification evidence, and a selected route."
   },
   "task-verify": {
     "source_digest": "7e93be80baa4460c75ed38fd8904ba7dc255099814cd866e786bfff91daccaec",

@@ -4,6 +4,22 @@ This file records concise shipped outcomes of the Aquarium for GLM edition. Rele
 
 ## v0.1.17 - Unreleased
 
+### Added
+
+- Carry the new shared review-routing contract (`review-routing-contract.md`) restated for this host: the `native-codex` route token ships byte-stable — the managed Procedure mirrors and the route-neutral evidence fields carry it as a machine identifier — while its prose names the native ZCode route and its dispatch sentences name the host's own `Agent` tool; the same family restates every handler surface that names the route, and epic-handler's absolute prohibition on `/aquarium:independent-review` becomes the in-flow boundary it is, this edition shipping that entrypoint enabled.
+
+### Changed
+
+- Regenerate from upstream Aquarium v0.1.17 (`e026d90`): Task, Epic, and cold-validation workflows select one completion-review route — `mulgae` by default, `orca`, `native-codex`, or `waived` — with assessment ordinals one-to-three as work-unit reviews plus an ordinal-four remediation confirmation, route-neutral evidence fields through closeout and commit handoff, and the composite-execution-SOT dossier waiver; the dev-setup-global inspection schema moves to v5; tool floors move to Mulgae v0.1.23 on Config v4 — the default portfolio routes every role to ZCode, which on this GLM-native host runs the user's configured model, with Grok `grok-4.7` and Codex `gpt-5.6-sol` pinned as third-party facts — Humanizer `>=v2.11.1` and im-not-ai `>=v2.3.2` unbounded, Podway v0.2.11 with the `use-podway` pin on its release commit, and Ouroboros unbounded at `>=0.51.1`, which this host already ran (0.54.5) past the retired `<0.54.0` ceiling.
+- **Stop bundling runtimes.** This edition excludes `tools/aquarium-dev` (shipped since v0.1.15), upstream's new `tools/aquarium-status` and its `status` skill, and the development-channel contract reference; the plugin registers no MCP server and terminal setup settles without recording a production-status ledger row. The machine-global state those runtimes own — `~/.aquarium-dev/` and the `~/.aquarium` ledger — has exactly one owner per machine, the upstream Codex edition, and a for-edition bundling its own copy would fight over the same singleton ledger row, runtime selector, and launcher; the exclusions are recorded, abort-checked decisions, and `tests/validate.rb` pins the absences.
+- Restate `effective_codex_skill_root` instead of deleting it: upstream v0.1.17 moves the writing skills back to the running host's default root, so the helper's body collapses to `~/.zcode/skills` — the one root this host reads natively — while the name stays for upstream's four callers, and `humanize-korean` now installs at `~/.zcode/skills/humanize-korean` with a shared-root copy reported as a duplicate.
+- Absorb upstream's `shared_skill_conflicts` detection with one host decision: byte-matching shared-root Ouroboros skills are this host's canonical installation — upstream's migration framing targets the Codex home model — so only non-matching name conflicts degrade readiness.
+
+### Fixed
+
+- Remove the retired aquarium-dev substitution family and the `.mcp.json` conversion with the `tools/` exclusion, drop the Dolgorae release-verification marker upstream deleted, and re-derive the Ouroboros readiness rule onto upstream's hardened v3 wording — the shipped sentence previously claimed shared `~/.agents/skills` copies "prevent readiness until migrated", contradicting this host where the shared root is the canonical skill target.
+- Correct the global inspector for the runtime exclusion: upstream v0.1.17's `inspect_aquarium_status` imports the excluded installer and would fail closed on every unscoped run, and its aquarium-dev probe would subprocess a missing installer into permanent unverifiable noise; both components leave the vocabulary and the wiring.
+
 ## v0.1.16 - 2026-09-16
 
 ### Added

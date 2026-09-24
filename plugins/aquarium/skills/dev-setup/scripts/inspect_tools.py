@@ -25,25 +25,19 @@ except ModuleNotFoundError as error:
         raise
     yaml = None  # type: ignore[assignment]
 
-GLOBAL_SCRIPT_DIRECTORY = str(
-    Path(__file__).resolve().parents[2] / "dev-setup-global/scripts"
-)
-if GLOBAL_SCRIPT_DIRECTORY not in sys.path:
-    sys.path.insert(0, GLOBAL_SCRIPT_DIRECTORY)
-
-try:
-    import verify_dolgorae_release as dolgorae_release
-except ModuleNotFoundError as error:
-    if error.name != "verify_dolgorae_release":
-        raise
-    dolgorae_release = None
-
 SCHEMA_VERSION = "aquarium-dev-setup-inspection.v21"
 DOLGORAE_INVOCATION_ID_RE = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 )
-MULGAE_COMMAND_RESULT_SCHEMA = "mulgae-command-result.v8"
-MULGAE_DOCTOR_RESULT_SCHEMA = "mulgae-doctor-result.v2"
+MULGAE_MINIMUM_VERSION = (0, 1, 23)
+MULGAE_NATIVE_CONTRACT: dict[str, Any] = {
+    "minimum_command_schema": 12,
+    "minimum_doctor_schema": 5,
+    "provider_compatibility_fields": (
+        "cli_compatible",
+        "application_compatible",
+    ),
+}
 MULGAE_MCP_TOOL_TIMEOUT_SEC = 7501
 GAORI_MCP_TOOL_TIMEOUT_SEC = 3601
 MAX_COMMAND_TIMEOUT_SECONDS = 86_400.0
@@ -119,7 +113,7 @@ HUMANIZER_SKILL_FILES = (
     "SKILL.md",
     "LICENSE",
 )
-HUMANIZER_SUPPORTED_RELEASE = "v2.11.1"
+HUMANIZER_MINIMUM_VERSION = "2.11.1"
 HUMANIZE_KOREAN_SKILL_FILES = (
     "SKILL.md",
     "LICENSE",
@@ -138,7 +132,7 @@ HUMANIZE_KOREAN_SKILL_FILES = (
     "references/scholarship.md",
     "references/web-service-spec.md",
 )
-IM_NOT_AI_SUPPORTED_RELEASE = "v2.3.2"
+IM_NOT_AI_MINIMUM_VERSION = "2.3.2"
 PODWAY_PROCEDURES = (
     "aquarium-task-v2.yaml",
     "aquarium-goal-v2.yaml",
@@ -148,6 +142,7 @@ PODWAY_PROCEDURES = (
 )
 PODWAY_PRIOR_CANONICAL_SHA256 = {
     "aquarium-task-v2.yaml": {
+        "27758a88c1c2c0e696bb5e14d68f37c6588215a5ea6f1ee85fef7dcd3de991aa",
         "aa916a0e0dfa49384da1bb1affede4af58dd4dbc43e17f248d69537db6aeda52",
         "76fbe6842b178524d8c19ce17a58d1eb1fffa13dac07e9a9ae57fe98474194a6",
         "ff32214898ddb5a737e7a4c55447a16976d42da34b70cacc11c3b286d695cc77",
@@ -157,8 +152,17 @@ PODWAY_PRIOR_CANONICAL_SHA256 = {
         "b703da6c798801a396d144be1c9c71e0fdb05c95e9e293386bf83c0d238ef927",
         "35adb91998294f3c271e4ca7cba5ee1c8b94ce1265a828ff92cd206bc68d6e9c",
         "fb3d9a05dca7b09e34164b7a3022f0ab3fc2c742d1a3771064ac9174d0de43e7",
+        "fac0b829ad7ec179ad02d8d098e633cfed44659ee1d93ae36cdb806a9110236a",
+        "a1661abed9aac01e10cd0475707d8e8f6e060eeaf6cc495ceb9f4b1ea91ef516",
+        "0f32062f6a28202f3a8ad16dde36039a9b0db5d91f80268330e3019feb418824",
+        "a003e94b26e4d4702d6bb6a7f8f0cfb98a5df61a62c358cae3660cba917f18f3",
+        "ecbd6b3388746eac2fb03e2971a518d210e15567975f930ce9bd7db89b165203",
+        "fd08ef0db9bf78d3557dd4c89c3f600c864b57930a01491e3ea2dc39a0985655",
+        "865c6c6a6c4e7784e296d16bf261fd125524d773329f3344cc63cfc7b7e12d63",
     },
     "aquarium-goal-v2.yaml": {
+        "b215c60ad2555d9d7f4f970fb80541278b340e93536ff32ce3ea656fadf21c4d",
+        "99dfe92a75accee69717154a13ea18b6e25a493e2674d78543f3780b8993a375",
         "2921280e4a57e02896efb126abbd56829b6a2c99867d357ecc98413aadd15b7b",
         "5150a2ad3b33823a8935bd445155054bb0de037436c2d4121ae0892bd94e08c4",
         "f6d456438ba69a06fb322e4c2220bb824233c2ab239df1f68157c139ebb3a8c5",
@@ -168,15 +172,27 @@ PODWAY_PRIOR_CANONICAL_SHA256 = {
         "42eee85a406f46c3c7c40a467bfa1764d1e0b3042247b0604564ea20547f8d96",
         "97e73a08bb10167dc93da803ba899f19388affec000b4b3014a4e032ca57569b",
         "9ee8fb5c63ca3129e1a104c54c2e0dde0beb7939b70ab7da66431cde4ba490c7",
+        "0a9753d144c46db9e6ea81c9355545c76455a66c66f22352448d7e3d650391e7",
+        "967bf58ee75d3647c8fba3317cade43050cd3a8f39372a51b26cf56692075c21",
+        "fd247c06de794254d5785c84520e1feaa570ce273559208946a28bc84b057163",
+        "bf0eaa45855755136f9fc439ec654c6351cbec5cb1d7b50999c104bf0dda56b2",
+        "67b2faa3736b4e1a9c8264c20d39968c6f47e6e194d73ae8f49044f7561d154f",
     },
     "aquarium-validation-v2.yaml": {
+        "a9d59ad628e77a0f3131b4dcb9bb40fc3d83bb4c35ec077666caf4379c49a7a0",
+        "d3108415bc54a96c200a1189149c514428f53367eae3778c4440d23f8b55a800",
         "2d1e9995216ac4fcdf3b08baba80a31662485fc4daa3f0bfd42e4f1ff2f4c788",
         "423655c9d8b14c97820f36738c1ef32905bc26452113c69d886058f2bb54f8b3",
+        "46a30dc2747ccd1985d50fce95c232b38e5e566326ad9f518a388647bdadb63f",
         "bc454955ef56d9607a9128a085177eb8557f8b24774cba59ddca3c0db88428e8",
         "45192a644087b811eb34952576798ae4f3e85ebdf87c77fc8dc097d3c8bb2f50",
         "9f3c0a0628f6ea820dbffee2355b949a2d2459e595ea3044d9aa53d81482eb5c",
         "53a20b71169bb206237474342f9c33f205e347f82686a7729b1c6447312523df",
         "aa89b01cd7007563861789304f11853e969fa0312676b8a256013dee808b7904",
+        "cc21bb59f494db3b2d0f2096809e6163aa0c98ead61c4cbdd6ad31a0dc403163",
+        "4c355c2ec35caed6e454d32364fb8d849f1a02f3772879e314e15fc20c42469b",
+        "0a70a6e7d8dc39c88a37b425256ec9b1be88d9326cd3d9a170a4aeac7e4eddef",
+        "170f0eb407c03c590f7f56314287c684ba2bd083c3e1f47831a14bf5eabe4647",
     },
     "aquarium-design-v2.yaml": {
         "4ec653b2b4d740d77bcd4826f40288d9fadd7d696a3939c197b9789dbba824b6",
@@ -188,383 +204,9 @@ PODWAY_PRIOR_CANONICAL_SHA256 = {
     },
 }
 
-PODWAY_HANDLER_CONTRACTS = {
-    "aquarium-task-v2.yaml": {
-        "nodes": {
-            "prepare-implementation",
-            "implement",
-            "document",
-            "confirm-review-findings",
-            "decide-review-ci",
-            "confirm-review-completion",
-            "decide-review",
-            "decide-task-rework-authority",
-            "decide-implementation-owner",
-            "decide-verification-owner",
-            "decide-documentation-owner",
-            "await-user-direction",
-            "choose-user-direction",
-            "record-low-disposition",
-            "decide-low-result",
-            "decide-low-completion",
-        },
-        "definition_items": {
-            "implementation-entry-record": {"implementation-entry-summary"},
-            "review-record": {
-                "finding-count-consistency",
-                "completion-assessment-summary",
-                "completion-unmet-criteria",
-                "completion-unverified-criteria",
-                "unresolved-implementation-findings",
-                "unresolved-documentation-findings",
-                "implementation-rework-obligations",
-                "verification-rework-obligations",
-                "documentation-rework-obligations",
-            },
-            "low-disposition-record": {
-                "source-review-basis",
-                "low-disposition-summary",
-                "completion-assessment-summary",
-                "completion-unmet-criteria",
-                "completion-unverified-criteria",
-                "pending-low-dispositions",
-                "current-blocking-findings",
-                "before-target",
-                "after-target",
-                "coverage-relationship",
-                "low-disposition-verification",
-            },
-        },
-        "definition_choices": {
-            ("review-record", "finding-count-consistency"): {
-                "consistent",
-                "inconsistent",
-            },
-            ("review-record", "review-mode"): {
-                "remediation-eligible",
-                "confirmation-only",
-            },
-        },
-        "routes": {
-            "decide-verification": {"failed": "verify"},
-            "decide-review-ci": {
-                "passed": "confirm-review-completion",
-                "failed": "decide-task-rework-authority",
-            },
-            "confirm-review-completion": {
-                "complete": "decide-review",
-                "unmet": "decide-task-rework-authority",
-                "unverified": "review",
-            },
-            "decide-review": {
-                "clean": "assess-goal",
-                "blocking": "decide-task-rework-authority",
-                "low-disposition": "record-low-disposition",
-                "inconsistent": "review",
-            },
-            "decide-task-rework-authority": {
-                "remediation": "decide-implementation-owner",
-                "user-direction": "await-user-direction",
-            },
-            "decide-implementation-owner": {
-                "required": "implement",
-                "clear": "decide-verification-owner",
-            },
-            "decide-verification-owner": {
-                "required": "verify",
-                "clear": "decide-documentation-owner",
-            },
-            "decide-documentation-owner": {
-                "required": "document",
-                "clear": "review",
-            },
-            "decide-low-result": {"passed": "decide-low-completion"},
-            "decide-low-completion": {"completed": "assess-goal"},
-            "choose-user-direction": {
-                "fix-and-review": "decide-implementation-owner",
-                "stop": "assess-goal",
-            },
-        },
-        "evidence": {
-            "implement": {
-                ("record-plan", "plan-summary"),
-                ("prepare-implementation", "implementation-entry-summary"),
-            },
-            "document": {
-                ("implement", "implementation-summary"),
-                ("implement", "source-revision"),
-                ("refine", "refinement-summary"),
-                ("verify", "verification-result"),
-                ("verify", "verification-observations"),
-                ("decide-verification", None),
-            },
-            "await-user-direction": {
-                ("review", "completion-assessment-summary"),
-                ("review", "completion-unmet-criteria"),
-                ("review", "completion-unverified-criteria"),
-            },
-            "assess-goal": {
-                ("review", "completion-assessment-summary"),
-                ("review", "completion-unmet-criteria"),
-                ("review", "completion-unverified-criteria"),
-                ("review", "finding-count-consistency"),
-                ("await-user-direction", "direction-classification"),
-                ("await-user-direction", "direction-summary"),
-            },
-        },
-    },
-    "aquarium-goal-v2.yaml": {
-        "nodes": {
-            "decide-review-basis",
-            "decide-operational-evidence",
-            "confirm-finding-validity",
-            "confirm-completion-assessment",
-            "decide-evidence",
-            "decide-goal-rework-authority",
-            "record-hardening-deferral",
-            "decide-low-handling",
-            "await-user-direction",
-            "choose-user-direction",
-            "record-low-disposition",
-            "decide-low-result",
-            "decide-low-completion",
-        },
-        "definition_items": {
-            "evidence-record": {
-                "finding-count-consistency",
-                "goal-kind",
-                "review-evidence-kind",
-                "goal-verification-result",
-                "goal-review-readiness-result",
-                "confirmation-needed-findings",
-                "completion-assessment-summary",
-                "completion-unmet-criteria",
-                "completion-unverified-criteria",
-            },
-            "low-disposition-record": {
-                "source-review-basis",
-                "completion-assessment-summary",
-                "completion-unmet-criteria",
-                "completion-unverified-criteria",
-                "pending-low-dispositions",
-                "current-blocking-findings",
-                "before-target",
-                "after-target",
-                "coverage-relationship",
-                "low-disposition-verification",
-            },
-        },
-        "definition_choices": {
-            ("evidence-record", "finding-count-consistency"): {
-                "consistent",
-                "inconsistent",
-            },
-            ("evidence-record", "goal-kind"): {
-                "member-task",
-                "pre-validation-remediation",
-                "epic-closeout",
-            },
-            ("evidence-record", "review-evidence-kind"): {
-                "native-review",
-                "validated-closeout",
-            },
-            ("evidence-record", "review-mode"): {
-                "remediation-eligible",
-                "hardening-deferral-eligible",
-                "closeout-not-required",
-            },
-        },
-        "routes": {
-            "decide-review-basis": {
-                "native-review": "decide-operational-evidence",
-                "final-closeout": "record-closeout-substitute",
-                "invalid-substitute": "record-evidence",
-            },
-            "decide-operational-evidence": {
-                "passed": "confirm-finding-validity",
-                "verification-incomplete": "complete-work",
-                "review-incomplete": "record-evidence",
-            },
-            "confirm-finding-validity": {
-                "resolved": "confirm-completion-assessment",
-                "unresolved": "record-evidence",
-            },
-            "confirm-completion-assessment": {
-                "complete": "decide-evidence",
-                "unmet": "decide-goal-rework-authority",
-                "unverified": "record-evidence",
-            },
-            "decide-evidence": {
-                "clean": "assess-goal",
-                "blocking": "decide-goal-rework-authority",
-                "low-only": "record-hardening-deferral",
-                "inconsistent": "record-evidence",
-            },
-            "decide-goal-rework-authority": {
-                "remediation": "complete-work",
-                "user-direction": "await-user-direction",
-            },
-            "decide-low-handling": {
-                "settle": "record-low-disposition",
-                "defer": "record-hardening-handoff",
-            },
-            "decide-low-result": {"passed": "decide-low-completion"},
-            "decide-low-completion": {"completed": "assess-goal"},
-            "choose-user-direction": {
-                "fix-and-review": "complete-work",
-                "stop": "assess-goal",
-            },
-        },
-        "evidence": {
-            "await-user-direction": {
-                ("record-evidence", "completion-assessment-summary"),
-                ("record-evidence", "completion-unmet-criteria"),
-                ("record-evidence", "completion-unverified-criteria"),
-                ("record-low-disposition", "source-review-basis"),
-                ("record-low-disposition", "low-disposition-summary"),
-                ("record-low-disposition", "current-blocking-findings"),
-                ("record-low-disposition", "after-target"),
-            },
-            "assess-goal": {
-                ("record-evidence", "completion-assessment-summary"),
-                ("record-evidence", "completion-unmet-criteria"),
-                ("record-evidence", "completion-unverified-criteria"),
-                ("record-evidence", "finding-count-consistency"),
-                ("await-user-direction", "direction-classification"),
-                ("await-user-direction", "direction-summary"),
-            },
-        },
-    },
-    "aquarium-validation-v2.yaml": {
-        "nodes": {
-            "record-audit-low-basis",
-            "remediate",
-            "re-audit",
-            "decide-final-review-operation",
-            "confirm-final-review-findings",
-            "confirm-completion-assessment",
-            "decide-required-evidence",
-            "decide-current-blockers",
-            "decide-validation-rework-authority",
-            "decide-final-review",
-            "await-user-direction",
-            "choose-user-direction",
-            "record-stopped",
-            "record-low-disposition",
-            "decide-low-result",
-            "decide-low-completion",
-        },
-        "definition_items": {
-            "audit-record": {
-                "blocking-gap-count",
-                "eligible-low-gap-count",
-                "confirmation-needed-gap-count",
-                "blocking-rework-authority",
-            },
-            "audit-low-basis-record": {
-                "audit-basis-target",
-                "audit-basis-status",
-                "audit-low-finding-count",
-                "audit-low-finding-identities",
-                "audit-low-basis-summary",
-            },
-            "final-review-record": {
-                "applicable-obligation-summary",
-                "completion-assessment-summary",
-                "completion-unmet-criteria",
-                "completion-unverified-criteria",
-                "pending-applicable-low-dispositions",
-                "current-applicable-blockers",
-                "required-evidence-gaps",
-            },
-            "low-disposition-record": {
-                "source-review-basis",
-                "completion-assessment-summary",
-                "completion-unmet-criteria",
-                "completion-unverified-criteria",
-                "pending-low-dispositions",
-                "current-blocking-findings",
-                "before-target",
-                "after-target",
-                "coverage-relationship",
-                "low-disposition-verification",
-            },
-        },
-        "definition_choices": {
-            ("final-review-record", "review-mode"): {
-                "remediation-eligible",
-                "confirmation-only",
-            },
-        },
-        "routes": {
-            "decide-gaps": {
-                "blocking-gaps": "remediate",
-                "low-only": "record-audit-low-basis",
-                "user-direction": "await-user-direction",
-            },
-            "decide-re-audit": {
-                "blocking-gaps": "remediate",
-                "low-only": "record-audit-low-basis",
-                "user-direction": "await-user-direction",
-            },
-            "decide-final-review-operation": {
-                "passed": "confirm-final-review-findings",
-                "incomplete": "record-review-operation-incomplete",
-            },
-            "confirm-final-review-findings": {
-                "resolved": "confirm-completion-assessment",
-                "unresolved": "record-incomplete",
-            },
-            "confirm-completion-assessment": {
-                "complete": "decide-required-evidence",
-                "unmet": "decide-validation-rework-authority",
-                "unverified": "record-incomplete",
-            },
-            "decide-required-evidence": {
-                "complete": "decide-current-blockers",
-                "incomplete": "record-incomplete",
-            },
-            "decide-current-blockers": {
-                "clear": "decide-final-review",
-                "blocking": "decide-validation-rework-authority",
-            },
-            "decide-validation-rework-authority": {
-                "remediation": "audit",
-                "user-direction": "await-user-direction",
-            },
-            "choose-user-direction": {
-                "fix-and-review": "audit",
-                "stop": "record-stopped",
-            },
-            "decide-final-review": {
-                "low-disposition": "record-low-disposition",
-                "validated": "assess-goal",
-            },
-            "decide-low-result": {"passed": "decide-low-completion"},
-            "decide-low-completion": {"completed": "assess-goal"},
-        },
-        "evidence": {
-            "await-user-direction": {
-                ("final-review", "completion-assessment-summary"),
-                ("final-review", "completion-unmet-criteria"),
-                ("final-review", "completion-unverified-criteria"),
-                ("record-low-disposition", "source-review-basis"),
-                ("record-low-disposition", "low-disposition-summary"),
-                ("record-low-disposition", "current-blocking-findings"),
-                ("record-low-disposition", "after-target"),
-            },
-            "assess-goal": {
-                ("final-review", "completion-assessment-summary"),
-                ("final-review", "completion-unmet-criteria"),
-                ("final-review", "completion-unverified-criteria"),
-                ("await-user-direction", "direction-classification"),
-                ("await-user-direction", "direction-summary"),
-            },
-        },
-    },
-    "aquarium-design-v2.yaml": {},
-    "aquarium-war-room-v2.yaml": {},
-}
+# Current handler compatibility is derived from the canonical Procedure structure.
+# Prior canonical digests remain admitted above so immutable session snapshots keep
+# their established compatibility without weakening current structural checks.
 LEGACY_PODWAY_PROCEDURES = (
     "root-kernel-task-v2.yaml",
     "root-kernel-goal-v2.yaml",
@@ -769,7 +411,7 @@ def supported_podway_version(version: str | None) -> bool:
     if not version:
         return False
     match = re.fullmatch(rf"v?0\.2\.({CANONICAL_NUMERIC_COMPONENT})", version)
-    return bool(match and int(match.group(1)) >= 9)
+    return bool(match and int(match.group(1)) >= 11)
 
 
 def podway_v025_workaround_bytes(name: str, source: bytes) -> bytes | None:
@@ -888,6 +530,9 @@ def inspect_podway_handler_contract(
     """Check only the structural Procedure surface consumed by Aquarium handlers."""
     if content is None:
         return "not_checked", ["procedure_bytes_unavailable"]
+    content_digest = hashlib.sha256(content).hexdigest()
+    if content_digest in PODWAY_PRIOR_CANONICAL_SHA256.get(name, set()):
+        return "compatible", []
     if yaml is None:
         return "not_checked", ["pyyaml_unavailable"]
     try:
@@ -896,6 +541,15 @@ def inspect_podway_handler_contract(
         return "not_checked", ["procedure_yaml_unreadable"]
     if not isinstance(document, dict):
         return "incompatible", ["procedure_document_invalid"]
+
+    if canonical_content is None:
+        return "not_checked", ["canonical_procedure_unavailable"]
+    try:
+        canonical = yaml.safe_load(canonical_content)
+    except (UnicodeDecodeError, yaml.YAMLError):
+        return "not_checked", ["canonical_procedure_unreadable"]
+    if not isinstance(canonical, dict):
+        return "not_checked", ["canonical_procedure_invalid"]
 
     definitions = document.get("node_definitions")
     graph = document.get("graph")
@@ -912,7 +566,75 @@ def inspect_podway_handler_contract(
         for node in raw_nodes
         if isinstance(node, dict) and isinstance(node.get("id"), str)
     }
-    contract = PODWAY_HANDLER_CONTRACTS[name]
+    canonical_definitions = canonical.get("node_definitions")
+    canonical_graph = canonical.get("graph")
+    canonical_nodes = (
+        canonical_graph.get("nodes") if isinstance(canonical_graph, dict) else None
+    )
+    if not isinstance(canonical_definitions, dict) or not isinstance(
+        canonical_nodes, list
+    ):
+        return "not_checked", ["canonical_procedure_structure_missing"]
+
+    contract: dict[str, Any] = {
+        "nodes": {
+            node["id"]
+            for node in canonical_nodes
+            if isinstance(node, dict) and isinstance(node.get("id"), str)
+        },
+        "definition_items": {},
+        "definition_choices": {},
+        "check_results": {},
+        "routes": {},
+        "evidence": {},
+    }
+    for definition_id, definition in canonical_definitions.items():
+        if not isinstance(definition_id, str) or not isinstance(definition, dict):
+            continue
+        items = definition.get("items")
+        if not isinstance(items, list):
+            continue
+        required_items = {
+            item["id"]
+            for item in items
+            if isinstance(item, dict) and isinstance(item.get("id"), str)
+        }
+        if required_items:
+            contract["definition_items"][definition_id] = required_items
+        for item in items:
+            if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+                continue
+            choices = item.get("choices")
+            if isinstance(choices, list) and choices:
+                contract["definition_choices"][(definition_id, item["id"])] = set(
+                    choices
+                )
+            if item.get("type") == "check_result":
+                contract["check_results"][(definition_id, item["id"])] = {
+                    "operation_id": item.get("operation_id"),
+                    "operation_digest": item.get("operation_digest"),
+                    "required": item.get("required"),
+                    "required_when": item.get("required_when"),
+                }
+    for node in canonical_nodes:
+        if not isinstance(node, dict) or not isinstance(node.get("id"), str):
+            continue
+        node_id = node["id"]
+        routes = node.get("routes")
+        if isinstance(routes, dict) and routes:
+            contract["routes"][node_id] = {
+                option: route.get("to")
+                for option, route in routes.items()
+                if isinstance(option, str) and isinstance(route, dict)
+            }
+        evidence_from = node.get("evidence_from")
+        if isinstance(evidence_from, list) and evidence_from:
+            contract["evidence"][node_id] = {
+                (entry["node"], item)
+                for entry in evidence_from
+                if isinstance(entry, dict) and isinstance(entry.get("node"), str)
+                for item in (entry.get("items") or [None])
+            }
     reasons: list[str] = []
     missing_nodes = sorted(contract.get("nodes", set()) - nodes.keys())
     if missing_nodes:
@@ -950,6 +672,30 @@ def inspect_podway_handler_contract(
         )
         if not required_choices.issubset(observed_choices):
             reasons.append(f"missing_required_choices:{definition_id}:{item_id}")
+
+    for (definition_id, item_id), expected in contract.get("check_results", {}).items():
+        definition = definitions.get(definition_id)
+        items = definition.get("items") if isinstance(definition, dict) else None
+        item = next(
+            (
+                candidate
+                for candidate in items or []
+                if isinstance(candidate, dict) and candidate.get("id") == item_id
+            ),
+            None,
+        )
+        observed = (
+            {
+                "operation_id": item.get("operation_id"),
+                "operation_digest": item.get("operation_digest"),
+                "required": item.get("required"),
+                "required_when": item.get("required_when"),
+            }
+            if isinstance(item, dict)
+            else None
+        )
+        if observed != expected:
+            reasons.append(f"incompatible_check_result:{definition_id}:{item_id}")
 
     for node_id, required_routes in contract.get("routes", {}).items():
         node = nodes.get(node_id)
@@ -1004,12 +750,6 @@ def inspect_podway_handler_contract(
 
     if reasons:
         return "incompatible", reasons
-    if canonical_content is None:
-        return "not_checked", ["canonical_procedure_unavailable"]
-    try:
-        canonical = yaml.safe_load(canonical_content)
-    except (UnicodeDecodeError, yaml.YAMLError):
-        return "not_checked", ["canonical_procedure_unreadable"]
     if podway_handler_structure(document) != podway_handler_structure(canonical):
         return "unqualified", ["unrecognized_semantic_customization"]
     return "compatible", []
@@ -1023,10 +763,10 @@ def supported_sanho_version(version: str | None) -> bool:
 
 
 def supported_dolgorae_version(version: str | None) -> bool:
-    return bool(
-        dolgorae_release
-        and dolgorae_release.canonical_supported_tag(version) is not None
-    )
+    if not version:
+        return False
+    match = re.fullmatch(rf"v?0\.1\.({CANONICAL_NUMERIC_COMPONENT})", version)
+    return bool(match and int(match.group(1)) >= 2)
 
 
 def supported_gaori_version(version: str | None) -> bool:
@@ -1036,11 +776,39 @@ def supported_gaori_version(version: str | None) -> bool:
     return bool(match and int(match.group(1)) >= 17)
 
 
+def canonical_numeric_components_at_least(
+    components: tuple[str, ...], minimum: tuple[int, ...]
+) -> bool:
+    if len(components) != len(minimum):
+        return False
+    observed_key = tuple((len(component), component) for component in components)
+    minimum_key = tuple(
+        (len(minimum_component), minimum_component)
+        for minimum_component in map(str, minimum)
+    )
+    return observed_key >= minimum_key
+
+
 def supported_mulgae_version(version: str | None) -> bool:
     if not version:
         return False
-    match = re.fullmatch(rf"v?0\.1\.({CANONICAL_NUMERIC_COMPONENT})", version)
-    return bool(match and int(match.group(1)) >= 21)
+    match = re.fullmatch(
+        rf"v?({CANONICAL_NUMERIC_COMPONENT})\."
+        rf"({CANONICAL_NUMERIC_COMPONENT})\."
+        rf"({CANONICAL_NUMERIC_COMPONENT})"
+        r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?",
+        version,
+    )
+    return bool(
+        match
+        and canonical_numeric_components_at_least(
+            match.groups(), MULGAE_MINIMUM_VERSION
+        )
+    )
+
+
+def mulgae_native_contract(version: str | None) -> dict[str, Any] | None:
+    return MULGAE_NATIVE_CONTRACT if supported_mulgae_version(version) else None
 
 
 def supported_sorage_version(version: str | None) -> bool:
@@ -1059,14 +827,27 @@ def supported_mulgae_go_version(version: str | None) -> bool:
         rf"({CANONICAL_NUMERIC_COMPONENT})",
         version,
     )
-    return bool(match and tuple(map(int, match.groups())) >= (1, 26, 6))
+    return bool(
+        match and canonical_numeric_components_at_least(match.groups(), (1, 26, 6))
+    )
 
 
 def supported_ouroboros_version(version: str | None) -> bool:
+    return supported_stable_version(version, (0, 51, 1))
+
+
+def supported_stable_version(
+    version: str | None, minimum: tuple[int, int, int]
+) -> bool:
     if not version:
         return False
-    match = re.fullmatch(rf"v?0\.(51|52|53)\.({CANONICAL_NUMERIC_COMPONENT})", version)
-    return bool(match and (int(match.group(1)) > 51 or int(match.group(2)) >= 1))
+    match = re.fullmatch(
+        rf"v?({CANONICAL_NUMERIC_COMPONENT})\."
+        rf"({CANONICAL_NUMERIC_COMPONENT})\."
+        rf"({CANONICAL_NUMERIC_COMPONENT})",
+        version,
+    )
+    return bool(match and tuple(map(int, match.groups())) >= minimum)
 
 
 def ouroboros_version_from_output(output: str) -> str | None:
@@ -1704,9 +1485,13 @@ def managed_directory_tree_symlinked(path: Path, boundary: Path) -> bool:
     return False
 
 
-def inspect_agent_skill(name: str, required_files: tuple[str, ...]) -> dict[str, Any]:
+def inspect_agent_skill(
+    name: str,
+    required_files: tuple[str, ...],
+    roots: tuple[Path, ...] | None = None,
+) -> dict[str, Any]:
     installations: list[dict[str, Any]] = []
-    for root in skill_roots():
+    for root in roots if roots is not None else skill_roots():
         directory = root / name
         if skill_root_symlinked(root):
             installations.append(
@@ -2168,10 +1953,7 @@ def is_arm64_macho(path: Path) -> bool:
 def inspect_dolgorae(
     repository: Path,
     timeout_seconds: float,
-    verify_official_release: bool = False,
 ) -> dict[str, Any]:
-    if dolgorae_release is None:
-        raise RuntimeError("global Dolgorae release verifier is unavailable")
     discovered = shutil.which("dolgorae")
     tool = base_tool("dolgorae")
     tool["version_supported"] = False
@@ -2186,27 +1968,13 @@ def inspect_dolgorae(
     tool["safe_location"] = False
     tool["arm64_macho"] = False
     tool["executable_sha256"] = None
-    tool["official_executable"] = False
     tool["file_identity"] = None
     tool["identity_stable"] = False
     tool["capability_sha256"] = None
     tool["capabilities_compatible"] = False
-    tool["release_verification"] = {
-        "schema_version": dolgorae_release.SCHEMA_VERSION,
-        "status": "not_requested",
-    }
-
-    def verify_release(version: str | None) -> dict[str, Any]:
-        try:
-            return dolgorae_release.verify_release(version, timeout_seconds)
-        except dolgorae_release.ReleaseVerificationError as error:
-            return dolgorae_release.failure_result(error)
-
     if not discovered:
         tool["probes"]["version"] = skipped_probe("executable_missing")
         tool["probes"]["capabilities"] = skipped_probe("executable_missing")
-        if verify_official_release:
-            tool["release_verification"] = verify_release(None)
         return tool
 
     executable = Path(discovered)
@@ -2244,8 +2012,6 @@ def inspect_dolgorae(
     ):
         tool["probes"]["version"] = skipped_probe("executable_unsafe")
         tool["probes"]["capabilities"] = skipped_probe("executable_unsafe")
-        if verify_official_release:
-            tool["release_verification"] = verify_release(None)
         tool["status"] = "degraded"
         return tool
 
@@ -2277,27 +2043,6 @@ def inspect_dolgorae(
             normalized_probe_result["error_code"] = "unexpected_version_envelope"
     tool["probes"]["version"] = normalized_probe_result
     tool["version_supported"] = supported_dolgorae_version(tool["version"])
-
-    release = None
-    if verify_official_release and tool["version_supported"]:
-        tool["release_verification"] = verify_release(tool["version"])
-        if tool["release_verification"]["status"] == "verified":
-            release = tool["release_verification"]["release"]
-            tool["official_executable"] = (
-                tool["executable_sha256"] == release["executable_sha256"]
-            )
-    elif verify_official_release:
-        version_unknown = tool["version"] is None
-        tool["release_verification"] = dolgorae_release.failure_result(
-            dolgorae_release.ReleaseVerificationError(
-                "version_unknown" if version_unknown else "unsupported_version",
-                (
-                    "Dolgorae version could not be determined"
-                    if version_unknown
-                    else dolgorae_release.UNSUPPORTED_VERSION_MESSAGE
-                ),
-            )
-        )
 
     raw_capabilities_probe = run_command(
         [str(executable.resolve()), "runtime", "capabilities"],
@@ -2353,18 +2098,14 @@ def inspect_dolgorae(
         )
     except OSError:
         tool["identity_stable"] = False
-    if not tool["identity_stable"]:
-        tool["official_executable"] = False
     tool["status"] = (
         "installed"
         if valid_envelope
         and tool["version_supported"]
         and tool["platform"]["supported"]
         and tool["arm64_macho"]
-        and tool["official_executable"]
         and tool["identity_stable"]
         and valid_capabilities
-        and release is not None
         else "degraded"
     )
     return tool
@@ -2372,18 +2113,39 @@ def inspect_dolgorae(
 
 def normalize_mulgae_command_envelope(
     probe: dict[str, Any],
+    contract: dict[str, Any] | None,
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     normalized = normalized_probe(probe)
+    if contract is None:
+        normalized["error_code"] = "unsupported_native_version"
+        return normalized, None
     envelope = probe.get("result")
     if not isinstance(envelope, dict):
         return normalized, None
     schema = envelope.get("schema_version")
     if isinstance(schema, str):
         normalized["output_schema"] = schema
-    if schema != MULGAE_COMMAND_RESULT_SCHEMA:
+    if not numbered_schema_at_least(
+        schema,
+        "mulgae-command-result.v",
+        contract["minimum_command_schema"],
+    ):
         normalized["error_code"] = "unsupported_output_schema"
         return normalized, None
     return normalized, envelope
+
+
+def numbered_schema_at_least(value: Any, prefix: str, minimum: int) -> bool:
+    if not isinstance(value, str):
+        return False
+    match = re.fullmatch(rf"{re.escape(prefix)}({CANONICAL_NUMERIC_COMPONENT})", value)
+    return bool(
+        match
+        and canonical_numeric_components_at_least(
+            (match.group(1),),
+            (minimum,),
+        )
+    )
 
 
 def mulgae_reason_codes(envelope: Any) -> list[str]:
@@ -2477,10 +2239,14 @@ def normalize_mulgae_cli_compatibility(value: Any) -> dict[str, Any] | None:
     return {"status": status, **{field: value[field] for field in fields}}
 
 
-def normalize_mulgae_provider_inventory(value: Any) -> list[dict[str, Any]] | None:
-    if not isinstance(value, list) or len(value) != 4:
+def normalize_mulgae_provider_inventory(
+    value: Any,
+    compatibility_fields: tuple[str, ...],
+) -> list[dict[str, Any]] | None:
+    if not isinstance(value, list) or not value or len(value) > 64:
         return None
     inventory: list[dict[str, Any]] = []
+    families: set[str] = set()
     for row in value:
         if not isinstance(row, dict):
             return None
@@ -2492,24 +2258,23 @@ def normalize_mulgae_provider_inventory(value: Any) -> list[dict[str, Any]] | No
         binary_available = normalize_mulgae_diagnostic_check(
             row.get("binary_available")
         )
-        cli_compatible = normalize_mulgae_cli_compatibility(row.get("cli_compatible"))
+        compatibility = {
+            field: normalize_mulgae_cli_compatibility(row.get(field))
+            for field in compatibility_fields
+        }
         if (
-            family not in {"kimi", "zcode", "agy", "codex"}
+            not isinstance(family, str)
+            or re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", family) is None
+            or family in families
             or not isinstance(configured, bool)
             or not isinstance(referenced_by_roles, list)
+            or len(referenced_by_roles) > 64
             or not all(
-                role
-                in {
-                    "logic",
-                    "security",
-                    "maintainability",
-                    "product",
-                    "documentation",
-                    "testing",
-                    "artist",
-                }
+                isinstance(role, str)
+                and re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", role) is not None
                 for role in referenced_by_roles
             )
+            or len(set(referenced_by_roles)) != len(referenced_by_roles)
             or state
             not in {
                 "eligible",
@@ -2520,9 +2285,10 @@ def normalize_mulgae_provider_inventory(value: Any) -> list[dict[str, Any]] | No
             or not isinstance(reason, str)
             or re.fullmatch(r"[a-z][a-z0-9_]{0,63}", reason) is None
             or binary_available is None
-            or cli_compatible is None
+            or any(value is None for value in compatibility.values())
         ):
             return None
+        families.add(family)
         inventory.append(
             {
                 "family": family,
@@ -2531,16 +2297,16 @@ def normalize_mulgae_provider_inventory(value: Any) -> list[dict[str, Any]] | No
                 "state": state,
                 "reason": reason,
                 "binary_available": binary_available,
-                "cli_compatible": cli_compatible,
+                **compatibility,
             }
         )
-    if [row["family"] for row in inventory] != ["kimi", "zcode", "agy", "codex"]:
-        return None
     return inventory
 
 
-def normalize_mulgae_doctor(probe: dict[str, Any]) -> dict[str, Any]:
-    normalized, envelope = normalize_mulgae_command_envelope(probe)
+def normalize_mulgae_doctor(
+    probe: dict[str, Any], contract: dict[str, Any] | None
+) -> dict[str, Any]:
+    normalized, envelope = normalize_mulgae_command_envelope(probe, contract)
     if not isinstance(envelope, dict):
         return normalized
     result = envelope.get("result")
@@ -2551,7 +2317,11 @@ def normalize_mulgae_doctor(probe: dict[str, Any]) -> dict[str, Any]:
             schema = doctor.get("schema_version")
             if isinstance(schema, str):
                 normalized["result_schema"] = schema
-            if schema != MULGAE_DOCTOR_RESULT_SCHEMA:
+            if not numbered_schema_at_least(
+                schema,
+                "mulgae-doctor-result.v",
+                contract["minimum_doctor_schema"],
+            ):
                 normalized["doctor_capability"] = "unsupported"
                 normalized["result"] = safe
                 return normalized
@@ -2560,8 +2330,13 @@ def normalize_mulgae_doctor(probe: dict[str, Any]) -> dict[str, Any]:
             config: dict[str, Any] = {}
             if isinstance(raw_config, dict):
                 allowed_config_values = {
-                    "status": {"ready", "missing", "invalid", "unsafe"},
-                    "locality": {"verified", "rejected", "not_observed"},
+                    "status": {"ready", "missing", "invalid", "unsafe", "drifted"},
+                    "locality": {
+                        "verified",
+                        "rejected",
+                        "not_observed",
+                        "drifted",
+                    },
                     "provenance_state": {"accepted", "rejected", "not_observed"},
                 }
                 for name, allowed in allowed_config_values.items():
@@ -2569,35 +2344,44 @@ def normalize_mulgae_doctor(probe: dict[str, Any]) -> dict[str, Any]:
                     if value in allowed:
                         config[name] = value
                 reason_codes = raw_config.get("reason_codes")
-                allowed_config_reasons = {
-                    "config_missing",
-                    "local_config_missing",
-                    "config_provider_identity_invalid",
-                    "config_role_mapping_invalid",
-                    "config_yaml_invalid",
-                    "config_locality_unsafe",
-                    "config_not_observed_due_to_locality",
-                }
-                if isinstance(reason_codes, list) and all(
-                    code in allowed_config_reasons for code in reason_codes
-                ):
-                    config["reason_codes"] = reason_codes
+                if isinstance(reason_codes, list):
+                    safe_reason_codes = [
+                        code
+                        for code in reason_codes
+                        if isinstance(code, str)
+                        and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", code) is not None
+                    ]
+                    if not reason_codes or safe_reason_codes:
+                        config["reason_codes"] = safe_reason_codes
             if config:
                 safe_doctor["config"] = config
-            configured = doctor.get("configured_provider_ids")
-            if isinstance(configured, list) and all(
-                isinstance(provider, str) for provider in configured
-            ):
-                canonical = ["kimi", "zcode", "agy", "codex"]
-                if configured == [
-                    provider for provider in canonical if provider in configured
-                ]:
-                    safe_doctor["configured_provider_ids"] = configured
             inventory = doctor.get("provider_inventory")
             if isinstance(inventory, list):
-                safe_inventory = normalize_mulgae_provider_inventory(inventory)
+                safe_inventory = normalize_mulgae_provider_inventory(
+                    inventory,
+                    contract["provider_compatibility_fields"],
+                )
                 if safe_inventory is not None:
                     safe_doctor["provider_inventory"] = safe_inventory
+            configured = doctor.get("configured_provider_ids")
+            if (
+                isinstance(configured, list)
+                and len(configured) <= 64
+                and all(
+                    isinstance(provider, str)
+                    and re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", provider) is not None
+                    for provider in configured
+                )
+                and len(set(configured)) == len(configured)
+                and "provider_inventory" in safe_doctor
+                and configured
+                == [
+                    row["family"]
+                    for row in safe_doctor["provider_inventory"]
+                    if row["configured"]
+                ]
+            ):
+                safe_doctor["configured_provider_ids"] = configured
             for name in (
                 "config_v3",
                 "local_configuration",
@@ -2996,7 +2780,7 @@ def inspect_mulgae(
     unavailable_readiness = {
         "state": "unverified",
         "exit_code": 4,
-        "reason_codes": ["doctor_v2_not_observed"],
+        "reason_codes": ["doctor_contract_not_observed"],
     }
     tool["provider_inventory"] = []
     tool["mcp_required_for_status"] = require_mcp
@@ -3021,7 +2805,15 @@ def inspect_mulgae(
     )
     tool["probes"]["version"] = normalized_probe(version_probe)
     tool["version"] = version_from_probe(version_probe)
-    tool["version_supported"] = supported_mulgae_version(tool["version"])
+    mulgae_contract = mulgae_native_contract(tool["version"])
+    tool["version_supported"] = mulgae_contract is not None
+    unavailable_readiness["reason_codes"] = [
+        "doctor_contract_not_observed"
+        if not version_probe["ok"] or mulgae_contract
+        else "unsupported_native_version"
+    ]
+    tool["health"]["configured_readiness"] = unavailable_readiness.copy()
+    tool["health"]["role_route_readiness"] = unavailable_readiness.copy()
     project_config, local_config = tool["configuration"][:2]
     unsafe_configuration = any(
         entry["symlinked"] for entry in (project_config, local_config)
@@ -3051,12 +2843,17 @@ def inspect_mulgae(
             else "degraded"
         )
         return tool
+    if not version_probe["ok"]:
+        tool["probes"]["doctor"] = skipped_probe("version_probe_failed")
+        tool["health"]["mulgae_cli_compatibility"] = "incompatible"
+        tool["status"] = "degraded"
+        return tool
     doctor_probe = json_probe(
         [tool["executable"], "doctor", "--output", "json"],
         repository,
         timeout_seconds,
     )
-    normalized_doctor = normalize_mulgae_doctor(doctor_probe)
+    normalized_doctor = normalize_mulgae_doctor(doctor_probe, mulgae_contract)
     tool["probes"]["doctor"] = normalized_doctor
 
     both_missing = not project_config["present"] and not local_config["present"]
@@ -3076,11 +2873,13 @@ def inspect_mulgae(
     doctor_supported = normalized_doctor.get("doctor_capability") == "supported"
     doctor_command_ok = normalized_doctor["ok"]
     doctor_capability = normalized_doctor.get("doctor_capability")
-    health["doctor_contract"] = (
-        doctor_capability
-        if doctor_capability in {"supported", "unsupported", "invalid"}
-        else "unsupported"
-    )
+    command_error = normalized_doctor.get("error_code")
+    if command_error in {"unsupported_native_version", "unsupported_output_schema"}:
+        health["doctor_contract"] = "not_observed"
+    elif doctor_capability in {"supported", "unsupported", "invalid"}:
+        health["doctor_contract"] = doctor_capability
+    else:
+        health["doctor_contract"] = "not_observed"
     if doctor_supported and isinstance(doctor_payload, dict):
         for name in (
             "config_v3",
@@ -3096,11 +2895,14 @@ def inspect_mulgae(
         if isinstance(inventory, list):
             tool["provider_inventory"] = inventory
     else:
-        capability_reason = (
-            "doctor_v2_invalid"
-            if health["doctor_contract"] == "invalid"
-            else "doctor_v2_unsupported"
-        )
+        if command_error in {"unsupported_native_version", "unsupported_output_schema"}:
+            capability_reason = command_error
+        elif health["doctor_contract"] == "invalid":
+            capability_reason = "doctor_contract_invalid"
+        elif health["doctor_contract"] == "unsupported":
+            capability_reason = "doctor_contract_unsupported"
+        else:
+            capability_reason = "doctor_contract_not_observed"
         unsupported = {
             "status": "unverifiable",
             "reason_codes": [capability_reason],
@@ -3421,6 +3223,26 @@ def skill_roots() -> list[Path]:
     return roots
 
 
+def humanizer_skill_roots() -> tuple[Path, ...]:
+    return tuple(
+        dict.fromkeys((effective_codex_skill_root(), Path.home() / ".agents/skills"))
+    )
+
+
+def effective_codex_skill_root() -> Path:
+    return Path.home() / ".zcode/skills"
+
+
+def humanizer_expected_target() -> Path:
+    shared = Path.home() / ".agents/skills/humanizer"
+    active = effective_codex_skill_root() / "humanizer"
+    if (active.exists() or active.is_symlink()) and not (
+        shared.exists() or shared.is_symlink()
+    ):
+        return active
+    return shared
+
+
 def frontmatter_name(skill_path: Path) -> str | None:
     try:
         content = skill_path.read_text(encoding="utf-8")
@@ -3452,7 +3274,7 @@ def frontmatter_version(skill_path: Path) -> str | None:
 
 
 def unexpected_skill_entries(
-    directory: Path, expected_files: tuple[str, ...]
+    directory: Path, expected_files: tuple[str, ...], allow_extra: bool = False
 ) -> list[str]:
     expected_file_set = set(expected_files)
     expected_directories = {
@@ -3464,10 +3286,13 @@ def unexpected_skill_entries(
     actual_files: set[str] = set()
     actual_directories: set[str] = set()
     unsafe_entries: set[str] = set()
+    walk_errors: list[OSError] = []
     if directory.is_symlink() or not directory.is_dir():
         return ["<unsafe-or-unreadable>"]
     try:
-        for root, directories, files in os.walk(directory, followlinks=False):
+        for root, directories, files in os.walk(
+            directory, followlinks=False, onerror=walk_errors.append
+        ):
             root_path = Path(root)
             retained_directories = []
             for name in directories:
@@ -3482,12 +3307,16 @@ def unexpected_skill_entries(
             for name in files:
                 path = root_path / name
                 relative = str(path.relative_to(directory))
-                if path.is_symlink():
+                if path.is_symlink() or not path.is_file():
                     unsafe_entries.add(relative)
                 else:
                     actual_files.add(relative)
     except OSError:
         return ["<unsafe-or-unreadable>"]
+    if walk_errors:
+        return ["<unsafe-or-unreadable>"]
+    if allow_extra:
+        return sorted(unsafe_entries)
     return sorted(
         unsafe_entries
         | (actual_files - expected_file_set)
@@ -3500,15 +3329,21 @@ def inspect_writing_skill(
     skill_name: str,
     expected_files: tuple[str, ...],
     expected_target: Path | None,
-    supported_release: str,
-    require_version: bool,
+    supported_release: str | None = None,
+    minimum_version: str | None = None,
+    require_version: bool = True,
+    roots: tuple[Path, ...] | None = None,
 ) -> dict[str, Any]:
-    agent_skill = inspect_agent_skill(skill_name, expected_files)
+    agent_skill = inspect_agent_skill(skill_name, expected_files, roots)
     for installation in agent_skill["installations"]:
         installation["unexpected_entries"] = (
             ["<unsafe-or-unreadable>"]
             if installation["symlinked"]
-            else unexpected_skill_entries(Path(installation["path"]), expected_files)
+            else unexpected_skill_entries(
+                Path(installation["path"]),
+                expected_files,
+                allow_extra=minimum_version is not None,
+            )
         )
     structurally_ready = bool(
         agent_skill["status"] == "configured"
@@ -3530,9 +3365,11 @@ def inspect_writing_skill(
         )
         if skill_entry["present"] and not skill_entry["symlinked"]:
             version = frontmatter_version(Path(installation["path"]) / "SKILL.md")
-    version_supported = (
-        version == supported_release.removeprefix("v") if require_version else None
-    )
+    version_supported = None
+    if minimum_version is not None and (version is not None or require_version):
+        version_supported = supported_stable_version(
+            version, tuple(map(int, minimum_version.split(".")))
+        )
     ready = structurally_ready and (version_supported is not False)
     return {
         "catalog_status": "active",
@@ -3543,7 +3380,11 @@ def inspect_writing_skill(
         "expected_target": str(expected_target)
         if expected_target is not None
         else None,
-        "supported_release": supported_release,
+        **(
+            {"supported_range": f">={minimum_version}"}
+            if minimum_version is not None
+            else {"supported_release": supported_release}
+        ),
         "executable": None,
         "version": version,
         "version_supported": version_supported,
@@ -3562,23 +3403,28 @@ def inspect_humanizer() -> dict[str, Any]:
     return inspect_writing_skill(
         skill_name="humanizer",
         expected_files=HUMANIZER_SKILL_FILES,
-        expected_target=Path.home() / ".agents/skills/humanizer",
-        supported_release=HUMANIZER_SUPPORTED_RELEASE,
-        require_version=True,
+        expected_target=humanizer_expected_target(),
+        minimum_version=HUMANIZER_MINIMUM_VERSION,
+        roots=humanizer_skill_roots(),
     )
 
 
 def inspect_im_not_ai() -> dict[str, Any]:
     try:
-        target = Path.home() / ".agents/skills/humanize-korean"
+        root = effective_codex_skill_root()
+        target = root / "humanize-korean"
+        shared_root = Path.home() / ".agents/skills"
+        roots = (root, shared_root) if root != shared_root else (root,)
     except (OSError, ValueError, RuntimeError):
         target = None
+        roots = None
     result = inspect_writing_skill(
         skill_name="humanize-korean",
         expected_files=HUMANIZE_KOREAN_SKILL_FILES,
         expected_target=target,
-        supported_release=IM_NOT_AI_SUPPORTED_RELEASE,
+        minimum_version=IM_NOT_AI_MINIMUM_VERSION,
         require_version=False,
+        roots=roots,
     )
     if target is None:
         result["reason"] = "home_resolution_failed"
@@ -3843,20 +3689,24 @@ def inspect_ouroboros(
     # --runtime zcode` manages. `codex_home` is accepted for signature
     # compatibility with upstream's per-home callers and never specializes
     # the result; `cli_observation` reuses a caller's CLI probe exactly as
-    # upstream's form does.
+    # upstream's form does. v0.1.17 lifts the upper bound on the supported
+    # range — later stable releases keep the minimum machine contracts, and
+    # this host already runs one past the old ceiling — so the floor alone
+    # remains.
     tool = (
         dict(cli_observation)
         if cli_observation is not None
         else inspect_ouroboros_cli(repository, timeout_seconds)
     )
-    tool["supported_range"] = ">=0.51.1,<0.54.0"
+    tool["supported_range"] = ">=0.51.1"
     tool["mcp_registration"] = ouroboros_mcp_registration(
         repository, tool["executable"]
     )
     launcher = tool["mcp_registration"].get("launcher")
-    # Ouroboros registers its skills with the host agent, so the component
-    # whose health this integration adds on this host is the config
-    # registration resolved above.
+    # Ouroboros ships no ZCode-runtime doctor — `ooo codex doctor` checks
+    # the Codex surface only — so the component whose health this
+    # integration adds on this host is the config registration resolved
+    # above.
     tool["host_integration"] = {
         "status": tool["mcp_registration"]["status"],
         "probe": tool["mcp_registration"]["probe"],
@@ -3881,17 +3731,26 @@ def inspect_ouroboros(
     if not tool["installed"]:
         tool["version_supported"] = False
         tool["probes"]["version"] = skipped_probe("executable_missing")
-        tool["host_integration"] = {
-            "status": "missing",
-            "probe": skipped_probe("executable_missing"),
-        }
-        tool["mcp_runtime"] = {
-            "status": "missing",
-            "probe": skipped_probe("executable_missing"),
-        }
+        # The registration is a config-file read, so it stays reportable
+        # with the CLI missing, and an isolated launcher runs the MCP
+        # server in its own package environment — runtime state upstream
+        # v0.1.17 also reports as configured without the base CLI.
+        # Readiness stays gated on the CLI through `version_supported`.
+        if launcher == "isolated":
+            tool["mcp_runtime"] = {
+                "status": "configured",
+                "reason": "isolated_launcher_contract",
+                "probe": skipped_probe("isolated_environment_not_probed"),
+            }
+        else:
+            reason = tool["mcp_registration"].get("reason", "registration_not_found")
+            tool["mcp_runtime"] = {
+                "status": "missing" if reason == "registration_not_found" else "unverifiable",
+                "reason": reason,
+                "probe": skipped_probe(reason),
+            }
         return tool
 
-    launcher = tool["mcp_registration"].get("launcher")
     if launcher == "isolated":
         # The canonical isolated launcher runs the MCP 2 server in its own
         # package environment; the base CLI's doctor would inspect an
@@ -4350,8 +4209,8 @@ def inspect(
             "lore-commits": Path.home() / ".agents/skills/lore-commits",
             "lore-query": Path.home() / ".agents/skills/lore-query",
             "deslop": Path.home() / ".agents/skills/deslop",
-            "humanizer": Path.home() / ".agents/skills/humanizer",
-            "humanize-korean": Path.home() / ".agents/skills/humanize-korean",
+            "humanizer": humanizer_expected_target(),
+            "humanize-korean": effective_codex_skill_root() / "humanize-korean",
         }.items()
     }
     tools = {

@@ -1,7 +1,8 @@
 # Mulgae Review Contract
 
-Use Mulgae v0.1.21 or a supported later stable v0.1.x release. The same-release
-`/use-mulgae` skill owns native execution, retention, cancellation, and recovery.
+Use a stable Mulgae release at or above the supported minimum below. The
+same-release `/use-mulgae` skill owns native execution, waiting, retention,
+cancellation, and recovery.
 This contract owns how Aquarium consumes those results in an approved Task or
 Epic review and in the explicitly requested standalone report-only entrypoint.
 Read [finding-disposition.md](finding-disposition.md) and
@@ -19,10 +20,35 @@ through the native objective input, roles, and approved source-transmission
 scope. An owning workflow also supplies its goal revision, review ordinal, and
 mode. A standalone invocation includes those values only when the request
 provides them as context and never manufactures them. Bind preflight and
-execution to those same inputs. Current command
-responses use `mulgae-command-result.v8`; setup consumes Doctor v2 and review
-preflight uses v3. Historical v5, v6, and v7 readability does not admit those
-versions as current command responses.
+execution to those same inputs.
+
+The agent that will select the transport or start the review must first load the
+installed `/use-mulgae` skill in its own execution context and follow its
+same-release instructions. Naming the skill or loading it only in a coordinator
+does not load it for a delegated worker. Already loaded guidance may be reused
+while its version, scope, and relevant state remain applicable. If the skill or
+a required capability is missing, use the prerequisite and fallback contracts
+below; do not reconstruct a Mulgae lifecycle from memory or Aquarium examples.
+
+Aquarium supports this minimum release and later stable releases that preserve
+or advance its machine contracts:
+
+| Mulgae release | Command envelope | Doctor | Review preflight | Configuration |
+| --- | --- | --- | --- | --- |
+| Stable `>=v0.1.23` | `mulgae-command-result.v12` or later | `mulgae-doctor-result.v5` or later | `mulgae-review-preflight.v5` or later | Native supported configuration, Config v4 at the minimum |
+
+Reject prereleases and releases below the minimum. SemVer build metadata does
+not make an otherwise stable release ineligible. Do not impose an upper release
+bound: a later stable CLI remains eligible when its command, Doctor, and
+preflight schemas meet these floors. Accept additive fields, reason codes,
+and canonical provider family identifiers while preserving the required typed
+fields on every reported provider row. Provider membership and order remain
+native Doctor authority. A breaking removal of a required field or another
+incompatible shape remains an unsupported contract, not a reason to reject a
+release number by itself.
+Doctor v5 still exposes the field named
+`config_v3`; consume that native field name without treating it as the project
+configuration version.
 
 Global CLI or required paired-skill gaps belong to `/aquarium:dev-setup-global`;
 repository configuration and required project MCP gaps belong to
@@ -34,10 +60,26 @@ that authority cannot be established, return the missing prerequisite rather
 than reconstructing a lifecycle from Aquarium examples.
 
 A pending invocation represents unfinished work. It establishes neither review
-completion nor a durable run ID. Preserve its identity and delegate continuation to the paired skill. Do not
-advance a workflow from a start or cancellation acknowledgement, or infer live
-state from completed run inventory. Return terminal run identity and evidence
-only when the native result supplies them.
+completion nor a durable run ID. Preserve its identity and delegate continuation
+and completion waiting to the paired skill. Do not advance a workflow from a
+start or cancellation acknowledgement, or infer live state from completed run
+inventory. Return terminal run identity and evidence only when the native result
+supplies them.
+
+Let one attached Mulgae process manage its native invocation window. Terminal
+identities may be discarded for later admissions; `invocation_limit_reached`
+means 64 reviews are still running, not that 64 historical invocations exist.
+
+Once the paired skill starts an operation, Aquarium does not add a competing
+observation loop. Do not issue recurring status queries, inspect files or
+processes for liveness, start another observer while an earlier observer remains
+pending, or start another review to produce a progress update. Repeated bounded
+host waits on the same deferred handle are not native polling. If an observer
+actually times out or fails, let `/use-mulgae` continue or recover the existing
+operation under its native contract. A user-requested progress response uses
+only the observation that contract permits and leaves the original operation
+authoritative. Aquarium defines no polling interval, universal wait duration,
+retry quota, or timeout policy.
 
 Before delegating a new root, the Aquarium caller must establish an independent
 reason and remaining authority for that exact target. When an owning workflow
@@ -93,14 +135,24 @@ condition is permanent. Apply the same rule to a CLI
 `rate_limit`.
 
 A rate limit during provider execution is different. MCP completes with a
-successful tool outcome, terminal exit 4, and a `rate_limit` reason; CLI v8
+successful tool outcome, terminal exit 4, and a `rate_limit` reason; the CLI
 reports the attributed `provider_rate_limited` failure. Reconcile the returned
 run. When it committed with incomplete coverage, recover only its failed roles
 through the exact flow above. Transport success does not make the review clean.
 
+Treat CLI exit 10 with `review_preparation_failed` as an internal failure after
+accepted planning but before a durably recorded run start. Preserve its
+diagnostic run identity and closed stage, and diagnose that run instead of
+substituting Doctor or starting another review. Preserve
+`provider_protocol_event_decode_failed` as a typed malformed-event reason while
+allowing additive provider telemetry that does not violate the required
+protocol event shape. Provider stdout and stderr may use variable-sized
+publication support and must not be rejected merely for exceeding the former
+fixed-size boundary.
+
 ## Count and Verify Review Evidence
 
-A round completes only when the full-target root or its verified composite has
+A round completes only when the exact assessment-target root or its verified composite has
 terminal authoritative status, `coverage_status=complete`,
 `publication_status=committed`, and a successful findings query. Count it once
 for the original root within the current goal revision. Preflight, reads,
@@ -120,8 +172,9 @@ Approval also requires passing CI and the owning workflow's completed finding
 dispositions. Track `structured_extraction_status` independently; `reports_only`
 does not waive coverage, publication, CI, or adjudication requirements. After code
 or other target changes, recovery of an old capture cannot establish current
-review evidence. The next provider review is the next authorized full-target
-root round. `followup` and `delta` cannot substitute for it.
+review evidence. The next provider review is the next authorized assessment kind
+against the precisely supplied target. `followup` and `delta` cannot substitute
+for its root round.
 
 Mulgae runtime-log v4, run-status v3, and invocation-status v2 remain native
 diagnostic contracts owned by the same-release paired skill. Safe public
